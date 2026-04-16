@@ -44,13 +44,12 @@ export const distributors = [
 ] as const;
 
 export const posmMaterials = [
-  { label: "🧵 Fabric", value: "fabric" },
-  { label: "🍯 Honeycomb", value: "honeycomb" },
-  { label: "📄 A4 Sheet", value: "a4-sheet" },
-  { label: "📦 Backing Sheet", value: "backing-sheet" },
-  { label: "🪧 Brand Board", value: "brand-board" },
-  { label: "📏 Shelf Strip", value: "shelf-strip" },
-  { label: "🎯 Danglers", value: "danglers" },
+  { code: "GFK_RD_LNG_RNG_HCOMB_BB_12X16IN", name: "Honeycomb Board" },
+  { code: "CL_BT_LNG_RNG_SHELF_BB_11.5X4.5IN", name: "Shelf Strip" },
+  { code: "IR_2966", name: "Backing Sheet" },
+  { code: "AC_FRLONGS_RNG_PG_BB_17X22IN", name: "Brand Board" },
+  { code: "GFK_DK_SAME_GR_TASTE_ALTPP_BB_22X35IN", name: "A4 Sheet" },
+  { code: "CL_BT_LNG_RNG_HCOMB_BB_12X16IN", name: "Honeycomb Small" },
 ] as const;
 
 export const teamLeaders = [
@@ -58,3 +57,12 @@ export const teamLeaders = [
   "Suresh",
   "Naidu",
 ] as const;
+
+export const initialStock: Record<string, number> = {
+  "GFK_RD_LNG_RNG_HCOMB_BB_12X16IN": 500,
+  "CL_BT_LNG_RNG_SHELF_BB_11.5X4.5IN": 300,
+  "IR_2966": 200,
+  "AC_FRLONGS_RNG_PG_BB_17X22IN": 0,
+  "GFK_DK_SAME_GR_TASTE_ALTPP_BB_22X35IN": 0,
+  "CL_BT_LNG_RNG_HCOMB_BB_12X16IN": 0,
+};
