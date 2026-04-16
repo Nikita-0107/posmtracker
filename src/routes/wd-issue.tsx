@@ -1,34 +1,34 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Truck, ChevronDown, Hash, CheckCircle2 } from "lucide-react";
+import { Package, ChevronDown, Hash, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { distributors, posmMaterials } from "@/lib/posm-data";
+import { teamLeaders, posmMaterials } from "@/lib/posm-data";
 
-export const Route = createFileRoute("/")({
-  component: DispatchPage,
+export const Route = createFileRoute("/wd-issue")({
+  component: WdIssuePage,
   head: () => ({
     meta: [
-      { title: "WSP Dispatch — POSM Tracker" },
-      { name: "description", content: "Dispatch POSM materials to distributors" },
+      { title: "WD Issue to TL — POSM Tracker" },
+      { name: "description", content: "Issue POSM materials from WD to Team Leader" },
     ],
   }),
 });
 
-function DispatchPage() {
-  const [wd, setWd] = useState("");
+function WdIssuePage() {
+  const [tl, setTl] = useState("");
   const [material, setMaterial] = useState("");
   const [qty, setQty] = useState("");
   const [success, setSuccess] = useState(false);
 
-  const canSubmit = wd && material && qty && Number(qty) > 0;
+  const canSubmit = tl && material && qty && Number(qty) > 0;
 
-  function handleDispatch() {
+  function handleIssue() {
     if (!canSubmit) return;
     setSuccess(true);
     setTimeout(() => {
       setSuccess(false);
-      setWd("");
+      setTl("");
       setMaterial("");
       setQty("");
     }, 2500);
@@ -38,27 +38,27 @@ function DispatchPage() {
     <AppShell>
       <div className="mx-auto max-w-md space-y-5">
         <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Truck size={20} className="text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
+            <Package size={20} className="text-accent" />
           </div>
           <div>
-            <h2 className="font-heading text-xl font-bold">WSP Dispatch</h2>
-            <p className="text-xs text-muted-foreground">Dispatch POSM to distributor</p>
+            <h2 className="font-heading text-xl font-bold">WD Issue to TL</h2>
+            <p className="text-xs text-muted-foreground">Issue material to Team Leader</p>
           </div>
         </div>
 
-        {/* WD Select */}
+        {/* TL Select */}
         <label className="block space-y-1.5">
-          <span className="text-sm font-semibold text-foreground">Select WD (Distributor)</span>
+          <span className="text-sm font-semibold text-foreground">Select TL Name</span>
           <div className="relative">
             <select
-              value={wd}
-              onChange={(e) => setWd(e.target.value)}
+              value={tl}
+              onChange={(e) => setTl(e.target.value)}
               className="w-full appearance-none rounded-xl border bg-card px-4 py-3.5 pr-10 text-sm font-medium text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
             >
-              <option value="">— Choose distributor —</option>
-              {distributors.map((d) => (
-                <option key={d} value={d}>{d}</option>
+              <option value="">— Choose Team Leader —</option>
+              {teamLeaders.map((t) => (
+                <option key={t} value={t}>{t}</option>
               ))}
             </select>
             <ChevronDown size={18} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -100,14 +100,14 @@ function DispatchPage() {
           </div>
         </label>
 
-        {/* Dispatch Button */}
+        {/* Issue Button */}
         <button
-          onClick={handleDispatch}
+          onClick={handleIssue}
           disabled={!canSubmit}
-          className="w-full rounded-xl bg-primary py-4 text-base font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
+          className="w-full rounded-xl bg-accent py-4 text-base font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100"
         >
-          <Truck size={18} className="mr-2 inline-block" />
-          Dispatch
+          <Package size={18} className="mr-2 inline-block" />
+          Issue
         </button>
 
         {/* Success */}
@@ -120,7 +120,7 @@ function DispatchPage() {
               className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm font-semibold text-success"
             >
               <CheckCircle2 size={20} />
-              ✅ Dispatched successfully
+              ✅ Issued to TL successfully
             </motion.div>
           )}
         </AnimatePresence>
