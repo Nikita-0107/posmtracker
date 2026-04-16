@@ -9,8 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WdIssueRouteImport } from './routes/wd-issue'
+import { Route as TlUploadRouteImport } from './routes/tl-upload'
 import { Route as IndexRouteImport } from './routes/index'
 
+const WdIssueRoute = WdIssueRouteImport.update({
+  id: '/wd-issue',
+  path: '/wd-issue',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TlUploadRoute = TlUploadRouteImport.update({
+  id: '/tl-upload',
+  path: '/tl-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -19,28 +31,50 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/tl-upload': typeof TlUploadRoute
+  '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/tl-upload': typeof TlUploadRoute
+  '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/tl-upload': typeof TlUploadRoute
+  '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/tl-upload' | '/wd-issue'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/tl-upload' | '/wd-issue'
+  id: '__root__' | '/' | '/tl-upload' | '/wd-issue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  TlUploadRoute: typeof TlUploadRoute
+  WdIssueRoute: typeof WdIssueRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wd-issue': {
+      id: '/wd-issue'
+      path: '/wd-issue'
+      fullPath: '/wd-issue'
+      preLoaderRoute: typeof WdIssueRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tl-upload': {
+      id: '/tl-upload'
+      path: '/tl-upload'
+      fullPath: '/tl-upload'
+      preLoaderRoute: typeof TlUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -53,7 +87,18 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  TlUploadRoute: TlUploadRoute,
+  WdIssueRoute: WdIssueRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
