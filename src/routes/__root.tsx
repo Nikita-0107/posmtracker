@@ -36,6 +36,8 @@ export const Route = createRootRoute({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "POSM Tracker" },
+      { name: "twitter:description", content: "Mobile POSM tracking for dispatch, issue, and upload" },
     ],
     links: [
       {
