@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as TlUploadRouteImport } from './routes/tl-upload'
+import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as IndexRouteImport } from './routes/index'
 
 const WdIssueRoute = WdIssueRouteImport.update({
@@ -23,6 +24,11 @@ const TlUploadRoute = TlUploadRouteImport.update({
   path: '/tl-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReceiveRoute = ReceiveRouteImport.update({
+  id: '/receive',
+  path: '/receive',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -31,30 +37,34 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/receive': typeof ReceiveRoute
   '/tl-upload': typeof TlUploadRoute
   '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/receive': typeof ReceiveRoute
   '/tl-upload': typeof TlUploadRoute
   '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/receive': typeof ReceiveRoute
   '/tl-upload': typeof TlUploadRoute
   '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/tl-upload' | '/wd-issue'
+  fullPaths: '/' | '/receive' | '/tl-upload' | '/wd-issue'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/tl-upload' | '/wd-issue'
-  id: '__root__' | '/' | '/tl-upload' | '/wd-issue'
+  to: '/' | '/receive' | '/tl-upload' | '/wd-issue'
+  id: '__root__' | '/' | '/receive' | '/tl-upload' | '/wd-issue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ReceiveRoute: typeof ReceiveRoute
   TlUploadRoute: typeof TlUploadRoute
   WdIssueRoute: typeof WdIssueRoute
 }
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TlUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/receive': {
+      id: '/receive'
+      path: '/receive'
+      fullPath: '/receive'
+      preLoaderRoute: typeof ReceiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ReceiveRoute: ReceiveRoute,
   TlUploadRoute: TlUploadRoute,
   WdIssueRoute: WdIssueRoute,
 }

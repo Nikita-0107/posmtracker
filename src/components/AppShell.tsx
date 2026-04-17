@@ -1,8 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Package, Truck, Camera } from "lucide-react";
+import { Package, Truck, Camera, Inbox } from "lucide-react";
 
 const tabs = [
-  { to: "/" as const, label: "Stock/Dispatch", icon: Truck },
+  { to: "/receive" as const, label: "Receive", icon: Inbox },
+  { to: "/" as const, label: "Dispatch", icon: Truck },
   { to: "/wd-issue" as const, label: "WD → TL", icon: Package },
   { to: "/tl-upload" as const, label: "TL Upload", icon: Camera },
 ];
@@ -23,14 +24,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
-        <div className="mx-auto flex max-w-md">
+        <div className="mx-auto grid max-w-md grid-cols-4">
           {tabs.map((tab) => {
             const isActive = location.pathname === tab.to;
             return (
               <Link
                 key={tab.to}
                 to={tab.to}
-                className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+                className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`}
               >

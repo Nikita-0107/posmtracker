@@ -43,14 +43,16 @@ export const distributors = [
   "VASUDAH ASSOCIATES – VIZAG-VASUDAH",
 ] as const;
 
-export const posmMaterials = [
+export type PosmMaterial = { code: string; name: string };
+
+export const posmMaterials: PosmMaterial[] = [
   { code: "GFK_RD_LNG_RNG_HCOMB_BB_12X16IN", name: "Honeycomb Board" },
   { code: "CL_BT_LNG_RNG_SHELF_BB_11.5X4.5IN", name: "Shelf Strip" },
   { code: "IR_2966", name: "Backing Sheet" },
   { code: "AC_FRLONGS_RNG_PG_BB_17X22IN", name: "Brand Board" },
   { code: "GFK_DK_SAME_GR_TASTE_ALTPP_BB_22X35IN", name: "A4 Sheet" },
   { code: "CL_BT_LNG_RNG_HCOMB_BB_12X16IN", name: "Honeycomb Small" },
-] as const;
+];
 
 export const teamLeaders = [
   "Ravi Kumar",
@@ -66,3 +68,18 @@ export const initialStock: Record<string, number> = {
   "GFK_DK_SAME_GR_TASTE_ALTPP_BB_22X35IN": 0,
   "CL_BT_LNG_RNG_HCOMB_BB_12X16IN": 0,
 };
+
+export function addMaterial(code: string, name: string): PosmMaterial | null {
+  const trimmedCode = code.trim().toUpperCase();
+  const trimmedName = name.trim();
+  if (!trimmedCode || !trimmedName) return null;
+  if (posmMaterials.some((m) => m.code === trimmedCode)) {
+    return posmMaterials.find((m) => m.code === trimmedCode) ?? null;
+  }
+  const material = { code: trimmedCode, name: trimmedName };
+  posmMaterials.push(material);
+  if (!(trimmedCode in initialStock)) {
+    initialStock[trimmedCode] = 0;
+  }
+  return material;
+}
