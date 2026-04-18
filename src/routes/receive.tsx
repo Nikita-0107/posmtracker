@@ -339,23 +339,49 @@ function ReceivePage() {
           )}
         </AnimatePresence>
 
-        {/* Success card */}
+        {/* Success card — persistent until user dismisses */}
         <AnimatePresence>
           {submitResult && (
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="space-y-1.5 rounded-xl border bg-success/5 px-3 py-3 text-xs"
+              className="space-y-3 rounded-xl border-2 border-success/30 bg-success/5 p-4"
             >
-              <p className="flex items-center gap-1.5 font-bold text-success">
-                <CheckCircle2 size={16} /> ✅ Added to WSP Stock
+              <p className="flex items-center gap-1.5 text-sm font-bold text-success">
+                <CheckCircle2 size={18} /> Material Added to Stock
               </p>
-              <div className="space-y-0.5 text-foreground">
-                <p><span className="text-muted-foreground">Material Code:</span> <strong>{submitResult.code}</strong></p>
-                <p><span className="text-muted-foreground">Name:</span> {submitResult.name}</p>
-                <p><span className="text-muted-foreground">Quantity Added:</span> {submitResult.qty}</p>
-                <p><span className="text-muted-foreground">New Stock Total:</span> <strong>{submitResult.total}</strong></p>
+              <div className="space-y-1.5 rounded-lg bg-card p-3 text-xs">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Material Code</span>
+                  <strong className="font-mono text-foreground">{submitResult.code}</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="shrink-0 text-muted-foreground">Description</span>
+                  <span className="truncate text-right text-foreground">{submitResult.name}</span>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">Quantity Added</span>
+                  <strong className="text-foreground">+{submitResult.qty}</strong>
+                </div>
+                <div className="flex justify-between gap-2 border-t pt-1.5">
+                  <span className="text-muted-foreground">New Stock Total</span>
+                  <strong className="text-success">{submitResult.total} units</strong>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => setSubmitResult(null)}
+                  className="rounded-xl border-2 border-primary/40 bg-card py-2.5 text-sm font-bold text-primary transition active:scale-[0.98]"
+                >
+                  Add More
+                </button>
+                <Link
+                  to="/stock"
+                  className="flex items-center justify-center rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98]"
+                >
+                  Done
+                </Link>
               </div>
             </motion.div>
           )}
