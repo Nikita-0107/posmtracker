@@ -18,9 +18,11 @@ export const Route = createFileRoute("/stock")({
 
 function StockPage() {
   const [wsp] = useWsp();
+  const wspEnabled = wsp === "CEVL";
   const [query, setQuery] = useState("");
 
   const items = useMemo(() => {
+    if (!wspEnabled) return [];
     const q = query.trim().toLowerCase();
     const list = q
       ? posmMaterials.filter(
@@ -28,11 +30,11 @@ function StockPage() {
         )
       : posmMaterials;
     return list.map((m) => ({ ...m, qty: initialStock[m.code] ?? 0 }));
-  }, [query]);
+  }, [query, wspEnabled]);
 
   const totalUnits = useMemo(
-    () => Object.values(initialStock).reduce((a, b) => a + (b ?? 0), 0),
-    [],
+    () => (wspEnabled ? Object.values(initialStock).reduce((a, b) => a + (b ?? 0), 0) : 0),
+    [wspEnabled],
   );
 
   return (
