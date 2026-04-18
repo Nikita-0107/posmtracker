@@ -13,6 +13,8 @@ import {
   PackagePlus,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { WspBadge } from "@/components/WspSelector";
+import { useWsp } from "@/hooks/use-wsp";
 import { posmMaterials, initialStock, addMaterial, type PosmMaterial } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/receive")({
@@ -26,6 +28,7 @@ export const Route = createFileRoute("/receive")({
 });
 
 function ReceivePage() {
+  const [wsp] = useWsp();
   const [stock, setStock] = useState<Record<string, number>>({ ...initialStock });
   const [, forceTick] = useState(0);
 
@@ -45,6 +48,7 @@ function ReceivePage() {
     name: string;
     qty: number;
     total: number;
+    wsp: string;
   } | null>(null);
 
   const results = useMemo(() => {
@@ -85,7 +89,7 @@ function ReceivePage() {
     const q = Number(qty);
     const total = (stock[selected.code] ?? 0) + q;
     setStock((prev) => ({ ...prev, [selected.code]: total }));
-    setSubmitResult({ code: selected.code, name: selected.name, qty: q, total });
+    setSubmitResult({ code: selected.code, name: selected.name, qty: q, total, wsp });
     setSelected(null);
     setQty("");
     setQuery("");
@@ -106,8 +110,11 @@ function ReceivePage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <Inbox size={20} className="text-accent" />
           </div>
-          <div>
-            <h2 className="font-heading text-lg font-bold leading-tight">Receive Materials</h2>
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-heading text-lg font-bold leading-tight">Receive Materials</h2>
+              <WspBadge />
+            </div>
             <p className="text-[11px] text-muted-foreground">Search or add, then add to WSP stock</p>
           </div>
         </div>
@@ -367,6 +374,10 @@ function ReceivePage() {
                 <div className="flex justify-between gap-2 border-t pt-1.5">
                   <span className="text-muted-foreground">New Stock Total</span>
                   <strong className="text-success">{submitResult.total} units</strong>
+                </div>
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground">WSP</span>
+                  <strong className="font-mono text-primary">{submitResult.wsp}</strong>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">

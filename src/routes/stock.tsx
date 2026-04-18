@@ -2,6 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Search, Boxes, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { WspBadge } from "@/components/WspSelector";
+import { useWsp } from "@/hooks/use-wsp";
 import { posmMaterials, initialStock } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/stock")({
@@ -15,6 +17,7 @@ export const Route = createFileRoute("/stock")({
 });
 
 function StockPage() {
+  const [wsp] = useWsp();
   const [query, setQuery] = useState("");
 
   const items = useMemo(() => {
@@ -41,9 +44,12 @@ function StockPage() {
             <Boxes size={20} className="text-primary" />
           </div>
           <div className="flex-1">
-            <h2 className="font-heading text-lg font-bold leading-tight">Stock Overview</h2>
+            <div className="flex items-center gap-1.5">
+              <h2 className="font-heading text-lg font-bold leading-tight">WSP Stock Overview</h2>
+              <WspBadge />
+            </div>
             <p className="text-[11px] text-muted-foreground">
-              {posmMaterials.length} materials · {totalUnits} total units
+              {wsp} · {posmMaterials.length} materials · {totalUnits} total units
             </p>
           </div>
         </div>
