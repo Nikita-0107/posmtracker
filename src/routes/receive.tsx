@@ -49,13 +49,14 @@ function ReceivePage() {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return posmMaterials.slice(0, 6);
+    if (!q) return [];
     return posmMaterials.filter(
       (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
     );
   }, [query]);
 
-  const noResults = query.trim().length > 0 && results.length === 0;
+  const hasQuery = query.trim().length > 0;
+  const noResults = hasQuery && results.length === 0;
   const canSaveMaterial = newCode.trim().length > 0 && newName.trim().length > 0;
   const canSubmit = !!selected && qty !== "" && Number(qty) > 0;
 
