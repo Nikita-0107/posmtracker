@@ -90,12 +90,9 @@ export const teamLeaders = [
 ] as const;
 
 export const initialStock: Record<string, number> = {
-  "GFK_RD_LNG_RNG_HCOMB_BB_12X16IN": 500,
-  "CL_BT_LNG_RNG_SHELF_BB_11.5X4.5IN": 300,
-  "IR_2966": 200,
-  "AC_FRLONGS_RNG_PG_BB_17X22IN": 0,
-  "GFK_DK_SAME_GR_TASTE_ALTPP_BB_22X35IN": 0,
-  "CL_BT_LNG_RNG_HCOMB_BB_12X16IN": 0,
+  "M/3927701900": 500,
+  "M/3126501900": 300,
+  "M/0159901100": 200,
 };
 
 export function addMaterial(code: string, name: string): PosmMaterial | null {
