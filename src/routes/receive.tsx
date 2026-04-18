@@ -86,12 +86,13 @@ function ReceivePage() {
     const total = (stock[selected.code] ?? 0) + q;
     setStock((prev) => ({ ...prev, [selected.code]: total }));
     setSubmitResult({ code: selected.code, name: selected.name, qty: q, total });
-    setTimeout(() => {
-      setSubmitResult(null);
-      setSelected(null);
-      setQty("");
-      setQuery("");
-    }, 3500);
+    setSelected(null);
+    setQty("");
+    setQuery("");
+  }
+
+  function handleAddMore() {
+    setSubmitResult(null);
   }
 
   const inputClass =
