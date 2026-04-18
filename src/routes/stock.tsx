@@ -51,10 +51,20 @@ function StockPage() {
               <WspBadge />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              {wsp} · {posmMaterials.length} materials · {totalUnits} total units
+              {wsp} · {wspEnabled ? `${posmMaterials.length} materials · ${totalUnits} total units` : "No data uploaded"}
             </p>
           </div>
         </div>
+
+        {!wspEnabled ? (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-6 text-center">
+            <p className="text-sm font-bold text-foreground">No data available</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Stock data for <strong className="text-primary">{wsp}</strong> has not been uploaded yet.
+            </p>
+          </div>
+        ) : (
+          <>
 
         {/* Search */}
         <div className="relative">
