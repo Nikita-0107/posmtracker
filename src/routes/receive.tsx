@@ -138,8 +138,8 @@ function ReceivePage() {
             )}
           </div>
 
-          {/* Results */}
-          {!noResults && (
+          {/* Results — only show when user typed */}
+          {hasQuery && results.length > 0 && (
             <div className="space-y-1.5">
               {results.map((m) => {
                 const isSelected = selected?.code === m.code;
