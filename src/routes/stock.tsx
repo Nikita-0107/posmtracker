@@ -64,7 +64,7 @@ function StockPage() {
             </p>
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
 
         {/* Search */}
         <div className="relative">
