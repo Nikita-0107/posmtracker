@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as TlUploadRouteImport } from './routes/tl-upload'
+import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -22,6 +23,11 @@ const WdIssueRoute = WdIssueRouteImport.update({
 const TlUploadRoute = TlUploadRouteImport.update({
   id: '/tl-upload',
   path: '/tl-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StockRoute = StockRouteImport.update({
+  id: '/stock',
+  path: '/stock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReceiveRoute = ReceiveRouteImport.update({
@@ -38,12 +44,14 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/receive': typeof ReceiveRoute
+  '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
   '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/receive': typeof ReceiveRoute
+  '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
   '/wd-issue': typeof WdIssueRoute
 }
@@ -51,20 +59,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/receive': typeof ReceiveRoute
+  '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
   '/wd-issue': typeof WdIssueRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/receive' | '/tl-upload' | '/wd-issue'
+  fullPaths: '/' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/receive' | '/tl-upload' | '/wd-issue'
-  id: '__root__' | '/' | '/receive' | '/tl-upload' | '/wd-issue'
+  to: '/' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
+  id: '__root__' | '/' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ReceiveRoute: typeof ReceiveRoute
+  StockRoute: typeof StockRoute
   TlUploadRoute: typeof TlUploadRoute
   WdIssueRoute: typeof WdIssueRoute
 }
@@ -83,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/tl-upload'
       fullPath: '/tl-upload'
       preLoaderRoute: typeof TlUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/stock': {
+      id: '/stock'
+      path: '/stock'
+      fullPath: '/stock'
+      preLoaderRoute: typeof StockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/receive': {
@@ -105,6 +122,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ReceiveRoute: ReceiveRoute,
+  StockRoute: StockRoute,
   TlUploadRoute: TlUploadRoute,
   WdIssueRoute: WdIssueRoute,
 }
