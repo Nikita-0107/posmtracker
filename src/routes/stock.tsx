@@ -115,7 +115,7 @@ function StockPage() {
             );
           })}
         </div>
-        </>
+          </div>
         )}
       </div>
     </AppShell>
