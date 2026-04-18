@@ -29,6 +29,7 @@ export const Route = createFileRoute("/receive")({
 
 function ReceivePage() {
   const [wsp] = useWsp();
+  const wspEnabled = wsp === "CEVL";
   const [stock, setStock] = useState<Record<string, number>>({ ...initialStock });
   const [, forceTick] = useState(0);
 
@@ -119,8 +120,18 @@ function ReceivePage() {
           </div>
         </div>
 
+        {/* No-data notice for non-CEVL WSPs */}
+        {!wspEnabled && (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
+            <p className="text-sm font-bold text-foreground">No data available</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Stock data for <strong className="text-primary">{wsp}</strong> has not been uploaded yet.
+            </p>
+          </div>
+        )}
+
         {/* STEP 1 — Search */}
-        <section className="space-y-2.5">
+        <section className={`space-y-2.5 ${!wspEnabled ? "pointer-events-none opacity-50" : ""}`} aria-disabled={!wspEnabled}>
           <div className="flex items-center gap-2">
             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">1</span>
             <h3 className="text-sm font-bold text-foreground">Search or Add Material</h3>
