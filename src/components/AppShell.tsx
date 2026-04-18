@@ -1,8 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Package, Truck, Camera, Inbox } from "lucide-react";
+import { Package, Truck, Camera, Inbox, Boxes } from "lucide-react";
 
 const tabs = [
   { to: "/receive" as const, label: "Receive", icon: Inbox },
+  { to: "/stock" as const, label: "Stock", icon: Boxes },
   { to: "/" as const, label: "Dispatch", icon: Truck },
   { to: "/wd-issue" as const, label: "WD → TL", icon: Package },
   { to: "/tl-upload" as const, label: "TL Upload", icon: Camera },
