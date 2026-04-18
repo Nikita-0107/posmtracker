@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Package, Truck, Camera, Inbox, Boxes, Building2 } from "lucide-react";
+import { Package, Camera, Inbox, Boxes, Building2 } from "lucide-react";
 import { WspSelector } from "@/components/WspSelector";
 
 const tabs = [
