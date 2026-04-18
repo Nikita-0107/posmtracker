@@ -1,10 +1,11 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Package, Truck, Camera, Inbox, Boxes } from "lucide-react";
+import { Package, Truck, Camera, Inbox, Boxes, Building2 } from "lucide-react";
+import { WspSelector } from "@/components/WspSelector";
 
 const tabs = [
+  { to: "/" as const, label: "WSP", icon: Building2 },
   { to: "/receive" as const, label: "Receive", icon: Inbox },
   { to: "/stock" as const, label: "Stock", icon: Boxes },
-  { to: "/" as const, label: "Dispatch", icon: Truck },
   { to: "/wd-issue" as const, label: "WD → TL", icon: Package },
   { to: "/tl-upload" as const, label: "TL Upload", icon: Camera },
 ];
@@ -14,10 +15,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-30 border-b bg-card px-4 py-2.5 shadow-sm">
-        <h1 className="text-center font-heading text-base font-bold tracking-tight text-foreground">
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-card px-3 py-2 shadow-sm">
+        <h1 className="font-heading text-sm font-bold tracking-tight text-foreground">
           📦 POSM Tracker
         </h1>
+        <WspSelector compact />
       </header>
 
       <main className="flex-1 overflow-y-auto px-3 py-4 pb-20">
