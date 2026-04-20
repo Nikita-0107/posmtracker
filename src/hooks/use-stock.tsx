@@ -86,20 +86,28 @@ export async function receiveMaterial(
   materialCode: string,
   qty: number,
   referenceNumber: string,
+  proofImagePath: string,
 ) {
   const { data, error } = await supabase.rpc("receive_material", {
     _material_code: materialCode,
     _qty: qty,
     _reference_number: referenceNumber,
+    _proof_image_path: proofImagePath,
   });
   return { newQty: data as number | null, error };
 }
 
-export async function dispatchMaterial(materialCode: string, qty: number, distributor: string) {
+export async function dispatchMaterial(
+  materialCode: string,
+  qty: number,
+  distributor: string,
+  proofImagePath: string,
+) {
   const { data, error } = await supabase.rpc("dispatch_material", {
     _material_code: materialCode,
     _qty: qty,
     _distributor: distributor,
+    _proof_image_path: proofImagePath,
   });
   return { newQty: data as number | null, error };
 }

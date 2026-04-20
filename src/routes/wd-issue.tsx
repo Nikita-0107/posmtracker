@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock, dispatchMaterial, type Material } from "@/hooks/use-stock";
 import { wdMaster } from "@/lib/posm-data";
@@ -29,7 +30,7 @@ export const Route = createFileRoute("/wd-issue")({
 });
 
 function WdIssuePage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
 
@@ -46,6 +47,8 @@ function WdIssuePage() {
   const [qty, setQty] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
 
   const wdResults = useMemo(() => {
     const q = wdQuery.trim().toLowerCase();
@@ -114,7 +117,7 @@ function WdIssuePage() {
   const currentStock = selected ? stock[selected.code] ?? 0 : 0;
   const qtyNum = Number(qty);
   const exceeds = !!selected && qty !== "" && qtyNum > currentStock;
-  const canSubmit = !!wd && !!selected && qty !== "" && qtyNum > 0 && !exceeds && !busy;
+  const canSubmit = !!wd && !!selected && qty !== "" && qtyNum > 0 && !exceeds && !!proof && !busy;
 
   function handleSelect(m: Material) {
     setSelected(m);
@@ -123,10 +126,21 @@ function WdIssuePage() {
   }
 
   async function handleDispatch() {
-    if (!canSubmit || !selected) return;
+    if (!selected || !wd) return;
+    if (!proof) {
+      setProofError("Proof image is required");
+      return;
+    }
+    setProofError(null);
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
-    const { newQty, error: rpcError } = await dispatchMaterial(selected.code, qtyNum, wd);
+    const { newQty, error: rpcError } = await dispatchMaterial(
+      selected.code,
+      qtyNum,
+      wd,
+      proof.path,
+    );
     setBusy(false);
     if (rpcError) {
       setError(rpcError.message);
@@ -145,6 +159,8 @@ function WdIssuePage() {
     setQty("");
     setWd("");
     setWdQuery("");
+    if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
+    setProof(null);
     void refresh();
   }
 
@@ -349,6 +365,20 @@ function WdIssuePage() {
                     />
                   </div>
                 </label>
+
+                {wsp && user && (
+                  <ProofImageUpload
+                    wsp={wsp}
+                    userId={user.id}
+                    kind="dispatch"
+                    value={proof}
+                    onChange={(v) => {
+                      setProof(v);
+                      if (v) setProofError(null);
+                    }}
+                    error={proofError}
+                  />
+                )}
 
                 {(exceeds || error) && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">

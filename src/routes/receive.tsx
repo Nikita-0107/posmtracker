@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock, receiveMaterial, type Material } from "@/hooks/use-stock";
 
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/receive")({
 });
 
 function ReceivePage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
   const { materials, loading: matLoading, addMaterial } = useMaterials();
@@ -38,6 +39,8 @@ function ReceivePage() {
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +73,7 @@ function ReceivePage() {
     qty !== "" &&
     Number(qty) > 0 &&
     referenceNumber.trim().length > 0 &&
+    !!proof &&
     !busy;
 
   function handleSelect(m: Material) {
@@ -101,16 +105,27 @@ function ReceivePage() {
   }
 
   async function handleSubmit() {
-    if (!canSubmit || !selected) return;
+    if (!selected) return;
     const ref = referenceNumber.trim();
     if (!ref) {
       setError("Reference number is required");
       return;
     }
+    if (!proof) {
+      setProofError("Proof image is required");
+      return;
+    }
+    setProofError(null);
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     const qNum = Number(qty);
-    const { newQty, error: rpcError } = await receiveMaterial(selected.code, qNum, ref);
+    const { newQty, error: rpcError } = await receiveMaterial(
+      selected.code,
+      qNum,
+      ref,
+      proof.path,
+    );
     setBusy(false);
     if (rpcError) {
       const msg = rpcError.message ?? "";
@@ -135,6 +150,8 @@ function ReceivePage() {
     setQty("");
     setReferenceNumber("");
     setQuery("");
+    if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
+    setProof(null);
     void refresh();
   }
 
@@ -371,6 +388,20 @@ function ReceivePage() {
                     required
                   />
                 </label>
+
+                {wsp && user && (
+                  <ProofImageUpload
+                    wsp={wsp}
+                    userId={user.id}
+                    kind="receive"
+                    value={proof}
+                    onChange={(v) => {
+                      setProof(v);
+                      if (v) setProofError(null);
+                    }}
+                    error={proofError}
+                  />
+                )}
 
                 {error && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
