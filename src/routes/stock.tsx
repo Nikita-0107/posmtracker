@@ -20,6 +20,8 @@ export const Route = createFileRoute("/stock")({
 function StockPage() {
   const [wsp] = useWsp();
   const wspEnabled = wsp === "CEVL";
+  const stockMap = useStock();
+  const wspStock = stockMap[wsp] ?? {};
   const [query, setQuery] = useState("");
 
   const items = useMemo(() => {
@@ -30,12 +32,12 @@ function StockPage() {
           (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
         )
       : posmMaterials;
-    return list.map((m) => ({ ...m, qty: initialStock[m.code] ?? 0 }));
-  }, [query, wspEnabled]);
+    return list.map((m) => ({ ...m, qty: wspStock[m.code] ?? 0 }));
+  }, [query, wspEnabled, wspStock]);
 
   const totalUnits = useMemo(
-    () => (wspEnabled ? Object.values(initialStock).reduce((a, b) => a + (b ?? 0), 0) : 0),
-    [wspEnabled],
+    () => (wspEnabled ? Object.values(wspStock).reduce<number>((a, b) => a + (b ?? 0), 0) : 0),
+    [wspEnabled, wspStock],
   );
 
   return (
