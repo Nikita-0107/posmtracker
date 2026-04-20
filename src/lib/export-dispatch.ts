@@ -8,6 +8,7 @@ type MovementRow = {
   qty: number;
   movement: "receive" | "dispatch";
   distributor: string | null;
+  wsp: string;
 };
 
 type MaterialRow = { code: string; name: string };
@@ -41,7 +42,7 @@ export async function exportDispatchReport() {
   const [movementsRes, materialsRes] = await Promise.all([
     supabase
       .from("stock_movements")
-      .select("created_at, material_code, qty, movement, distributor")
+      .select("created_at, material_code, qty, movement, distributor, wsp")
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
   ]);
@@ -102,16 +103,19 @@ export async function exportDispatchReport() {
   //   closing = opening + received - dispatched
   // -------------------------------------------------------------
   type DayAgg = { received: number; dispatched: number };
-  // material_code -> day -> agg
-  const perMatDay = new Map<string, Map<string, DayAgg>>();
+  // key = `${wsp}::${material_code}` -> day -> agg
+  // Group by WSP + material so the running balance per material matches
+  // the per-WSP stock table exactly (admins may see multiple WSPs).
+  const perKeyDay = new Map<string, Map<string, DayAgg>>();
 
   for (const m of movements) {
     if (!m.material_code || m.qty <= 0) continue;
     const day = dayKey(m.created_at);
-    let dayMap = perMatDay.get(m.material_code);
+    const key = `${m.wsp}::${m.material_code}`;
+    let dayMap = perKeyDay.get(key);
     if (!dayMap) {
       dayMap = new Map();
-      perMatDay.set(m.material_code, dayMap);
+      perKeyDay.set(key, dayMap);
     }
     let agg = dayMap.get(day);
     if (!agg) {
@@ -132,15 +136,18 @@ export async function exportDispatchReport() {
     closing_quantity: number;
   }[] = [];
 
-  // Sort materials for stable output
-  const matCodes = Array.from(perMatDay.keys()).sort();
-  for (const code of matCodes) {
-    const dayMap = perMatDay.get(code)!;
-    const days = Array.from(dayMap.keys()).sort(); // ascending
-    let running = 0;
+  // For each (wsp, material) key, walk days in chronological order and
+  // carry the closing balance forward as the next day's opening. This is
+  // the cumulative running stock — it does NOT reset per date.
+  const keys = Array.from(perKeyDay.keys()).sort();
+  for (const key of keys) {
+    const code = key.split("::")[1];
+    const dayMap = perKeyDay.get(key)!;
+    const days = Array.from(dayMap.keys()).sort(); // ascending by date
+    let running = 0; // cumulative closing carried across days
     for (const day of days) {
       const agg = dayMap.get(day)!;
-      const opening = running;
+      const opening = running; // previous day's closing
       const closing = opening + agg.received - agg.dispatched;
       ledgerRows.push({
         date: day,
@@ -151,7 +158,7 @@ export async function exportDispatchReport() {
         dispatched_to_WD: agg.dispatched,
         closing_quantity: closing,
       });
-      running = closing;
+      running = closing; // carry forward to next day
     }
   }
 
