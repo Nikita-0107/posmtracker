@@ -174,14 +174,9 @@ export async function exportDispatchReport() {
   //   Derived from the same running balance used by the ledger so
   //   it always matches the WSP Stock Overview in the app.
   // -------------------------------------------------------------
+  // Compute latest cumulative closing per (wsp, material), then sum
+  // across WSPs to get current stock per material.
   const currentByMaterial = new Map<string, number>();
-  for (const row of ledgerRows) {
-    // ledgerRows are sorted by date desc — keep only the FIRST (latest)
-    // closing per (wsp, material). We aggregate across WSPs by summing.
-    // Track per (wsp, material) latest using a helper map first.
-  }
-  // Compute latest closing per (wsp, material) from perKeyDay
-  const latestPerKey = new Map<string, number>();
   for (const [key, dayMap] of perKeyDay.entries()) {
     const days = Array.from(dayMap.keys()).sort();
     let running = 0;
@@ -189,11 +184,8 @@ export async function exportDispatchReport() {
       const agg = dayMap.get(day)!;
       running = running + agg.received - agg.dispatched;
     }
-    latestPerKey.set(key, running);
-  }
-  for (const [key, qty] of latestPerKey.entries()) {
     const code = key.split("::")[1];
-    currentByMaterial.set(code, (currentByMaterial.get(code) ?? 0) + qty);
+    currentByMaterial.set(code, (currentByMaterial.get(code) ?? 0) + running);
   }
 
   const currentStockRows = Array.from(currentByMaterial.entries())
