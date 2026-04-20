@@ -75,6 +75,15 @@ function StockPage() {
                 : "No WSP assigned"}
             </p>
           </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+            aria-label="Export dispatch data to Excel"
+          >
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            <span className="hidden sm:inline">Export Data</span>
+          </button>
         </div>
 
         {!wsp ? (
