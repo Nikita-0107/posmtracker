@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, Boxes, X, Loader2 } from "lucide-react";
+import { Search, Boxes, X, Loader2, Download } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock } from "@/hooks/use-stock";
+import { exportDispatchReport } from "@/lib/export-dispatch";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
   component: StockPage,
@@ -22,6 +24,20 @@ function StockPage() {
   const { materials, loading: matLoading } = useMaterials();
   const { stock, loading: stockLoading } = useStock();
   const [query, setQuery] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const { rows, filename } = await exportDispatchReport();
+      toast.success(`Exported ${rows} dispatch records`, { description: filename });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Export failed";
+      toast.error("Export failed", { description: msg });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const items = useMemo(() => {
     if (!wsp) return [];
@@ -59,6 +75,15 @@ function StockPage() {
                 : "No WSP assigned"}
             </p>
           </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+            aria-label="Export dispatch data to Excel"
+          >
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            <span className="hidden sm:inline">Export Data</span>
+          </button>
         </div>
 
         {!wsp ? (
