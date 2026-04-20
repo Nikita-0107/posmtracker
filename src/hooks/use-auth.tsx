@@ -23,12 +23,12 @@ type AuthContextValue = {
   profile: Profile | null;
   isAuthenticated: boolean;
   loading: boolean;
-  signIn: (mobile: string, password: string) => Promise<{ error: unknown }>;
+  signIn: (mobile: string, password: string) => Promise<{ error: { message: string } | null }>;
   signUp: (
     mobile: string,
     password: string,
     displayName?: string,
-  ) => Promise<{ error: unknown }>;
+  ) => Promise<{ error: { message: string } | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void> | undefined;
 };
@@ -132,8 +132,8 @@ export function useAuth(): AuthContextValue {
     profile: null,
     isAuthenticated: false,
     loading: true,
-    signIn: async () => ({ error: new Error("Auth provider not mounted") }),
-    signUp: async () => ({ error: new Error("Auth provider not mounted") }),
+    signIn: async () => ({ error: { message: "Auth provider not mounted" } }),
+    signUp: async () => ({ error: { message: "Auth provider not mounted" } }),
     signOut: async () => {},
     refreshProfile: () => undefined,
   };
