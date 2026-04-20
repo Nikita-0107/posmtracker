@@ -169,6 +169,34 @@ export async function exportDispatchReport() {
   });
 
   // -------------------------------------------------------------
+  // Sheet 3: Current Stock (per material)
+  //   current_stock = total received - total dispatched (cumulative)
+  //   Derived from the same running balance used by the ledger so
+  //   it always matches the WSP Stock Overview in the app.
+  // -------------------------------------------------------------
+  // Compute latest cumulative closing per (wsp, material), then sum
+  // across WSPs to get current stock per material.
+  const currentByMaterial = new Map<string, number>();
+  for (const [key, dayMap] of perKeyDay.entries()) {
+    const days = Array.from(dayMap.keys()).sort();
+    let running = 0;
+    for (const day of days) {
+      const agg = dayMap.get(day)!;
+      running = running + agg.received - agg.dispatched;
+    }
+    const code = key.split("::")[1];
+    currentByMaterial.set(code, (currentByMaterial.get(code) ?? 0) + running);
+  }
+
+  const currentStockRows = Array.from(currentByMaterial.entries())
+    .map(([code, qty]) => ({
+      material_code: code,
+      material_name: matMap.get(code) ?? "",
+      current_stock: qty,
+    }))
+    .sort((a, b) => a.material_code.localeCompare(b.material_code));
+
+  // -------------------------------------------------------------
   // Build workbook
   // -------------------------------------------------------------
   const wb = XLSX.utils.book_new();
@@ -217,8 +245,19 @@ export async function exportDispatchReport() {
   ];
   XLSX.utils.book_append_sheet(wb, ws2, "WSP Stock Ledger");
 
+  const ws3 = XLSX.utils.json_to_sheet(currentStockRows, {
+    header: ["material_code", "material_name", "current_stock"],
+  });
+  ws3["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, ws3, "Current Stock");
+
   const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
   XLSX.writeFile(wb, filename);
 
-  return { rows: dispatchRows.length, ledgerRows: ledgerRows.length, filename };
+  return {
+    rows: dispatchRows.length,
+    ledgerRows: ledgerRows.length,
+    currentStockRows: currentStockRows.length,
+    filename,
+  };
 }
