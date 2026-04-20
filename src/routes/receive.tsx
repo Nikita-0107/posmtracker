@@ -31,7 +31,8 @@ export const Route = createFileRoute("/receive")({
 function ReceivePage() {
   const [wsp] = useWsp();
   const wspEnabled = wsp === "CEVL";
-  const [stock, setStock] = useState<Record<string, number>>({ ...initialStock });
+  const stockMap = useStock();
+  const stock = stockMap[wsp] ?? {};
   const [, forceTick] = useState(0);
 
   const [query, setQuery] = useState("");
