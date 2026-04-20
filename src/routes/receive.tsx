@@ -37,6 +37,7 @@ function ReceivePage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
+  const [referenceNumber, setReferenceNumber] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,7 +65,12 @@ function ReceivePage() {
 
   const hasQuery = q.length > 0;
   const noResults = hasQuery && results.length === 0;
-  const canSubmit = !!selected && qty !== "" && Number(qty) > 0 && !busy;
+  const canSubmit =
+    !!selected &&
+    qty !== "" &&
+    Number(qty) > 0 &&
+    referenceNumber.trim().length > 0 &&
+    !busy;
 
   function handleSelect(m: Material) {
     setSelected(m);
@@ -96,13 +102,26 @@ function ReceivePage() {
 
   async function handleSubmit() {
     if (!canSubmit || !selected) return;
+    const ref = referenceNumber.trim();
+    if (!ref) {
+      setError("Reference number is required");
+      return;
+    }
     setBusy(true);
     setError(null);
     const qNum = Number(qty);
-    const { newQty, error: rpcError } = await receiveMaterial(selected.code, qNum);
+    const { newQty, error: rpcError } = await receiveMaterial(selected.code, qNum, ref);
     setBusy(false);
     if (rpcError) {
-      setError(rpcError.message);
+      const msg = rpcError.message ?? "";
+      if (
+        msg.toLowerCase().includes("duplicate") ||
+        (rpcError as { code?: string }).code === "23505"
+      ) {
+        setError("Duplicate entry detected");
+      } else {
+        setError(msg || "Failed to save");
+      }
       return;
     }
     setSubmitResult({
@@ -114,6 +133,7 @@ function ReceivePage() {
     });
     setSelected(null);
     setQty("");
+    setReferenceNumber("");
     setQuery("");
     void refresh();
   }
@@ -336,6 +356,20 @@ function ReceivePage() {
                       className={`${inputClass} pl-9`}
                     />
                   </div>
+                </label>
+
+                <label className="block space-y-1">
+                  <span className="text-xs font-semibold text-foreground">
+                    Reference Number <span className="text-destructive">*</span>
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Enter invoice / challan number"
+                    value={referenceNumber}
+                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    className={inputClass}
+                    required
+                  />
                 </label>
 
                 {error && (

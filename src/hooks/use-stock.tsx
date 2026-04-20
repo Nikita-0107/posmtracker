@@ -82,10 +82,15 @@ export function useStock() {
   return { stock, loading, refresh };
 }
 
-export async function receiveMaterial(materialCode: string, qty: number) {
+export async function receiveMaterial(
+  materialCode: string,
+  qty: number,
+  referenceNumber: string,
+) {
   const { data, error } = await supabase.rpc("receive_material", {
     _material_code: materialCode,
     _qty: qty,
+    _reference_number: referenceNumber,
   });
   return { newQty: data as number | null, error };
 }
