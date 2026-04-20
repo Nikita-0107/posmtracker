@@ -249,15 +249,15 @@ function WdIssuePage() {
                       inputMode="numeric"
                       placeholder="Enter quantity"
                       value={qty}
-                      onChange={(e) => setQty(e.target.value)}
+                      onChange={(e) => { setQty(e.target.value); setError(null); }}
                       className={`${inputClass} pl-9 ${exceeds ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     />
                   </div>
                 </label>
 
-                {exceeds && (
+                {(exceeds || error) && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
-                    <AlertTriangle size={14} /> Quantity exceeds available stock
+                    <AlertTriangle size={14} /> {error ?? "Quantity exceeds available stock"}
                   </div>
                 )}
 
