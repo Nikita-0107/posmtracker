@@ -9,7 +9,26 @@ type MovementRow = {
   movement: "receive" | "dispatch";
   distributor: string | null;
   wsp: string;
+  reference_number: string | null;
+  proof_image_path: string | null;
 };
+
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days for export portability
+
+async function signProofPaths(paths: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = Array.from(new Set(paths.filter((p) => !!p)));
+  if (unique.length === 0) return map;
+  // Supabase supports batch sign via createSignedUrls
+  const { data, error } = await supabase.storage
+    .from("proofs")
+    .createSignedUrls(unique, SIGNED_URL_TTL_SECONDS);
+  if (error || !data) return map;
+  for (const item of data) {
+    if (item.path && item.signedUrl) map.set(item.path, item.signedUrl);
+  }
+  return map;
+}
 
 type MaterialRow = { code: string; name: string };
 
@@ -42,7 +61,9 @@ export async function exportDispatchReport() {
   const [movementsRes, materialsRes] = await Promise.all([
     supabase
       .from("stock_movements")
-      .select("created_at, material_code, qty, movement, distributor, wsp")
+      .select(
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path",
+      )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
   ]);
@@ -73,6 +94,14 @@ export async function exportDispatchReport() {
   }
 
   // -------------------------------------------------------------
+  // Sign all proof image paths in one batch (7 day signed URLs)
+  // -------------------------------------------------------------
+  const allProofPaths = movements
+    .map((m) => m.proof_image_path)
+    .filter((p): p is string => !!p);
+  const signedMap = await signProofPaths(allProofPaths);
+
+  // -------------------------------------------------------------
   // Sheet 1: Dispatch Log
   // -------------------------------------------------------------
   const dispatches = movements.filter(
@@ -84,14 +113,37 @@ export async function exportDispatchReport() {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .map((m) => {
       const wd = resolveWd(m.distributor);
+      const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
       return {
         date: formatDateTime(m.created_at),
-        invoice_number: "",
         wd_code: wd.code,
         wd_name: wd.name,
         material_code: m.material_code,
         material_name: matMap.get(m.material_code) ?? "",
         quantity: m.qty,
+        proof_url: proofUrl,
+      };
+    });
+
+  // -------------------------------------------------------------
+  // Sheet (extra): Receive Log — receive movements with proof links
+  // -------------------------------------------------------------
+  const receives = movements.filter(
+    (m) => m.movement === "receive" && m.material_code && m.qty > 0,
+  );
+  const receiveRows = receives
+    .slice()
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    .map((m) => {
+      const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
+      return {
+        date: formatDateTime(m.created_at),
+        wsp: m.wsp,
+        material_code: m.material_code,
+        material_name: matMap.get(m.material_code) ?? "",
+        quantity: m.qty,
+        reference_number: m.reference_number ?? "",
+        proof_url: proofUrl,
       };
     });
 
@@ -201,27 +253,91 @@ export async function exportDispatchReport() {
   // -------------------------------------------------------------
   const wb = XLSX.utils.book_new();
 
-  const ws1 = XLSX.utils.json_to_sheet(dispatchRows, {
-    header: [
-      "date",
-      "invoice_number",
-      "wd_code",
-      "wd_name",
-      "material_code",
-      "material_name",
-      "quantity",
-    ],
+  // Dispatch Log with View Proof hyperlink column
+  const dispatchHeader = [
+    "date",
+    "wd_code",
+    "wd_name",
+    "material_code",
+    "material_name",
+    "quantity",
+    "proof",
+  ];
+  const dispatchAoa: (string | number)[][] = [
+    dispatchHeader,
+    ...dispatchRows.map((r) => [
+      r.date,
+      r.wd_code,
+      r.wd_name,
+      r.material_code,
+      r.material_name,
+      r.quantity,
+      r.proof_url ? "View Proof" : "",
+    ]),
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(dispatchAoa);
+  dispatchRows.forEach((r, i) => {
+    if (!r.proof_url) return;
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    ws1[cellRef] = {
+      t: "s",
+      v: "View Proof",
+      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+    };
   });
   ws1["!cols"] = [
     { wch: 18 },
-    { wch: 16 },
     { wch: 10 },
     { wch: 36 },
     { wch: 14 },
     { wch: 36 },
     { wch: 10 },
+    { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
+
+  // Receive Log with View Proof hyperlink column
+  const receiveHeader = [
+    "date",
+    "wsp",
+    "material_code",
+    "material_name",
+    "quantity",
+    "reference_number",
+    "proof",
+  ];
+  const receiveAoa: (string | number)[][] = [
+    receiveHeader,
+    ...receiveRows.map((r) => [
+      r.date,
+      r.wsp,
+      r.material_code,
+      r.material_name,
+      r.quantity,
+      r.reference_number,
+      r.proof_url ? "View Proof" : "",
+    ]),
+  ];
+  const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
+  receiveRows.forEach((r, i) => {
+    if (!r.proof_url) return;
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    wsR[cellRef] = {
+      t: "s",
+      v: "View Proof",
+      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+    };
+  });
+  wsR["!cols"] = [
+    { wch: 18 },
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 36 },
+    { wch: 10 },
+    { wch: 18 },
+    { wch: 14 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
   const ws2 = XLSX.utils.json_to_sheet(ledgerRows, {
     header: [

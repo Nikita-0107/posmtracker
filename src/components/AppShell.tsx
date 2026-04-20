@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Package, Camera, Inbox, Boxes, Building2, LogOut, ShieldCheck } from "lucide-react";
+import { Package, Camera, Inbox, Boxes, Building2, LogOut, ShieldCheck, History } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ const tabs = [
   { to: "/stock" as const, label: "Stock", icon: Boxes },
   { to: "/wd-issue" as const, label: "WD → TL", icon: Package },
   { to: "/tl-upload" as const, label: "TL Upload", icon: Camera },
+  { to: "/movements" as const, label: "Log", icon: History },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -78,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
-        <div className="mx-auto grid max-w-md grid-cols-5">
+        <div className="mx-auto grid max-w-md grid-cols-6">
           {tabs.map((tab) => {
             const isActive = location.pathname === tab.to;
             return (
