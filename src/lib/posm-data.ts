@@ -43,6 +43,53 @@ export const distributors = [
   "VASUDAH ASSOCIATES – VIZAG-VASUDAH",
 ] as const;
 
+export type WdMaster = { wd_code: string; wd_name: string };
+
+export const wdMaster: WdMaster[] = [
+  { wd_code: "VI3948", wd_name: "S V DASA LAKSHMI AGENCY" },
+  { wd_code: "VI3077", wd_name: "SRI VENKATA SAI LAKSHMI AGENCIES" },
+  { wd_code: "VI3079", wd_name: "SATYANARAYANA AGENCIES" },
+  { wd_code: "VI3180", wd_name: "SRI KALYANI AGENCIES" },
+  { wd_code: "VI3212", wd_name: "SRI VEERABHADRA AGENCIES" },
+  { wd_code: "VI3230", wd_name: "PASUMARTHY BANGARIAH CHETTY AGENCIE" },
+  { wd_code: "VI3233", wd_name: "SAI VENKATA NARASIMHA ENTERPRISES" },
+  { wd_code: "VI3323", wd_name: "SRI PADMA AGENCIES" },
+  { wd_code: "VI3333", wd_name: "VASAVI AGENCIES" },
+  { wd_code: "VI3356", wd_name: "SREE DURGA ENTERPRISES" },
+  { wd_code: "VI3363", wd_name: "SRI BALAJI AGENCIES" },
+  { wd_code: "VI3364", wd_name: "ARUNDHATHI ENTERPRISES" },
+  { wd_code: "VI3366", wd_name: "S V TANMAYEE AGENCIES" },
+  { wd_code: "VI3390", wd_name: "VENKATA MANIKANTHA AGENCIES" },
+  { wd_code: "VI3391", wd_name: "PAVANI ENTERPRISES" },
+  { wd_code: "VI3394", wd_name: "SRI LAKSHMI SRIYAN ENTERPRISES" },
+  { wd_code: "VI3400", wd_name: "RAJESH ENTERPRISES" },
+  { wd_code: "VI3430", wd_name: "SRI NIKSHITHA ENTERPRISES" },
+  { wd_code: "VI3431", wd_name: "SRI SURYA TRADERS" },
+  { wd_code: "VI3434", wd_name: "SREE VAISHNAVI TRADERS" },
+  { wd_code: "VI3450", wd_name: "SAI GANAPATHI ENTERPRISES" },
+  { wd_code: "VI3475", wd_name: "SRI SRINIVASA AGENCY" },
+  { wd_code: "VI3479", wd_name: "SRI VENKATA SAI ENTERPRISES" },
+  { wd_code: "VI3965", wd_name: "VENKATARAJU AGENCIES" },
+  { wd_code: "VI3493", wd_name: "SRI DEVAKI LOGISTICS" },
+  { wd_code: "VI3500", wd_name: "SURYA MARKETING" },
+  { wd_code: "VI3562", wd_name: "SRI LALITHA AGENCIES" },
+  { wd_code: "VI3569", wd_name: "SRI KARTHIKEYA ENTERPRISES" },
+  { wd_code: "VI3601", wd_name: "SRI SIDHI VINAYAKA AGENCY" },
+  { wd_code: "VI3760", wd_name: "MAHADEV ENTERPRISES" },
+  { wd_code: "VI3798", wd_name: "SRI SRINIVASA ENTERPRISES" },
+  { wd_code: "VI3799", wd_name: "PIONEER MARKETING" },
+  { wd_code: "VI3801", wd_name: "SRI VENKATA SAI ABHAYA ANJANEYA TRADERS" },
+  { wd_code: "VI3816", wd_name: "VENKATA GANGA DURGA AGENCIES" },
+  { wd_code: "VI3869", wd_name: "SRI LAKSHMI AGENCIES" },
+  { wd_code: "VI3870", wd_name: "SRI VENKATESWARA AGENCIES" },
+  { wd_code: "VI3896", wd_name: "BARAKAT AGENCIES" },
+  { wd_code: "VI3898", wd_name: "Bandaru Venkata Ramana & Sons" },
+  { wd_code: "VI3912", wd_name: "Sri Tirumala Traders" },
+  { wd_code: "VI3221", wd_name: "CMK ASSOCIATES" },
+  { wd_code: "VI3238", wd_name: "ARUNODAYA ASSOCIATES" },
+  { wd_code: "VI3465", wd_name: "VASUDAH ASSOCIATES" },
+];
+
 export type PosmMaterial = { code: string; name: string };
 
 export const posmMaterials: PosmMaterial[] = [
