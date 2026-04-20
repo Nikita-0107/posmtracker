@@ -253,27 +253,91 @@ export async function exportDispatchReport() {
   // -------------------------------------------------------------
   const wb = XLSX.utils.book_new();
 
-  const ws1 = XLSX.utils.json_to_sheet(dispatchRows, {
-    header: [
-      "date",
-      "invoice_number",
-      "wd_code",
-      "wd_name",
-      "material_code",
-      "material_name",
-      "quantity",
-    ],
+  // Dispatch Log with View Proof hyperlink column
+  const dispatchHeader = [
+    "date",
+    "wd_code",
+    "wd_name",
+    "material_code",
+    "material_name",
+    "quantity",
+    "proof",
+  ];
+  const dispatchAoa: (string | number)[][] = [
+    dispatchHeader,
+    ...dispatchRows.map((r) => [
+      r.date,
+      r.wd_code,
+      r.wd_name,
+      r.material_code,
+      r.material_name,
+      r.quantity,
+      r.proof_url ? "View Proof" : "",
+    ]),
+  ];
+  const ws1 = XLSX.utils.aoa_to_sheet(dispatchAoa);
+  dispatchRows.forEach((r, i) => {
+    if (!r.proof_url) return;
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    ws1[cellRef] = {
+      t: "s",
+      v: "View Proof",
+      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+    };
   });
   ws1["!cols"] = [
     { wch: 18 },
-    { wch: 16 },
     { wch: 10 },
     { wch: 36 },
     { wch: 14 },
     { wch: 36 },
     { wch: 10 },
+    { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
+
+  // Receive Log with View Proof hyperlink column
+  const receiveHeader = [
+    "date",
+    "wsp",
+    "material_code",
+    "material_name",
+    "quantity",
+    "reference_number",
+    "proof",
+  ];
+  const receiveAoa: (string | number)[][] = [
+    receiveHeader,
+    ...receiveRows.map((r) => [
+      r.date,
+      r.wsp,
+      r.material_code,
+      r.material_name,
+      r.quantity,
+      r.reference_number,
+      r.proof_url ? "View Proof" : "",
+    ]),
+  ];
+  const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
+  receiveRows.forEach((r, i) => {
+    if (!r.proof_url) return;
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    wsR[cellRef] = {
+      t: "s",
+      v: "View Proof",
+      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+    };
+  });
+  wsR["!cols"] = [
+    { wch: 18 },
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 36 },
+    { wch: 10 },
+    { wch: 18 },
+    { wch: 14 },
+  ];
+  XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
   const ws2 = XLSX.utils.json_to_sheet(ledgerRows, {
     header: [
