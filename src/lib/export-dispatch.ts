@@ -94,6 +94,14 @@ export async function exportDispatchReport() {
   }
 
   // -------------------------------------------------------------
+  // Sign all proof image paths in one batch (7 day signed URLs)
+  // -------------------------------------------------------------
+  const allProofPaths = movements
+    .map((m) => m.proof_image_path)
+    .filter((p): p is string => !!p);
+  const signedMap = await signProofPaths(allProofPaths);
+
+  // -------------------------------------------------------------
   // Sheet 1: Dispatch Log
   // -------------------------------------------------------------
   const dispatches = movements.filter(
@@ -105,6 +113,7 @@ export async function exportDispatchReport() {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .map((m) => {
       const wd = resolveWd(m.distributor);
+      const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
       return {
         date: formatDateTime(m.created_at),
         invoice_number: "",
@@ -113,6 +122,9 @@ export async function exportDispatchReport() {
         material_code: m.material_code,
         material_name: matMap.get(m.material_code) ?? "",
         quantity: m.qty,
+        proof: proofUrl
+          ? { f: `HYPERLINK("${proofUrl}","View Proof")`, t: "s", v: "View Proof" }
+          : "",
       };
     });
 
