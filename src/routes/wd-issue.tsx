@@ -145,6 +145,7 @@ function WdIssuePage() {
     setQuery("");
     setQty("");
     setWd("");
+    setWdQuery("");
     void refresh();
   }
 
