@@ -15,7 +15,8 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useWsp } from "@/hooks/use-wsp";
-import { posmMaterials, initialStock, addMaterial, type PosmMaterial } from "@/lib/posm-data";
+import { useStock, receiveStock } from "@/hooks/use-stock";
+import { posmMaterials, addMaterial, type PosmMaterial } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/receive")({
   component: ReceivePage,
@@ -30,7 +31,8 @@ export const Route = createFileRoute("/receive")({
 function ReceivePage() {
   const [wsp] = useWsp();
   const wspEnabled = wsp === "CEVL";
-  const [stock, setStock] = useState<Record<string, number>>({ ...initialStock });
+  const stockMap = useStock();
+  const stock = stockMap[wsp] ?? {};
   const [, forceTick] = useState(0);
 
   const [query, setQuery] = useState("");
@@ -74,7 +76,6 @@ function ReceivePage() {
     if (!canSaveMaterial) return;
     const m = addMaterial(newCode, newName);
     if (!m) return;
-    setStock((prev) => ({ ...prev, [m.code]: prev[m.code] ?? 0 }));
     setSelected(m);
     setShowAddForm(false);
     setNewCode("");
@@ -88,8 +89,7 @@ function ReceivePage() {
   function handleSubmit() {
     if (!canSubmit || !selected) return;
     const q = Number(qty);
-    const total = (stock[selected.code] ?? 0) + q;
-    setStock((prev) => ({ ...prev, [selected.code]: total }));
+    const total = receiveStock(wsp, selected.code, q);
     setSubmitResult({ code: selected.code, name: selected.name, qty: q, total, wsp });
     setSelected(null);
     setQty("");

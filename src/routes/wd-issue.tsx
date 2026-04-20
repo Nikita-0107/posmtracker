@@ -15,7 +15,8 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useWsp } from "@/hooks/use-wsp";
-import { distributors, posmMaterials, initialStock, type PosmMaterial } from "@/lib/posm-data";
+import { useStock, dispatchStock } from "@/hooks/use-stock";
+import { distributors, posmMaterials, type PosmMaterial } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/wd-issue")({
   component: WdIssuePage,
@@ -31,11 +32,13 @@ function WdIssuePage() {
   const [wsp] = useWsp();
   const wspEnabled = wsp === "CEVL";
 
-  const [stock, setStock] = useState<Record<string, number>>({ ...initialStock });
+  const stockMap = useStock();
+  const stock = stockMap[wsp] ?? {};
   const [wd, setWd] = useState("");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PosmMaterial | null>(null);
   const [qty, setQty] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const [result, setResult] = useState<{
     wd: string;
@@ -67,14 +70,18 @@ function WdIssuePage() {
 
   function handleDispatch() {
     if (!canSubmit || !selected) return;
-    const remaining = currentStock - qtyNum;
-    setStock((prev) => ({ ...prev, [selected.code]: remaining }));
+    const res = dispatchStock(wsp, selected.code, qtyNum);
+    if (!res.ok) {
+      setError(res.error ?? "Not enough stock available");
+      return;
+    }
+    setError(null);
     setResult({
       wd,
       code: selected.code,
       name: selected.name,
       qty: qtyNum,
-      remaining,
+      remaining: res.remaining,
       wsp,
     });
     setSelected(null);
@@ -242,15 +249,15 @@ function WdIssuePage() {
                       inputMode="numeric"
                       placeholder="Enter quantity"
                       value={qty}
-                      onChange={(e) => setQty(e.target.value)}
+                      onChange={(e) => { setQty(e.target.value); setError(null); }}
                       className={`${inputClass} pl-9 ${exceeds ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                     />
                   </div>
                 </label>
 
-                {exceeds && (
+                {(exceeds || error) && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
-                    <AlertTriangle size={14} /> Quantity exceeds available stock
+                    <AlertTriangle size={14} /> {error ?? "Quantity exceeds available stock"}
                   </div>
                 )}
 
