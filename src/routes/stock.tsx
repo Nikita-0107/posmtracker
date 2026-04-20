@@ -1,10 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Search, Boxes, X, Loader2 } from "lucide-react";
+import { Search, Boxes, X, Loader2, Download } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock } from "@/hooks/use-stock";
+import { exportDispatchReport } from "@/lib/export-dispatch";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
   component: StockPage,
@@ -22,6 +24,20 @@ function StockPage() {
   const { materials, loading: matLoading } = useMaterials();
   const { stock, loading: stockLoading } = useStock();
   const [query, setQuery] = useState("");
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const { rows, filename } = await exportDispatchReport();
+      toast.success(`Exported ${rows} dispatch records`, { description: filename });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Export failed";
+      toast.error("Export failed", { description: msg });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const items = useMemo(() => {
     if (!wsp) return [];
