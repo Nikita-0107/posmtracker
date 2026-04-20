@@ -29,8 +29,10 @@ function StockPage() {
   async function handleExport() {
     setExporting(true);
     try {
-      const { rows, filename } = await exportDispatchReport();
-      toast.success(`Exported ${rows} dispatch records`, { description: filename });
+      const { rows, ledgerRows, filename } = await exportDispatchReport();
+      toast.success(`Exported ${rows} dispatches · ${ledgerRows} ledger rows`, {
+        description: filename,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Export failed";
       toast.error("Export failed", { description: msg });
