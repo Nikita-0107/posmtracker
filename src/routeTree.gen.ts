@@ -13,6 +13,7 @@ import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as TlUploadRouteImport } from './routes/tl-upload'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 
 const WdIssueRoute = WdIssueRouteImport.update({
@@ -35,6 +36,11 @@ const ReceiveRoute = ReceiveRouteImport.update({
   path: '/receive',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
@@ -65,14 +74,22 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
+  fullPaths: '/' | '/login' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
-  id: '__root__' | '/' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
+  to: '/' | '/login' | '/receive' | '/stock' | '/tl-upload' | '/wd-issue'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/receive'
+    | '/stock'
+    | '/tl-upload'
+    | '/wd-issue'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlUploadRoute: typeof TlUploadRoute
@@ -109,6 +126,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReceiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -121,6 +145,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlUploadRoute: TlUploadRoute,
@@ -129,3 +154,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
