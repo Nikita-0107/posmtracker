@@ -26,7 +26,23 @@ export function useMaterials() {
     };
   }, []);
 
-  return { materials, loading };
+  const addMaterial = useCallback(async (code: string, name: string) => {
+    const { data, error } = await supabase
+      .from("materials")
+      .insert({ code, name })
+      .select("code, name")
+      .single();
+    if (error) return { material: null, error };
+    const newMat = data as Material;
+    setMaterials((prev) =>
+      [...prev.filter((m) => m.code !== newMat.code), newMat].sort((a, b) =>
+        a.code.localeCompare(b.code),
+      ),
+    );
+    return { material: newMat, error: null };
+  }, []);
+
+  return { materials, loading, addMaterial };
 }
 
 export function useStock() {
