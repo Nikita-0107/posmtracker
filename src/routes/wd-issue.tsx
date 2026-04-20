@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package,
-  ChevronDown,
   Hash,
   CheckCircle2,
   Search,
@@ -38,11 +37,63 @@ function WdIssuePage() {
   const { stock, refresh, loading: stockLoading } = useStock();
 
   const [wd, setWd] = useState("");
+  const [wdQuery, setWdQuery] = useState("");
+  const [wdOpen, setWdOpen] = useState(false);
+  const [wdHighlight, setWdHighlight] = useState(0);
+  const wdBoxRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const wdResults = useMemo(() => {
+    const q = wdQuery.trim().toLowerCase();
+    if (!q) return wdMaster;
+    return wdMaster.filter(
+      (d) => d.wd_code.toLowerCase().includes(q) || d.wd_name.toLowerCase().includes(q),
+    );
+  }, [wdQuery]);
+
+  useEffect(() => {
+    setWdHighlight(0);
+  }, [wdQuery]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (wdBoxRef.current && !wdBoxRef.current.contains(e.target as Node)) {
+        setWdOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  function selectWd(code: string) {
+    const found = wdMaster.find((d) => d.wd_code === code);
+    setWd(code);
+    setWdQuery(found ? `${found.wd_code} - ${found.wd_name}` : code);
+    setWdOpen(false);
+  }
+
+  function handleWdKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setWdOpen(true);
+      setWdHighlight((h) => Math.min(h + 1, wdResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setWdHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      if (wdOpen && wdResults[wdHighlight]) {
+        e.preventDefault();
+        selectWd(wdResults[wdHighlight].wd_code);
+      }
+    } else if (e.key === "Escape") {
+      setWdOpen(false);
+    }
+  }
+
 
   const [result, setResult] = useState<{
     wd: string;
@@ -93,12 +144,13 @@ function WdIssuePage() {
     setQuery("");
     setQty("");
     setWd("");
+    setWdQuery("");
     void refresh();
   }
 
   const inputClass =
     "w-full rounded-xl border bg-card px-3 py-3 text-sm font-medium text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30";
-  const selectClass = `${inputClass} appearance-none pr-10`;
+  
 
   return (
     <AppShell>
@@ -134,16 +186,59 @@ function WdIssuePage() {
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">1</span>
               <h3 className="text-sm font-bold text-foreground">Select Distributor (WD)</h3>
             </div>
-            <div className="relative">
-              <select value={wd} onChange={(e) => setWd(e.target.value)} className={selectClass}>
-                <option value="">— Choose Distributor —</option>
-                {wdMaster.map((d) => (
-                  <option key={d.wd_code} value={d.wd_code}>
-                    {d.wd_code} - {d.wd_name}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <div ref={wdBoxRef} className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                value={wdQuery}
+                onChange={(e) => {
+                  setWdQuery(e.target.value);
+                  setWd("");
+                  setWdOpen(true);
+                }}
+                onFocus={() => setWdOpen(true)}
+                onKeyDown={handleWdKeyDown}
+                placeholder="Search by code or name"
+                className={`${inputClass} pl-9 pr-9`}
+                role="combobox"
+                aria-expanded={wdOpen}
+                aria-autocomplete="list"
+              />
+              {wdQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setWdQuery(""); setWd(""); setWdOpen(true); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
+                  aria-label="Clear distributor"
+                >
+                  <X size={14} />
+                </button>
+              )}
+              {wdOpen && (
+                <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-64 overflow-y-auto rounded-xl border bg-card shadow-lg">
+                  {wdResults.length === 0 ? (
+                    <p className="px-3 py-3 text-center text-xs text-muted-foreground">
+                      No distributors found
+                    </p>
+                  ) : (
+                    wdResults.map((d, i) => (
+                      <button
+                        key={d.wd_code}
+                        type="button"
+                        onMouseDown={(e) => { e.preventDefault(); selectWd(d.wd_code); }}
+                        onMouseEnter={() => setWdHighlight(i)}
+                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-xs transition ${
+                          i === wdHighlight ? "bg-primary/10" : "hover:bg-muted/50"
+                        } ${wd === d.wd_code ? "font-bold" : ""}`}
+                      >
+                        <span className="font-mono text-foreground">{d.wd_code}</span>
+                        <span className="text-muted-foreground">-</span>
+                        <span className="truncate text-foreground">{d.wd_name}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </section>
 
