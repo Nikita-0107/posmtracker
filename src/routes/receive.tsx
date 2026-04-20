@@ -31,7 +31,7 @@ function ReceivePage() {
   const { profile } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
-  const { materials, loading: matLoading } = useMaterials();
+  const { materials, loading: matLoading, addMaterial } = useMaterials();
   const { stock, loading: stockLoading, refresh } = useStock();
 
   const [query, setQuery] = useState("");
@@ -39,6 +39,13 @@ function ReceivePage() {
   const [qty, setQty] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Add-new-material form state
+  const [addOpen, setAddOpen] = useState(false);
+  const [newCode, setNewCode] = useState("");
+  const [newName, setNewName] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const [addError, setAddError] = useState<string | null>(null);
 
   const [submitResult, setSubmitResult] = useState<{
     code: string;
