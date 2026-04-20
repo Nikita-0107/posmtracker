@@ -4,7 +4,8 @@ import { Search, Boxes, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useWsp } from "@/hooks/use-wsp";
-import { posmMaterials, initialStock } from "@/lib/posm-data";
+import { posmMaterials } from "@/lib/posm-data";
+import { useStock } from "@/hooks/use-stock";
 
 export const Route = createFileRoute("/stock")({
   component: StockPage,
