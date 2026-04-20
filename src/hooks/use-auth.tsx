@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, createContext, useContext, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,7 +17,25 @@ export function mobileToEmail(mobile: string): string {
   return `${mobile}@${MOBILE_DOMAIN}`;
 }
 
-export function useAuth() {
+type AuthContextValue = {
+  session: Session | null;
+  user: Session["user"] | null;
+  profile: Profile | null;
+  isAuthenticated: boolean;
+  loading: boolean;
+  signIn: (mobile: string, password: string) => Promise<{ error: unknown }>;
+  signUp: (
+    mobile: string,
+    password: string,
+    displayName?: string,
+  ) => Promise<{ error: unknown }>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void> | undefined;
+};
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function useAuthState(): AuthContextValue {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,6 +111,30 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
-    refreshProfile: () => session?.user && loadProfile(session.user.id),
+    refreshProfile: () => (session?.user ? loadProfile(session.user.id) : undefined),
+  };
+}
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const value = useAuthState();
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (ctx) return ctx;
+  // Fallback: if provider is missing (e.g., during SSR shell), return a stable
+  // unauthenticated snapshot so consumers don't crash. Real state arrives
+  // once the provider mounts on the client.
+  return {
+    session: null,
+    user: null,
+    profile: null,
+    isAuthenticated: false,
+    loading: true,
+    signIn: async () => ({ error: new Error("Auth provider not mounted") }),
+    signUp: async () => ({ error: new Error("Auth provider not mounted") }),
+    signOut: async () => {},
+    refreshProfile: () => undefined,
   };
 }
