@@ -13,6 +13,7 @@ import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as TlUploadRouteImport } from './routes/tl-upload'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -37,6 +38,11 @@ const ReceiveRoute = ReceiveRouteImport.update({
   path: '/receive',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MovementsRoute = MovementsRouteImport.update({
+  id: '/movements',
+  path: '/movements',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -56,6 +62,7 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl-upload': typeof TlUploadRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/movements'
     | '/receive'
     | '/stock'
     | '/tl-upload'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/movements'
     | '/receive'
     | '/stock'
     | '/tl-upload'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/login'
+    | '/movements'
     | '/receive'
     | '/stock'
     | '/tl-upload'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  MovementsRoute: typeof MovementsRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlUploadRoute: typeof TlUploadRoute
@@ -151,6 +164,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReceiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/movements': {
+      id: '/movements'
+      path: '/movements'
+      fullPath: '/movements'
+      preLoaderRoute: typeof MovementsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  MovementsRoute: MovementsRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlUploadRoute: TlUploadRoute,
@@ -187,3 +208,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
