@@ -76,7 +76,6 @@ function ReceivePage() {
     if (!canSaveMaterial) return;
     const m = addMaterial(newCode, newName);
     if (!m) return;
-    setStock((prev) => ({ ...prev, [m.code]: prev[m.code] ?? 0 }));
     setSelected(m);
     setShowAddForm(false);
     setNewCode("");
@@ -90,8 +89,7 @@ function ReceivePage() {
   function handleSubmit() {
     if (!canSubmit || !selected) return;
     const q = Number(qty);
-    const total = (stock[selected.code] ?? 0) + q;
-    setStock((prev) => ({ ...prev, [selected.code]: total }));
+    const total = receiveStock(wsp, selected.code, q);
     setSubmitResult({ code: selected.code, name: selected.name, qty: q, total, wsp });
     setSelected(null);
     setQty("");
