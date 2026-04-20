@@ -46,17 +46,47 @@ export async function exportDispatchReport() {
   const matMap = new Map(materials.map((m) => [m.code, m.name]));
   const wdMap = new Map(wdMaster.map((w) => [w.wd_code, w.wd_name]));
 
+  // Build a name->code lookup for legacy records that stored the full
+  // distributor string (e.g. "SRI KALYANI AGENCIES – VIZAG-KALYANI") instead
+  // of the wd_code. We normalize by stripping the location suffix after "–"/"-"
+  // and uppercasing for a tolerant match.
+  const normalizeName = (s: string) =>
+    s
+      .split(/[–-]/)[0]
+      .replace(/\s+/g, " ")
+      .trim()
+      .toUpperCase();
+  const nameToCode = new Map<string, string>();
+  for (const w of wdMaster) {
+    nameToCode.set(normalizeName(w.wd_name), w.wd_code);
+  }
+
+  function resolveWd(distributor: string | null): { code: string; name: string } {
+    const raw = (distributor ?? "").trim();
+    if (!raw) return { code: "", name: "" };
+    // Already a wd_code
+    if (wdMap.has(raw)) return { code: raw, name: wdMap.get(raw) ?? "" };
+    // Legacy full string — try to match by normalized name
+    const code = nameToCode.get(normalizeName(raw));
+    if (code) return { code, name: wdMap.get(code) ?? "" };
+    // Fallback: keep the cleaned name, leave code blank rather than polluting wd_code
+    return { code: "", name: raw.split(/[–-]/)[0].trim() };
+  }
+
   // Sheet 1: Dispatch Data
   const dispatchRows = movements
     .filter((m) => m.distributor && m.material_code && m.qty > 0)
-    .map((m) => ({
-      Date: formatDate(m.created_at),
-      wd_code: m.distributor ?? "",
-      wd_name: wdMap.get(m.distributor ?? "") ?? "",
-      material_code: m.material_code,
-      material_name: matMap.get(m.material_code) ?? "",
-      quantity: m.qty,
-    }));
+    .map((m) => {
+      const wd = resolveWd(m.distributor);
+      return {
+        Date: formatDate(m.created_at),
+        wd_code: wd.code,
+        wd_name: wd.name,
+        material_code: m.material_code,
+        material_name: matMap.get(m.material_code) ?? "",
+        quantity: m.qty,
+      };
+    });
 
   // Summary: by WD
   const wdTotals = new Map<string, number>();
