@@ -15,7 +15,8 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useWsp } from "@/hooks/use-wsp";
-import { posmMaterials, initialStock, addMaterial, type PosmMaterial } from "@/lib/posm-data";
+import { useStock, receiveStock } from "@/hooks/use-stock";
+import { posmMaterials, addMaterial, type PosmMaterial } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/receive")({
   component: ReceivePage,
