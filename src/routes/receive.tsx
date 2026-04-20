@@ -73,6 +73,7 @@ function ReceivePage() {
     qty !== "" &&
     Number(qty) > 0 &&
     referenceNumber.trim().length > 0 &&
+    !!proof &&
     !busy;
 
   function handleSelect(m: Material) {
@@ -104,16 +105,27 @@ function ReceivePage() {
   }
 
   async function handleSubmit() {
-    if (!canSubmit || !selected) return;
+    if (!selected) return;
     const ref = referenceNumber.trim();
     if (!ref) {
       setError("Reference number is required");
       return;
     }
+    if (!proof) {
+      setProofError("Proof image is required");
+      return;
+    }
+    setProofError(null);
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     const qNum = Number(qty);
-    const { newQty, error: rpcError } = await receiveMaterial(selected.code, qNum, ref);
+    const { newQty, error: rpcError } = await receiveMaterial(
+      selected.code,
+      qNum,
+      ref,
+      proof.path,
+    );
     setBusy(false);
     if (rpcError) {
       const msg = rpcError.message ?? "";
@@ -138,6 +150,8 @@ function ReceivePage() {
     setQty("");
     setReferenceNumber("");
     setQuery("");
+    if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
+    setProof(null);
     void refresh();
   }
 
