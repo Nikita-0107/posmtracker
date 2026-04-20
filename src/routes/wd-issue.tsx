@@ -150,7 +150,7 @@ function WdIssuePage() {
 
   const inputClass =
     "w-full rounded-xl border bg-card px-3 py-3 text-sm font-medium text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30";
-  const selectClass = `${inputClass} appearance-none pr-10`;
+  
 
   return (
     <AppShell>
