@@ -1,7 +1,7 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Phone, KeyRound, ArrowRight, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Phone, Lock, ArrowRight, AlertTriangle, ShieldCheck, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/login")({
@@ -9,55 +9,71 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Sign in — POSM Tracker" },
-      { name: "description", content: "Sign in with your mobile number and OTP." },
+      { name: "description", content: "Sign in or create an account with your mobile number." },
     ],
   }),
 });
 
-const FIXED_OTP = "1234";
-
 function LoginPage() {
-  const { isAuthenticated, signIn } = useAuth();
+  const { isAuthenticated, signIn, signUp, loading } = useAuth();
   const navigate = useNavigate();
 
-  const [step, setStep] = useState<"mobile" | "otp">("mobile");
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [mobile, setMobile] = useState("");
-  const [mobileError, setMobileError] = useState<string | null>(null);
-  const [otp, setOtp] = useState("");
-  const [otpError, setOtpError] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) navigate({ to: "/" });
-  }, [isAuthenticated, navigate]);
+    if (!loading && isAuthenticated) navigate({ to: "/" });
+  }, [isAuthenticated, loading, navigate]);
 
   const isValidMobile = /^\d{10}$/.test(mobile);
+  const isValidPassword = password.length >= 6;
+  const canSubmit = isValidMobile && isValidPassword && (mode === "signin" || displayName.trim().length > 0);
 
   function handleMobileChange(value: string) {
-    // Strip non-digits and cap at 10
     const cleaned = value.replace(/\D/g, "").slice(0, 10);
     setMobile(cleaned);
-    if (mobileError) setMobileError(null);
+    if (error) setError(null);
   }
 
-  function handleSendOtp() {
+  async function handleSubmit() {
     if (!isValidMobile) {
-      setMobileError("Enter a valid 10-digit mobile number");
+      setError("Enter a valid 10-digit mobile number");
       return;
     }
-    setMobileError(null);
-    setOtp("");
-    setOtpError(null);
-    setStep("otp");
-  }
+    if (!isValidPassword) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+    setError(null);
+    setInfo(null);
+    setBusy(true);
 
-  function handleVerifyOtp() {
-    if (otp !== FIXED_OTP) {
-      setOtpError("Invalid OTP");
-      return;
+    if (mode === "signin") {
+      const { error: signInError } = await signIn(mobile, password);
+      setBusy(false);
+      if (signInError) {
+        setError(signInError.message.includes("Invalid login")
+          ? "Invalid mobile number or password"
+          : signInError.message);
+        return;
+      }
+      navigate({ to: "/" });
+    } else {
+      const { error: signUpError } = await signUp(mobile, password, displayName.trim());
+      setBusy(false);
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
+      setInfo("Account created! You can sign in now. An admin will assign your WSP shortly.");
+      setMode("signin");
+      setPassword("");
     }
-    setOtpError(null);
-    signIn(mobile);
-    navigate({ to: "/" });
   }
 
   const inputClass =
@@ -67,130 +83,135 @@ function LoginPage() {
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex flex-1 items-center justify-center px-4 py-8">
         <div className="w-full max-w-sm space-y-6">
-          {/* Brand */}
           <div className="text-center">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
               <ShieldCheck size={28} className="text-primary" />
             </div>
-            <h1 className="mt-3 font-heading text-xl font-bold text-foreground">
-              📦 POSM Tracker
-            </h1>
-            <p className="text-xs text-muted-foreground">Sign in to continue</p>
+            <h1 className="mt-3 font-heading text-xl font-bold text-foreground">📦 POSM Tracker</h1>
+            <p className="text-xs text-muted-foreground">
+              {mode === "signin" ? "Sign in to continue" : "Create your account"}
+            </p>
           </div>
 
-          <AnimatePresence mode="wait">
-            {step === "mobile" ? (
-              <motion.section
-                key="mobile"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm"
-              >
-                <label className="block space-y-1.5">
-                  <span className="text-xs font-semibold text-foreground">Mobile Number</span>
-                  <div className="relative">
-                    <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel"
-                      value={mobile}
-                      onChange={(e) => handleMobileChange(e.target.value)}
-                      placeholder="10-digit mobile number"
-                      maxLength={10}
-                      className={`${inputClass} pl-16 font-mono tracking-wider ${
-                        mobileError ? "border-destructive ring-2 ring-destructive/20" : ""
-                      }`}
-                    />
-                  </div>
-                </label>
+          {/* Tabs */}
+          <div className="flex rounded-xl border bg-card p-1">
+            <button
+              onClick={() => { setMode("signin"); setError(null); setInfo(null); }}
+              className={`flex-1 rounded-lg py-2 text-xs font-bold transition ${
+                mode === "signin" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => { setMode("signup"); setError(null); setInfo(null); }}
+              className={`flex-1 rounded-lg py-2 text-xs font-bold transition ${
+                mode === "signup" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground"
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
 
-                {mobileError && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
-                    <AlertTriangle size={14} /> {mobileError}
-                  </div>
-                )}
-
-                <button
-                  onClick={handleSendOtp}
-                  disabled={!isValidMobile}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
-                >
-                  Send OTP <ArrowRight size={16} />
-                </button>
-              </motion.section>
-            ) : (
-              <motion.section
-                key="otp"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">Enter OTP</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Sent to <strong className="font-mono text-foreground">+91 {mobile}</strong>
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => {
-                      setStep("mobile");
-                      setOtp("");
-                      setOtpError(null);
-                    }}
-                    className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
-                  >
-                    Change
-                  </button>
+          <motion.section
+            key={mode}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3 rounded-2xl border bg-card p-4 shadow-sm"
+          >
+            {mode === "signup" && (
+              <label className="block space-y-1.5">
+                <span className="text-xs font-semibold text-foreground">Your Name</span>
+                <div className="relative">
+                  <UserIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    type="text"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="Full name"
+                    className={`${inputClass} pl-9`}
+                  />
                 </div>
-
-                <label className="block space-y-1.5">
-                  <div className="relative">
-                    <KeyRound size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      value={otp}
-                      onChange={(e) => {
-                        setOtp(e.target.value.replace(/\D/g, "").slice(0, 4));
-                        if (otpError) setOtpError(null);
-                      }}
-                      placeholder="4-digit OTP"
-                      maxLength={4}
-                      className={`${inputClass} pl-9 font-mono tracking-[0.5em] ${
-                        otpError ? "border-destructive ring-2 ring-destructive/20" : ""
-                      }`}
-                    />
-                  </div>
-                </label>
-
-                {otpError && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
-                    <AlertTriangle size={14} /> {otpError}
-                  </div>
-                )}
-
-                <button
-                  onClick={handleVerifyOtp}
-                  disabled={otp.length !== 4}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
-                >
-                  Verify & Continue
-                </button>
-
-                <p className="text-center text-[10px] text-muted-foreground">
-                  For demo, use OTP <strong className="font-mono text-foreground">1234</strong>
-                </p>
-              </motion.section>
+              </label>
             )}
-          </AnimatePresence>
+
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-foreground">Mobile Number</span>
+              <div className="relative">
+                <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
+                  +91
+                </span>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  value={mobile}
+                  onChange={(e) => handleMobileChange(e.target.value)}
+                  placeholder="10-digit mobile number"
+                  maxLength={10}
+                  className={`${inputClass} pl-16 font-mono tracking-wider`}
+                />
+              </div>
+            </label>
+
+            <label className="block space-y-1.5">
+              <span className="text-xs font-semibold text-foreground">Password</span>
+              <div className="relative">
+                <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="password"
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); if (error) setError(null); }}
+                  placeholder="At least 6 characters"
+                  className={`${inputClass} pl-9`}
+                />
+              </div>
+            </label>
+
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive"
+                >
+                  <AlertTriangle size={14} /> {error}
+                </motion.div>
+              )}
+              {info && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="rounded-lg bg-success/10 px-2.5 py-2 text-[11px] font-semibold text-success"
+                >
+                  {info}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit || busy}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+            >
+              {busy ? "Please wait…" : mode === "signin" ? "Sign In" : "Create Account"}
+              {!busy && <ArrowRight size={16} />}
+            </button>
+
+            {mode === "signup" && (
+              <p className="text-center text-[10px] text-muted-foreground">
+                After signup, an admin will assign your WSP. You can sign in immediately.
+              </p>
+            )}
+          </motion.section>
+
+          <p className="text-center text-[10px] text-muted-foreground">
+            <Link to="/" className="text-primary underline-offset-2 hover:underline">Back to home</Link>
+          </p>
         </div>
       </main>
     </div>
