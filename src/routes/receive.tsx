@@ -161,13 +161,22 @@ function ReceivePage() {
               <input
                 type="text"
                 value={query}
-                onChange={(e) => { setQuery(e.target.value); setSelected(null); }}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setSelected(null);
+                  setAddOpen(false);
+                  setAddError(null);
+                }}
                 placeholder="Search Material Code or Name"
                 className={`${inputClass} pl-9`}
               />
               {query && (
                 <button
-                  onClick={() => { setQuery(""); setSelected(null); }}
+                  onClick={() => {
+                    setQuery("");
+                    setSelected(null);
+                    setAddOpen(false);
+                  }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
                   aria-label="Clear search"
                 >
