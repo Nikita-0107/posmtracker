@@ -10,6 +10,7 @@ import {
   PackagePlus,
   AlertTriangle,
   Loader2,
+  Plus,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
