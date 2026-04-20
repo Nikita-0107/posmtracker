@@ -99,6 +99,7 @@ export type Database = {
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by: string | null
+          proof_image_path: string | null
           qty: number
           reference_number: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
@@ -110,6 +111,7 @@ export type Database = {
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
+          proof_image_path?: string | null
           qty: number
           reference_number?: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
@@ -121,6 +123,7 @@ export type Database = {
           material_code?: string
           movement?: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
+          proof_image_path?: string | null
           qty?: number
           reference_number?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"]
@@ -166,7 +169,12 @@ export type Database = {
         Returns: Database["public"]["Enums"]["wsp_code"]
       }
       dispatch_material: {
-        Args: { _distributor: string; _material_code: string; _qty: number }
+        Args: {
+          _distributor: string
+          _material_code: string
+          _proof_image_path: string
+          _qty: number
+        }
         Returns: number
       }
       has_role: {
@@ -179,6 +187,7 @@ export type Database = {
       receive_material: {
         Args: {
           _material_code: string
+          _proof_image_path: string
           _qty: number
           _reference_number: string
         }
