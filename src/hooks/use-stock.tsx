@@ -30,13 +30,21 @@ export function useMaterials() {
 }
 
 export function useStock() {
+  const { profile } = useAuth();
+  const wsp = profile?.wsp ?? null;
   const [stock, setStock] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!wsp) {
+      setStock({});
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("stock")
-      .select("material_code, qty");
+      .select("material_code, qty")
+      .eq("wsp", wsp);
     if (error) {
       console.error("Failed to load stock", error);
       setStock({});
@@ -49,7 +57,7 @@ export function useStock() {
     }
     setStock(map);
     setLoading(false);
-  }, []);
+  }, [wsp]);
 
   useEffect(() => {
     void refresh();
