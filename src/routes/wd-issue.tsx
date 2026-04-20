@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package,
@@ -11,12 +11,13 @@ import {
   X,
   AlertTriangle,
   Truck,
+  Loader2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
-import { useWsp } from "@/hooks/use-wsp";
-import { useStock, dispatchStock } from "@/hooks/use-stock";
-import { distributors, posmMaterials, type PosmMaterial } from "@/lib/posm-data";
+import { useAuth } from "@/hooks/use-auth";
+import { useMaterials, useStock, dispatchMaterial, type Material } from "@/hooks/use-stock";
+import { distributors } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/wd-issue")({
   component: WdIssuePage,
@@ -29,16 +30,19 @@ export const Route = createFileRoute("/wd-issue")({
 });
 
 function WdIssuePage() {
-  const [wsp] = useWsp();
-  const wspEnabled = wsp === "CEVL";
+  const { profile } = useAuth();
+  const wsp = profile?.wsp;
+  const wspEnabled = !!wsp;
 
-  const stockMap = useStock();
-  const stock = stockMap[wsp] ?? {};
+  const { materials } = useMaterials();
+  const { stock, refresh, loading: stockLoading } = useStock();
+
   const [wd, setWd] = useState("");
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<PosmMaterial | null>(null);
+  const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const [result, setResult] = useState<{
     wd: string;
@@ -49,45 +53,47 @@ function WdIssuePage() {
     wsp: string;
   } | null>(null);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return posmMaterials.filter(
-      (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-    );
-  }, [query]);
+  const q = query.trim().toLowerCase();
+  const results = q
+    ? materials.filter(
+        (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
+      )
+    : [];
 
   const currentStock = selected ? stock[selected.code] ?? 0 : 0;
   const qtyNum = Number(qty);
   const exceeds = !!selected && qty !== "" && qtyNum > currentStock;
-  const canSubmit =
-    !!wd && !!selected && qty !== "" && qtyNum > 0 && !exceeds;
+  const canSubmit = !!wd && !!selected && qty !== "" && qtyNum > 0 && !exceeds && !busy;
 
-  function handleSelect(m: PosmMaterial) {
+  function handleSelect(m: Material) {
     setSelected(m);
     setQty("");
+    setError(null);
   }
 
-  function handleDispatch() {
+  async function handleDispatch() {
     if (!canSubmit || !selected) return;
-    const res = dispatchStock(wsp, selected.code, qtyNum);
-    if (!res.ok) {
-      setError(res.error ?? "Not enough stock available");
+    setBusy(true);
+    setError(null);
+    const { newQty, error: rpcError } = await dispatchMaterial(selected.code, qtyNum, wd);
+    setBusy(false);
+    if (rpcError) {
+      setError(rpcError.message);
       return;
     }
-    setError(null);
     setResult({
       wd,
       code: selected.code,
       name: selected.name,
       qty: qtyNum,
-      remaining: res.remaining,
-      wsp,
+      remaining: newQty ?? 0,
+      wsp: wsp ?? "",
     });
     setSelected(null);
     setQuery("");
     setQty("");
     setWd("");
+    void refresh();
   }
 
   const inputClass =
@@ -97,7 +103,6 @@ function WdIssuePage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-md space-y-5">
-        {/* Header */}
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <Truck size={20} className="text-accent" />
@@ -111,12 +116,11 @@ function WdIssuePage() {
           </div>
         </div>
 
-        {/* No-data notice for non-CEVL WSPs */}
         {!wspEnabled && (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
-            <p className="text-sm font-bold text-foreground">No data available</p>
+            <p className="text-sm font-bold text-foreground">No WSP assigned</p>
             <p className="mt-1 text-[11px] text-muted-foreground">
-              Stock data for <strong className="text-primary">{wsp}</strong> has not been uploaded yet.
+              An admin needs to assign a WSP before you can dispatch stock.
             </p>
           </div>
         )}
@@ -125,7 +129,6 @@ function WdIssuePage() {
           className={`space-y-5 ${!wspEnabled ? "pointer-events-none opacity-50" : ""}`}
           aria-disabled={!wspEnabled}
         >
-          {/* STEP 1 — WD */}
           <section className="space-y-2.5">
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">1</span>
@@ -142,7 +145,6 @@ function WdIssuePage() {
             </div>
           </section>
 
-          {/* STEP 2 — Material Search */}
           <section className="space-y-2.5">
             <div className="flex items-center gap-2">
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">2</span>
@@ -154,10 +156,7 @@ function WdIssuePage() {
               <input
                 type="text"
                 value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setSelected(null);
-                }}
+                onChange={(e) => { setQuery(e.target.value); setSelected(null); }}
                 placeholder="Search Material Code or Name"
                 className={`${inputClass} pl-9`}
               />
@@ -172,9 +171,9 @@ function WdIssuePage() {
               )}
             </div>
 
-            {query.trim() && !selected && results.length > 0 && (
+            {q && !selected && results.length > 0 && (
               <div className="space-y-1.5">
-                {results.map((m) => (
+                {results.slice(0, 20).map((m) => (
                   <button
                     key={m.code}
                     onClick={() => handleSelect(m)}
@@ -189,7 +188,7 @@ function WdIssuePage() {
               </div>
             )}
 
-            {query.trim() && !selected && results.length === 0 && (
+            {q && !selected && results.length === 0 && (
               <p className="rounded-xl border border-dashed bg-muted/30 px-3 py-3 text-center text-xs text-muted-foreground">
                 No materials found
               </p>
@@ -214,7 +213,6 @@ function WdIssuePage() {
             )}
           </section>
 
-          {/* STEP 3 — Current Stock + Quantity */}
           <AnimatePresence>
             {selected && (
               <motion.section
@@ -228,13 +226,13 @@ function WdIssuePage() {
                   <h3 className="text-sm font-bold text-foreground">Quantity to Dispatch</h3>
                 </div>
 
-                {/* Current Stock — highlighted */}
                 <div className="flex items-center justify-between rounded-xl border-2 border-accent/30 bg-accent/5 px-3 py-3">
                   <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     Current WSP Stock
                   </span>
                   <span className="font-mono text-lg font-bold text-accent">
-                    {currentStock} <span className="text-[10px] font-semibold text-muted-foreground">units</span>
+                    {stockLoading ? "…" : currentStock}{" "}
+                    <span className="text-[10px] font-semibold text-muted-foreground">units</span>
                   </span>
                 </div>
 
@@ -266,15 +264,14 @@ function WdIssuePage() {
                   disabled={!canSubmit}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
                 >
-                  <Package size={16} />
-                  Dispatch to WD
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
+                  {busy ? "Dispatching…" : "Dispatch to WD"}
                 </button>
               </motion.section>
             )}
           </AnimatePresence>
         </div>
 
-        {/* Persistent Success Card */}
         <AnimatePresence>
           {result && (
             <motion.div

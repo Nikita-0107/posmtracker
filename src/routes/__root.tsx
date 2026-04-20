@@ -68,15 +68,18 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading, profile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (loading) return;
     if (!isAuthenticated && location.pathname !== "/login") {
       navigate({ to: "/login", replace: true });
+    } else if (isAuthenticated && location.pathname === "/login" && profile !== null) {
+      navigate({ to: "/", replace: true });
     }
-  }, [isAuthenticated, location.pathname, navigate]);
+  }, [isAuthenticated, loading, profile, location.pathname, navigate]);
 
   return <Outlet />;
 }
