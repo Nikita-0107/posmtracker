@@ -69,6 +69,29 @@ function ReceivePage() {
   function handleSelect(m: Material) {
     setSelected(m);
     setError(null);
+    setAddOpen(false);
+  }
+
+  async function handleAddMaterial() {
+    const code = newCode.trim();
+    const name = newName.trim();
+    if (!code || !name) {
+      setAddError("Code and description are required");
+      return;
+    }
+    setAddBusy(true);
+    setAddError(null);
+    const { material, error: addErr } = await addMaterial(code, name);
+    setAddBusy(false);
+    if (addErr || !material) {
+      setAddError(addErr?.message ?? "Failed to add material");
+      return;
+    }
+    handleSelect(material);
+    setQuery(material.code);
+    setNewCode("");
+    setNewName("");
+    setAddOpen(false);
   }
 
   async function handleSubmit() {
