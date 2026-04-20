@@ -9,7 +9,26 @@ type MovementRow = {
   movement: "receive" | "dispatch";
   distributor: string | null;
   wsp: string;
+  reference_number: string | null;
+  proof_image_path: string | null;
 };
+
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days for export portability
+
+async function signProofPaths(paths: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const unique = Array.from(new Set(paths.filter((p) => !!p)));
+  if (unique.length === 0) return map;
+  // Supabase supports batch sign via createSignedUrls
+  const { data, error } = await supabase.storage
+    .from("proofs")
+    .createSignedUrls(unique, SIGNED_URL_TTL_SECONDS);
+  if (error || !data) return map;
+  for (const item of data) {
+    if (item.path && item.signedUrl) map.set(item.path, item.signedUrl);
+  }
+  return map;
+}
 
 type MaterialRow = { code: string; name: string };
 
@@ -42,7 +61,9 @@ export async function exportDispatchReport() {
   const [movementsRes, materialsRes] = await Promise.all([
     supabase
       .from("stock_movements")
-      .select("created_at, material_code, qty, movement, distributor, wsp")
+      .select(
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path",
+      )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
   ]);
