@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package,
-  ChevronDown,
   Hash,
   CheckCircle2,
   Search,
