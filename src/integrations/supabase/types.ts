@@ -14,16 +14,174 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      materials: {
+        Row: {
+          code: string
+          created_at: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          mobile: string
+          updated_at: string
+          wsp: Database["public"]["Enums"]["wsp_code"] | null
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+          mobile: string
+          updated_at?: string
+          wsp?: Database["public"]["Enums"]["wsp_code"] | null
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          mobile?: string
+          updated_at?: string
+          wsp?: Database["public"]["Enums"]["wsp_code"] | null
+        }
+        Relationships: []
+      }
+      stock: {
+        Row: {
+          id: string
+          material_code: string
+          qty: number
+          updated_at: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          id?: string
+          material_code: string
+          qty?: number
+          updated_at?: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          id?: string
+          material_code?: string
+          qty?: number
+          updated_at?: string
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_material_code_fkey"
+            columns: ["material_code"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          distributor: string | null
+          id: string
+          material_code: string
+          movement: Database["public"]["Enums"]["movement_type"]
+          performed_by: string | null
+          qty: number
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          created_at?: string
+          distributor?: string | null
+          id?: string
+          material_code: string
+          movement: Database["public"]["Enums"]["movement_type"]
+          performed_by?: string | null
+          qty: number
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          created_at?: string
+          distributor?: string | null
+          id?: string
+          material_code?: string
+          movement?: Database["public"]["Enums"]["movement_type"]
+          performed_by?: string | null
+          qty?: number
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_material_code_fkey"
+            columns: ["material_code"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      current_user_wsp: {
+        Args: never
+        Returns: Database["public"]["Enums"]["wsp_code"]
+      }
+      dispatch_material: {
+        Args: { _distributor: string; _material_code: string; _qty: number }
+        Returns: number
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      receive_material: {
+        Args: { _material_code: string; _qty: number }
+        Returns: number
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "wsp"
+      movement_type: "receive" | "dispatch"
+      wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +308,10 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "wsp"],
+      movement_type: ["receive", "dispatch"],
+      wsp_code: ["CEVL", "CEVJ", "CEVY"],
+    },
   },
 } as const
