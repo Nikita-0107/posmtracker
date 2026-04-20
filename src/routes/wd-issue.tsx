@@ -38,11 +38,63 @@ function WdIssuePage() {
   const { stock, refresh, loading: stockLoading } = useStock();
 
   const [wd, setWd] = useState("");
+  const [wdQuery, setWdQuery] = useState("");
+  const [wdOpen, setWdOpen] = useState(false);
+  const [wdHighlight, setWdHighlight] = useState(0);
+  const wdBoxRef = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const wdResults = useMemo(() => {
+    const q = wdQuery.trim().toLowerCase();
+    if (!q) return wdMaster;
+    return wdMaster.filter(
+      (d) => d.wd_code.toLowerCase().includes(q) || d.wd_name.toLowerCase().includes(q),
+    );
+  }, [wdQuery]);
+
+  useEffect(() => {
+    setWdHighlight(0);
+  }, [wdQuery]);
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (wdBoxRef.current && !wdBoxRef.current.contains(e.target as Node)) {
+        setWdOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, []);
+
+  function selectWd(code: string) {
+    const found = wdMaster.find((d) => d.wd_code === code);
+    setWd(code);
+    setWdQuery(found ? `${found.wd_code} - ${found.wd_name}` : code);
+    setWdOpen(false);
+  }
+
+  function handleWdKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setWdOpen(true);
+      setWdHighlight((h) => Math.min(h + 1, wdResults.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setWdHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Enter") {
+      if (wdOpen && wdResults[wdHighlight]) {
+        e.preventDefault();
+        selectWd(wdResults[wdHighlight].wd_code);
+      }
+    } else if (e.key === "Escape") {
+      setWdOpen(false);
+    }
+  }
+
 
   const [result, setResult] = useState<{
     wd: string;
