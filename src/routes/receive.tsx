@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock, receiveMaterial, type Material } from "@/hooks/use-stock";
 
@@ -28,7 +29,7 @@ export const Route = createFileRoute("/receive")({
 });
 
 function ReceivePage() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
   const { materials, loading: matLoading, addMaterial } = useMaterials();
@@ -38,6 +39,8 @@ function ReceivePage() {
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
   const [referenceNumber, setReferenceNumber] = useState("");
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [proofError, setProofError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
