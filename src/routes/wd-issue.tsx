@@ -17,7 +17,7 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock, dispatchMaterial, type Material } from "@/hooks/use-stock";
-import { distributors } from "@/lib/posm-data";
+import { wdMaster } from "@/lib/posm-data";
 
 export const Route = createFileRoute("/wd-issue")({
   component: WdIssuePage,
@@ -137,8 +137,10 @@ function WdIssuePage() {
             <div className="relative">
               <select value={wd} onChange={(e) => setWd(e.target.value)} className={selectClass}>
                 <option value="">— Choose Distributor —</option>
-                {distributors.map((d) => (
-                  <option key={d} value={d}>{d}</option>
+                {wdMaster.map((d) => (
+                  <option key={d.wd_code} value={d.wd_code}>
+                    {d.wd_code} - {d.wd_name}
+                  </option>
                 ))}
               </select>
               <ChevronDown size={16} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
