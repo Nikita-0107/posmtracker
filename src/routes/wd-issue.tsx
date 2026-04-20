@@ -366,6 +366,20 @@ function WdIssuePage() {
                   </div>
                 </label>
 
+                {wsp && user && (
+                  <ProofImageUpload
+                    wsp={wsp}
+                    userId={user.id}
+                    kind="dispatch"
+                    value={proof}
+                    onChange={(v) => {
+                      setProof(v);
+                      if (v) setProofError(null);
+                    }}
+                    error={proofError}
+                  />
+                )}
+
                 {(exceeds || error) && (
                   <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
                     <AlertTriangle size={14} /> {error ?? "Quantity exceeds available stock"}
