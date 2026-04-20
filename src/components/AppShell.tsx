@@ -1,6 +1,7 @@
-import { Link, useLocation } from "@tanstack/react-router";
-import { Package, Camera, Inbox, Boxes, Building2 } from "lucide-react";
-import { WspSelector } from "@/components/WspSelector";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
+import { Package, Camera, Inbox, Boxes, Building2, LogOut } from "lucide-react";
+import { WspBadge } from "@/components/WspSelector";
+import { useAuth } from "@/hooks/use-auth";
 
 const tabs = [
   { to: "/" as const, label: "WSP", icon: Building2 },
@@ -12,6 +13,13 @@ const tabs = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const { signOut, profile } = useAuth();
+  const navigate = useNavigate();
+
+  async function handleSignOut() {
+    await signOut();
+    navigate({ to: "/login" });
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -19,7 +27,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <h1 className="font-heading text-sm font-bold tracking-tight text-foreground">
           📦 POSM Tracker
         </h1>
-        <WspSelector compact />
+        <div className="flex items-center gap-2">
+          <WspBadge />
+          {profile && (
+            <button
+              onClick={handleSignOut}
+              className="flex items-center gap-1 rounded-lg border border-muted-foreground/20 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+              aria-label="Sign out"
+            >
+              <LogOut size={12} />
+            </button>
+          )}
+        </div>
       </header>
 
       <main className="flex-1 overflow-y-auto px-3 py-4 pb-20">
