@@ -208,10 +208,79 @@ function ReceivePage() {
               </div>
             )}
 
-            {noResults && !selected && (
-              <p className="rounded-xl border border-dashed bg-muted/30 px-3 py-3 text-center text-xs text-muted-foreground">
-                No materials found
-              </p>
+            {noResults && !selected && !addOpen && (
+              <div className="space-y-2">
+                <p className="rounded-xl border border-dashed bg-muted/30 px-3 py-3 text-center text-xs text-muted-foreground">
+                  No materials found
+                </p>
+                <button
+                  onClick={() => {
+                    setAddOpen(true);
+                    setAddError(null);
+                    // Pre-fill code with the search query for convenience
+                    setNewCode(query.trim());
+                    setNewName("");
+                  }}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 py-2.5 text-xs font-bold text-primary transition hover:bg-primary/10 active:scale-[0.99]"
+                >
+                  <Plus size={14} /> Add New Material
+                </button>
+              </div>
+            )}
+
+            {addOpen && !selected && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-2.5 rounded-xl border-2 border-primary/30 bg-primary/5 p-3"
+              >
+                <div className="flex items-center justify-between">
+                  <p className="text-xs font-bold text-foreground">Add New Material</p>
+                  <button
+                    onClick={() => {
+                      setAddOpen(false);
+                      setAddError(null);
+                    }}
+                    className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                    aria-label="Cancel"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <label className="block space-y-1">
+                  <span className="text-[11px] font-semibold text-foreground">Material Code / ID</span>
+                  <input
+                    type="text"
+                    value={newCode}
+                    onChange={(e) => setNewCode(e.target.value)}
+                    placeholder="e.g. M/27008019C9"
+                    className={`${inputClass} font-mono`}
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-[11px] font-semibold text-foreground">Description</span>
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Material description"
+                    className={inputClass}
+                  />
+                </label>
+                {addError && (
+                  <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
+                    <AlertTriangle size={14} /> {addError}
+                  </div>
+                )}
+                <button
+                  onClick={handleAddMaterial}
+                  disabled={addBusy || !newCode.trim() || !newName.trim()}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-40"
+                >
+                  {addBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                  {addBusy ? "Saving…" : "Save Material"}
+                </button>
+              </motion.div>
             )}
 
             {selected && (
