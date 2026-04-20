@@ -100,6 +100,7 @@ export type Database = {
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by: string | null
           qty: number
+          reference_number: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
         }
         Insert: {
@@ -110,6 +111,7 @@ export type Database = {
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
           qty: number
+          reference_number?: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
         }
         Update: {
@@ -120,6 +122,7 @@ export type Database = {
           movement?: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
           qty?: number
+          reference_number?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"]
         }
         Relationships: [
@@ -174,7 +177,11 @@ export type Database = {
         Returns: boolean
       }
       receive_material: {
-        Args: { _material_code: string; _qty: number }
+        Args: {
+          _material_code: string
+          _qty: number
+          _reference_number: string
+        }
         Returns: number
       }
     }
