@@ -116,15 +116,34 @@ export async function exportDispatchReport() {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
       return {
         date: formatDateTime(m.created_at),
-        invoice_number: "",
         wd_code: wd.code,
         wd_name: wd.name,
         material_code: m.material_code,
         material_name: matMap.get(m.material_code) ?? "",
         quantity: m.qty,
-        proof: proofUrl
-          ? { f: `HYPERLINK("${proofUrl}","View Proof")`, t: "s", v: "View Proof" }
-          : "",
+        proof_url: proofUrl,
+      };
+    });
+
+  // -------------------------------------------------------------
+  // Sheet (extra): Receive Log — receive movements with proof links
+  // -------------------------------------------------------------
+  const receives = movements.filter(
+    (m) => m.movement === "receive" && m.material_code && m.qty > 0,
+  );
+  const receiveRows = receives
+    .slice()
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+    .map((m) => {
+      const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
+      return {
+        date: formatDateTime(m.created_at),
+        wsp: m.wsp,
+        material_code: m.material_code,
+        material_name: matMap.get(m.material_code) ?? "",
+        quantity: m.qty,
+        reference_number: m.reference_number ?? "",
+        proof_url: proofUrl,
       };
     });
 
