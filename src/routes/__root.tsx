@@ -1,6 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 
 import appCss from "../styles.css?url";
 
@@ -68,6 +68,14 @@ function RootShell({ children }: { children: React.ReactNode }) {
 }
 
 function RootComponent() {
+  return (
+    <AuthProvider>
+      <RootRouter />
+    </AuthProvider>
+  );
+}
+
+function RootRouter() {
   const { isAuthenticated, loading, profile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
