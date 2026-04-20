@@ -1,7 +1,9 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Package, Camera, Inbox, Boxes, Building2, LogOut } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Package, Camera, Inbox, Boxes, Building2, LogOut, ShieldCheck } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 
 const tabs = [
   { to: "/" as const, label: "WSP", icon: Building2 },
@@ -13,8 +15,29 @@ const tabs = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { signOut, profile } = useAuth();
+  const { signOut, profile, user } = useAuth();
   const navigate = useNavigate();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!user) {
+      setIsAdmin(false);
+      return;
+    }
+    let active = true;
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (active) setIsAdmin(!!data);
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   async function handleSignOut() {
     await signOut();
@@ -29,6 +52,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </h1>
         <div className="flex items-center gap-2">
           <WspBadge />
+          {isAdmin && (
+            <Link
+              to="/admin/users"
+              className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary transition hover:bg-primary/10"
+              aria-label="Admin"
+            >
+              <ShieldCheck size={12} /> Admin
+            </Link>
+          )}
           {profile && (
             <button
               onClick={handleSignOut}
