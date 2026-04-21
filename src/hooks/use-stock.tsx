@@ -82,17 +82,23 @@ export function useStock() {
   return { stock, loading, refresh };
 }
 
+export type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
+
 export async function receiveMaterial(
   materialCode: string,
   qty: number,
-  referenceNumber: string,
+  invoiceNumber: string,
   proofImagePath: string,
+  receivedDate: string, // YYYY-MM-DD
+  batchType: BatchType,
 ) {
   const { data, error } = await supabase.rpc("receive_material", {
     _material_code: materialCode,
     _qty: qty,
-    _reference_number: referenceNumber,
+    _reference_number: invoiceNumber,
     _proof_image_path: proofImagePath,
+    _received_date: receivedDate,
+    _batch_type: batchType,
   });
   return { newQty: data as number | null, error };
 }

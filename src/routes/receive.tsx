@@ -16,7 +16,20 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
-import { useMaterials, useStock, receiveMaterial, type Material } from "@/hooks/use-stock";
+import {
+  useMaterials,
+  useStock,
+  receiveMaterial,
+  type Material,
+  type BatchType,
+} from "@/hooks/use-stock";
+
+const BATCH_TYPES: BatchType[] = ["Launch", "Cyclical", "SOV", "Others"];
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export const Route = createFileRoute("/receive")({
   component: ReceivePage,
