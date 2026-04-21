@@ -142,18 +142,45 @@ export async function exportDispatchReport() {
   const receives = movements.filter(
     (m) => m.movement === "receive" && m.material_code && m.qty > 0,
   );
+
+  // Walk all movements chronologically (ascending) and track running balance
+  // per (wsp, material_code). For each receive, capture the closing balance
+  // immediately after the receive is applied.
+  const runningBalance = new Map<string, number>();
+  const receiveClosingByMovement = new Map<string, number>(); // key: created_at|wsp|code|qty|ref
+  for (const m of movements) {
+    if (!m.material_code || m.qty <= 0) continue;
+    const k = `${m.wsp}::${m.material_code}`;
+    const prev = runningBalance.get(k) ?? 0;
+    const next = m.movement === "receive" ? prev + m.qty : prev - m.qty;
+    runningBalance.set(k, next);
+    if (m.movement === "receive") {
+      const id = `${m.created_at}|${m.wsp}|${m.material_code}|${m.qty}|${m.reference_number ?? ""}`;
+      receiveClosingByMovement.set(id, next);
+    }
+  }
+
+  const todayDisplay = todayStamp();
   const receiveRows = receives
     .slice()
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .map((m) => {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
+      const rdate = m.received_date ?? dayKey(m.created_at);
+      const id = `${m.created_at}|${m.wsp}|${m.material_code}|${m.qty}|${m.reference_number ?? ""}`;
+      const closing = receiveClosingByMovement.get(id) ?? 0;
       return {
         date: formatDateTime(m.created_at),
         wsp: m.wsp,
         material_code: m.material_code,
         material_name: matMap.get(m.material_code) ?? "",
         quantity: m.qty,
-        reference_number: m.reference_number ?? "",
+        invoice_number: m.reference_number ?? "",
+        received_date: rdate,
+        current_date: todayDisplay,
+        age_days: ageInDays(rdate),
+        batch_type: m.batch_type ?? "",
+        closing_quantity: closing,
         proof_url: proofUrl,
       };
     });
