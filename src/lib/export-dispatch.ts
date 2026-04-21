@@ -129,6 +129,8 @@ export async function exportDispatchReport() {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
       return {
         date: formatDateTime(m.created_at),
+        dispatch_date: m.dispatch_date ?? dayKey(m.created_at),
+        dispatch_id: m.dispatch_id ?? "",
         wd_code: wd.code,
         wd_name: wd.name,
         material_code: m.material_code,
