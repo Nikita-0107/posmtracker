@@ -117,3 +117,20 @@ export async function dispatchMaterial(
   });
   return { newQty: data as number | null, error };
 }
+
+export type DispatchLineItem = { material_code: string; qty: number };
+
+export async function dispatchMaterials(
+  distributor: string,
+  proofImagePath: string,
+  items: DispatchLineItem[],
+  dispatchDate: string, // YYYY-MM-DD
+) {
+  const { data, error } = await supabase.rpc("dispatch_materials", {
+    _distributor: distributor,
+    _proof_image_path: proofImagePath,
+    _items: items,
+    _dispatch_date: dispatchDate,
+  });
+  return { dispatchId: data as string | null, error };
+}

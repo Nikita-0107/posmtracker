@@ -13,6 +13,8 @@ type MovementRow = {
   proof_image_path: string | null;
   received_date: string | null;
   batch_type: string | null;
+  dispatch_id: string | null;
+  dispatch_date: string | null;
 };
 
 function ageInDays(fromISO: string): number {
@@ -73,7 +75,7 @@ export async function exportDispatchReport() {
     supabase
       .from("stock_movements")
       .select(
-        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type",
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type, dispatch_id, dispatch_date",
       )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
@@ -127,6 +129,8 @@ export async function exportDispatchReport() {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
       return {
         date: formatDateTime(m.created_at),
+        dispatch_date: m.dispatch_date ?? dayKey(m.created_at),
+        dispatch_id: m.dispatch_id ?? "",
         wd_code: wd.code,
         wd_name: wd.name,
         material_code: m.material_code,
@@ -294,6 +298,8 @@ export async function exportDispatchReport() {
   // Dispatch Log with View Proof hyperlink column
   const dispatchHeader = [
     "date",
+    "dispatch_date",
+    "dispatch_id",
     "wd_code",
     "wd_name",
     "material_code",
@@ -301,10 +307,13 @@ export async function exportDispatchReport() {
     "quantity",
     "proof",
   ];
+  const dispatchProofCol = dispatchHeader.length - 1;
   const dispatchAoa: (string | number)[][] = [
     dispatchHeader,
     ...dispatchRows.map((r) => [
       r.date,
+      r.dispatch_date,
+      r.dispatch_id,
       r.wd_code,
       r.wd_name,
       r.material_code,
@@ -316,7 +325,7 @@ export async function exportDispatchReport() {
   const ws1 = XLSX.utils.aoa_to_sheet(dispatchAoa);
   dispatchRows.forEach((r, i) => {
     if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: dispatchProofCol });
     ws1[cellRef] = {
       t: "s",
       v: "View Proof",
@@ -324,13 +333,15 @@ export async function exportDispatchReport() {
     };
   });
   ws1["!cols"] = [
-    { wch: 18 },
-    { wch: 10 },
-    { wch: 36 },
-    { wch: 14 },
-    { wch: 36 },
-    { wch: 10 },
-    { wch: 14 },
+    { wch: 18 }, // date
+    { wch: 13 }, // dispatch_date
+    { wch: 36 }, // dispatch_id
+    { wch: 10 }, // wd_code
+    { wch: 36 }, // wd_name
+    { wch: 14 }, // material_code
+    { wch: 36 }, // material_name
+    { wch: 10 }, // quantity
+    { wch: 14 }, // proof
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
