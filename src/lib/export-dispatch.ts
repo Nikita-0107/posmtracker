@@ -11,7 +11,18 @@ type MovementRow = {
   wsp: string;
   reference_number: string | null;
   proof_image_path: string | null;
+  received_date: string | null;
+  batch_type: string | null;
 };
+
+function ageInDays(fromISO: string): number {
+  const d = new Date(fromISO + "T00:00:00");
+  if (isNaN(d.getTime())) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = today.getTime() - d.getTime();
+  return Math.max(0, Math.floor(diff / 86400000));
+}
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days for export portability
 
@@ -62,7 +73,7 @@ export async function exportDispatchReport() {
     supabase
       .from("stock_movements")
       .select(
-        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path",
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type",
       )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
@@ -131,18 +142,45 @@ export async function exportDispatchReport() {
   const receives = movements.filter(
     (m) => m.movement === "receive" && m.material_code && m.qty > 0,
   );
+
+  // Walk all movements chronologically (ascending) and track running balance
+  // per (wsp, material_code). For each receive, capture the closing balance
+  // immediately after the receive is applied.
+  const runningBalance = new Map<string, number>();
+  const receiveClosingByMovement = new Map<string, number>(); // key: created_at|wsp|code|qty|ref
+  for (const m of movements) {
+    if (!m.material_code || m.qty <= 0) continue;
+    const k = `${m.wsp}::${m.material_code}`;
+    const prev = runningBalance.get(k) ?? 0;
+    const next = m.movement === "receive" ? prev + m.qty : prev - m.qty;
+    runningBalance.set(k, next);
+    if (m.movement === "receive") {
+      const id = `${m.created_at}|${m.wsp}|${m.material_code}|${m.qty}|${m.reference_number ?? ""}`;
+      receiveClosingByMovement.set(id, next);
+    }
+  }
+
+  const todayDisplay = todayStamp();
   const receiveRows = receives
     .slice()
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .map((m) => {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
+      const rdate = m.received_date ?? dayKey(m.created_at);
+      const id = `${m.created_at}|${m.wsp}|${m.material_code}|${m.qty}|${m.reference_number ?? ""}`;
+      const closing = receiveClosingByMovement.get(id) ?? 0;
       return {
         date: formatDateTime(m.created_at),
         wsp: m.wsp,
         material_code: m.material_code,
         material_name: matMap.get(m.material_code) ?? "",
         quantity: m.qty,
-        reference_number: m.reference_number ?? "",
+        invoice_number: m.reference_number ?? "",
+        received_date: rdate,
+        current_date: todayDisplay,
+        age_days: ageInDays(rdate),
+        batch_type: m.batch_type ?? "",
+        closing_quantity: closing,
         proof_url: proofUrl,
       };
     });
@@ -296,16 +334,22 @@ export async function exportDispatchReport() {
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
-  // Receive Log with View Proof hyperlink column
+  // Receive Log with PO/invoice details + age + closing balance + proof link
   const receiveHeader = [
     "date",
     "wsp",
     "material_code",
     "material_name",
+    "invoice_number",
+    "batch_type",
+    "received_date",
+    "current_date",
+    "age_days",
     "quantity",
-    "reference_number",
+    "closing_quantity",
     "proof",
   ];
+  const proofColIdx = receiveHeader.length - 1;
   const receiveAoa: (string | number)[][] = [
     receiveHeader,
     ...receiveRows.map((r) => [
@@ -313,15 +357,20 @@ export async function exportDispatchReport() {
       r.wsp,
       r.material_code,
       r.material_name,
+      r.invoice_number,
+      r.batch_type,
+      r.received_date,
+      r.current_date,
+      r.age_days,
       r.quantity,
-      r.reference_number,
+      r.closing_quantity,
       r.proof_url ? "View Proof" : "",
     ]),
   ];
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
     if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: proofColIdx });
     wsR[cellRef] = {
       t: "s",
       v: "View Proof",
@@ -329,13 +378,18 @@ export async function exportDispatchReport() {
     };
   });
   wsR["!cols"] = [
-    { wch: 18 },
-    { wch: 8 },
-    { wch: 14 },
-    { wch: 36 },
-    { wch: 10 },
-    { wch: 18 },
-    { wch: 14 },
+    { wch: 18 }, // date
+    { wch: 8 },  // wsp
+    { wch: 14 }, // material_code
+    { wch: 36 }, // material_name
+    { wch: 18 }, // invoice_number
+    { wch: 12 }, // batch_type
+    { wch: 13 }, // received_date
+    { wch: 13 }, // current_date
+    { wch: 10 }, // age_days
+    { wch: 10 }, // quantity
+    { wch: 16 }, // closing_quantity
+    { wch: 14 }, // proof
   ];
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 

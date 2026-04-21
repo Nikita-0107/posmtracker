@@ -16,7 +16,20 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
-import { useMaterials, useStock, receiveMaterial, type Material } from "@/hooks/use-stock";
+import {
+  useMaterials,
+  useStock,
+  receiveMaterial,
+  type Material,
+  type BatchType,
+} from "@/hooks/use-stock";
+
+const BATCH_TYPES: BatchType[] = ["Launch", "Cyclical", "SOV", "Others"];
+
+function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
 
 export const Route = createFileRoute("/receive")({
   component: ReceivePage,
@@ -38,7 +51,9 @@ function ReceivePage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
-  const [referenceNumber, setReferenceNumber] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [receivedDate, setReceivedDate] = useState(todayISO());
+  const [batchType, setBatchType] = useState<BatchType>("Cyclical");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -72,7 +87,9 @@ function ReceivePage() {
     !!selected &&
     qty !== "" &&
     Number(qty) > 0 &&
-    referenceNumber.trim().length > 0 &&
+    invoiceNumber.trim().length > 0 &&
+    receivedDate !== "" &&
+    receivedDate <= todayISO() &&
     !!proof &&
     !busy;
 
@@ -106,9 +123,17 @@ function ReceivePage() {
 
   async function handleSubmit() {
     if (!selected) return;
-    const ref = referenceNumber.trim();
-    if (!ref) {
-      setError("Reference number is required");
+    const inv = invoiceNumber.trim();
+    if (!inv) {
+      setError("Invoice number is required");
+      return;
+    }
+    if (!receivedDate) {
+      setError("Received date is required");
+      return;
+    }
+    if (receivedDate > todayISO()) {
+      setError("Received date cannot be in the future");
       return;
     }
     if (!proof) {
@@ -123,8 +148,10 @@ function ReceivePage() {
     const { newQty, error: rpcError } = await receiveMaterial(
       selected.code,
       qNum,
-      ref,
+      inv,
       proof.path,
+      receivedDate,
+      batchType,
     );
     setBusy(false);
     if (rpcError) {
@@ -148,7 +175,9 @@ function ReceivePage() {
     });
     setSelected(null);
     setQty("");
-    setReferenceNumber("");
+    setInvoiceNumber("");
+    setReceivedDate(todayISO());
+    setBatchType("Cyclical");
     setQuery("");
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
@@ -377,17 +406,50 @@ function ReceivePage() {
 
                 <label className="block space-y-1">
                   <span className="text-xs font-semibold text-foreground">
-                    Reference Number <span className="text-destructive">*</span>
+                    Invoice Number <span className="text-destructive">*</span>
                   </span>
                   <input
                     type="text"
-                    placeholder="Enter invoice / challan number"
-                    value={referenceNumber}
-                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    placeholder="Enter invoice / PO number"
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
                     className={inputClass}
                     required
                   />
                 </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block space-y-1">
+                    <span className="text-xs font-semibold text-foreground">
+                      Received Date <span className="text-destructive">*</span>
+                    </span>
+                    <input
+                      type="date"
+                      value={receivedDate}
+                      max={todayISO()}
+                      onChange={(e) => setReceivedDate(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-xs font-semibold text-foreground">
+                      Batch Type <span className="text-destructive">*</span>
+                    </span>
+                    <select
+                      value={batchType}
+                      onChange={(e) => setBatchType(e.target.value as BatchType)}
+                      className={inputClass}
+                      required
+                    >
+                      {BATCH_TYPES.map((bt) => (
+                        <option key={bt} value={bt}>
+                          {bt}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 {wsp && user && (
                   <ProofImageUpload

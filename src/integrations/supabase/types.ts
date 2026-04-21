@@ -93,6 +93,7 @@ export type Database = {
       }
       stock_movements: {
         Row: {
+          batch_type: Database["public"]["Enums"]["batch_type"] | null
           created_at: string
           distributor: string | null
           id: string
@@ -101,10 +102,12 @@ export type Database = {
           performed_by: string | null
           proof_image_path: string | null
           qty: number
+          received_date: string | null
           reference_number: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
         }
         Insert: {
+          batch_type?: Database["public"]["Enums"]["batch_type"] | null
           created_at?: string
           distributor?: string | null
           id?: string
@@ -113,10 +116,12 @@ export type Database = {
           performed_by?: string | null
           proof_image_path?: string | null
           qty: number
+          received_date?: string | null
           reference_number?: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
         }
         Update: {
+          batch_type?: Database["public"]["Enums"]["batch_type"] | null
           created_at?: string
           distributor?: string | null
           id?: string
@@ -125,6 +130,7 @@ export type Database = {
           performed_by?: string | null
           proof_image_path?: string | null
           qty?: number
+          received_date?: string | null
           reference_number?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"]
         }
@@ -184,18 +190,31 @@ export type Database = {
         }
         Returns: boolean
       }
-      receive_material: {
-        Args: {
-          _material_code: string
-          _proof_image_path: string
-          _qty: number
-          _reference_number: string
-        }
-        Returns: number
-      }
+      receive_material:
+        | {
+            Args: {
+              _material_code: string
+              _proof_image_path: string
+              _qty: number
+              _reference_number: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              _batch_type?: Database["public"]["Enums"]["batch_type"]
+              _material_code: string
+              _proof_image_path: string
+              _qty: number
+              _received_date?: string
+              _reference_number: string
+            }
+            Returns: number
+          }
     }
     Enums: {
       app_role: "admin" | "wsp"
+      batch_type: "Launch" | "Cyclical" | "SOV" | "Others"
       movement_type: "receive" | "dispatch"
       wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
@@ -326,6 +345,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "wsp"],
+      batch_type: ["Launch", "Cyclical", "SOV", "Others"],
       movement_type: ["receive", "dispatch"],
       wsp_code: ["CEVL", "CEVJ", "CEVY"],
     },
