@@ -87,7 +87,9 @@ function ReceivePage() {
     !!selected &&
     qty !== "" &&
     Number(qty) > 0 &&
-    referenceNumber.trim().length > 0 &&
+    invoiceNumber.trim().length > 0 &&
+    receivedDate !== "" &&
+    receivedDate <= todayISO() &&
     !!proof &&
     !busy;
 
@@ -121,9 +123,17 @@ function ReceivePage() {
 
   async function handleSubmit() {
     if (!selected) return;
-    const ref = referenceNumber.trim();
-    if (!ref) {
-      setError("Reference number is required");
+    const inv = invoiceNumber.trim();
+    if (!inv) {
+      setError("Invoice number is required");
+      return;
+    }
+    if (!receivedDate) {
+      setError("Received date is required");
+      return;
+    }
+    if (receivedDate > todayISO()) {
+      setError("Received date cannot be in the future");
       return;
     }
     if (!proof) {
@@ -138,8 +148,10 @@ function ReceivePage() {
     const { newQty, error: rpcError } = await receiveMaterial(
       selected.code,
       qNum,
-      ref,
+      inv,
       proof.path,
+      receivedDate,
+      batchType,
     );
     setBusy(false);
     if (rpcError) {
@@ -163,7 +175,9 @@ function ReceivePage() {
     });
     setSelected(null);
     setQty("");
-    setReferenceNumber("");
+    setInvoiceNumber("");
+    setReceivedDate(todayISO());
+    setBatchType("Cyclical");
     setQuery("");
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
