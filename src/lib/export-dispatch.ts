@@ -334,16 +334,22 @@ export async function exportDispatchReport() {
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
-  // Receive Log with View Proof hyperlink column
+  // Receive Log with PO/invoice details + age + closing balance + proof link
   const receiveHeader = [
     "date",
     "wsp",
     "material_code",
     "material_name",
+    "invoice_number",
+    "batch_type",
+    "received_date",
+    "current_date",
+    "age_days",
     "quantity",
-    "reference_number",
+    "closing_quantity",
     "proof",
   ];
+  const proofColIdx = receiveHeader.length - 1;
   const receiveAoa: (string | number)[][] = [
     receiveHeader,
     ...receiveRows.map((r) => [
@@ -351,15 +357,20 @@ export async function exportDispatchReport() {
       r.wsp,
       r.material_code,
       r.material_name,
+      r.invoice_number,
+      r.batch_type,
+      r.received_date,
+      r.current_date,
+      r.age_days,
       r.quantity,
-      r.reference_number,
+      r.closing_quantity,
       r.proof_url ? "View Proof" : "",
     ]),
   ];
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
     if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: 6 });
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: proofColIdx });
     wsR[cellRef] = {
       t: "s",
       v: "View Proof",
@@ -367,13 +378,18 @@ export async function exportDispatchReport() {
     };
   });
   wsR["!cols"] = [
-    { wch: 18 },
-    { wch: 8 },
-    { wch: 14 },
-    { wch: 36 },
-    { wch: 10 },
-    { wch: 18 },
-    { wch: 14 },
+    { wch: 18 }, // date
+    { wch: 8 },  // wsp
+    { wch: 14 }, // material_code
+    { wch: 36 }, // material_name
+    { wch: 18 }, // invoice_number
+    { wch: 12 }, // batch_type
+    { wch: 13 }, // received_date
+    { wch: 13 }, // current_date
+    { wch: 10 }, // age_days
+    { wch: 10 }, // quantity
+    { wch: 16 }, // closing_quantity
+    { wch: 14 }, // proof
   ];
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
