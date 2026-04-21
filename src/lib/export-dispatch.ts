@@ -13,6 +13,8 @@ type MovementRow = {
   proof_image_path: string | null;
   received_date: string | null;
   batch_type: string | null;
+  dispatch_id: string | null;
+  dispatch_date: string | null;
 };
 
 function ageInDays(fromISO: string): number {
