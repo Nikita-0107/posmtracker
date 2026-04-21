@@ -95,6 +95,8 @@ export type Database = {
         Row: {
           batch_type: Database["public"]["Enums"]["batch_type"] | null
           created_at: string
+          dispatch_date: string | null
+          dispatch_id: string | null
           distributor: string | null
           id: string
           material_code: string
@@ -109,6 +111,8 @@ export type Database = {
         Insert: {
           batch_type?: Database["public"]["Enums"]["batch_type"] | null
           created_at?: string
+          dispatch_date?: string | null
+          dispatch_id?: string | null
           distributor?: string | null
           id?: string
           material_code: string
@@ -123,6 +127,8 @@ export type Database = {
         Update: {
           batch_type?: Database["public"]["Enums"]["batch_type"] | null
           created_at?: string
+          dispatch_date?: string | null
+          dispatch_id?: string | null
           distributor?: string | null
           id?: string
           material_code?: string
@@ -182,6 +188,15 @@ export type Database = {
           _qty: number
         }
         Returns: number
+      }
+      dispatch_materials: {
+        Args: {
+          _dispatch_date?: string
+          _distributor: string
+          _items: Json
+          _proof_image_path: string
+        }
+        Returns: string
       }
       has_role: {
         Args: {
