@@ -51,7 +51,9 @@ function ReceivePage() {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<Material | null>(null);
   const [qty, setQty] = useState("");
-  const [referenceNumber, setReferenceNumber] = useState("");
+  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [receivedDate, setReceivedDate] = useState(todayISO());
+  const [batchType, setBatchType] = useState<BatchType>("Cyclical");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
