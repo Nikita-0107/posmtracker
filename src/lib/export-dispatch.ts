@@ -11,7 +11,18 @@ type MovementRow = {
   wsp: string;
   reference_number: string | null;
   proof_image_path: string | null;
+  received_date: string | null;
+  batch_type: string | null;
 };
+
+function ageInDays(fromISO: string): number {
+  const d = new Date(fromISO + "T00:00:00");
+  if (isNaN(d.getTime())) return 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = today.getTime() - d.getTime();
+  return Math.max(0, Math.floor(diff / 86400000));
+}
 
 const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7; // 7 days for export portability
 
@@ -62,7 +73,7 @@ export async function exportDispatchReport() {
     supabase
       .from("stock_movements")
       .select(
-        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path",
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type",
       )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
