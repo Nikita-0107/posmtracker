@@ -406,17 +406,50 @@ function ReceivePage() {
 
                 <label className="block space-y-1">
                   <span className="text-xs font-semibold text-foreground">
-                    Reference Number <span className="text-destructive">*</span>
+                    Invoice Number <span className="text-destructive">*</span>
                   </span>
                   <input
                     type="text"
-                    placeholder="Enter invoice / challan number"
-                    value={referenceNumber}
-                    onChange={(e) => setReferenceNumber(e.target.value)}
+                    placeholder="Enter invoice / PO number"
+                    value={invoiceNumber}
+                    onChange={(e) => setInvoiceNumber(e.target.value)}
                     className={inputClass}
                     required
                   />
                 </label>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <label className="block space-y-1">
+                    <span className="text-xs font-semibold text-foreground">
+                      Received Date <span className="text-destructive">*</span>
+                    </span>
+                    <input
+                      type="date"
+                      value={receivedDate}
+                      max={todayISO()}
+                      onChange={(e) => setReceivedDate(e.target.value)}
+                      className={inputClass}
+                      required
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-xs font-semibold text-foreground">
+                      Batch Type <span className="text-destructive">*</span>
+                    </span>
+                    <select
+                      value={batchType}
+                      onChange={(e) => setBatchType(e.target.value as BatchType)}
+                      className={inputClass}
+                      required
+                    >
+                      {BATCH_TYPES.map((bt) => (
+                        <option key={bt} value={bt}>
+                          {bt}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 {wsp && user && (
                   <ProofImageUpload
