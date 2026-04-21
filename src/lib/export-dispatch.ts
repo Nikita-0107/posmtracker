@@ -75,7 +75,7 @@ export async function exportDispatchReport() {
     supabase
       .from("stock_movements")
       .select(
-        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type",
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type, dispatch_id, dispatch_date",
       )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
