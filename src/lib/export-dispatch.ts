@@ -133,6 +133,7 @@ export async function exportDispatchReport() {
         date: formatDateTime(m.created_at),
         dispatch_date: m.dispatch_date ?? dayKey(m.created_at),
         dispatch_id: m.dispatch_id ?? "",
+        wsp_name: m.wsp,
         wd_code: wd.code,
         wd_name: wd.name,
         material_code: m.material_code,
@@ -304,6 +305,7 @@ export async function exportDispatchReport() {
     "date",
     "dispatch_date",
     "dispatch_id",
+    "wsp_name",
     "wd_code",
     "wd_name",
     "material_code",
@@ -318,6 +320,7 @@ export async function exportDispatchReport() {
       r.date,
       r.dispatch_date,
       r.dispatch_id,
+      r.wsp_name,
       r.wd_code,
       r.wd_name,
       r.material_code,
@@ -340,6 +343,7 @@ export async function exportDispatchReport() {
     { wch: 18 }, // date
     { wch: 13 }, // dispatch_date
     { wch: 36 }, // dispatch_id
+    { wch: 10 }, // wsp_name
     { wch: 10 }, // wd_code
     { wch: 36 }, // wd_name
     { wch: 14 }, // material_code
