@@ -126,6 +126,7 @@ export type ReceiveLineItem = {
   material_code: string;
   material_name?: string; // required only when creating a new material
   qty: number;
+  batch_type?: BatchType; // per-item batch type
 };
 
 export async function receiveMaterials(
@@ -133,14 +134,12 @@ export async function receiveMaterials(
   proofImagePath: string,
   items: ReceiveLineItem[],
   receivedDate: string, // YYYY-MM-DD
-  batchType: BatchType,
 ) {
   const { data, error } = await supabase.rpc("receive_materials", {
     _reference_number: poNumber,
     _proof_image_path: proofImagePath,
     _items: items,
     _received_date: receivedDate,
-    _batch_type: batchType,
   });
   return { receiveId: data as string | null, error };
 }

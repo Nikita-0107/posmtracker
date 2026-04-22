@@ -57,6 +57,8 @@ type LineItem = {
   open: boolean;
   // qty
   qty: string;
+  // batch type per item
+  batchType: BatchType;
 };
 
 function newLine(): LineItem {
@@ -69,6 +71,7 @@ function newLine(): LineItem {
     query: "",
     open: false,
     qty: "",
+    batchType: "Cyclical",
   };
 }
 
@@ -82,7 +85,6 @@ function ReceivePage() {
   // HEADER
   const [poNumber, setPoNumber] = useState("");
   const [receivedDate, setReceivedDate] = useState(todayISO());
-  const [batchType, setBatchType] = useState<BatchType>("Cyclical");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
 
@@ -95,9 +97,8 @@ function ReceivePage() {
   const [submitResult, setSubmitResult] = useState<{
     poNumber: string;
     receivedDate: string;
-    batchType: BatchType;
     wsp: string;
-    items: { code: string; name: string; qty: number; isNew: boolean }[];
+    items: { code: string; name: string; qty: number; isNew: boolean; batchType: BatchType }[];
     totalQty: number;
   } | null>(null);
 
@@ -159,12 +160,17 @@ function ReceivePage() {
       .filter((it) => itemValidations[items.indexOf(it)].ok)
       .map((it) => {
         if (it.material) {
-          return { material_code: it.material.code, qty: Number(it.qty) };
+          return {
+            material_code: it.material.code,
+            qty: Number(it.qty),
+            batch_type: it.batchType,
+          };
         }
         return {
           material_code: it.newCode.trim(),
           material_name: it.newName.trim(),
           qty: Number(it.qty),
+          batch_type: it.batchType,
         };
       });
 
@@ -175,7 +181,6 @@ function ReceivePage() {
       proof.path,
       payload,
       receivedDate,
-      batchType,
     );
     setBusy(false);
     if (rpcError) {
@@ -198,7 +203,6 @@ function ReceivePage() {
     setSubmitResult({
       poNumber: poNumber.trim(),
       receivedDate,
-      batchType,
       wsp: wsp ?? "",
       items: items
         .filter((it, idx) => itemValidations[idx].ok)
@@ -207,6 +211,7 @@ function ReceivePage() {
           name: it.material ? it.material.name : it.newName.trim(),
           qty: Number(it.qty),
           isNew: it.isNew && !it.material,
+          batchType: it.batchType,
         })),
       totalQty,
     });
@@ -215,7 +220,6 @@ function ReceivePage() {
     setItems([newLine()]);
     setPoNumber("");
     setReceivedDate(todayISO());
-    setBatchType("Cyclical");
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
     void refresh();
@@ -274,41 +278,25 @@ function ReceivePage() {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-foreground">
-                  Received Date <span className="text-destructive">*</span>
-                </span>
-                <div className="relative">
-                  <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={receivedDate}
-                    max={todayISO()}
-                    onChange={(e) => setReceivedDate(e.target.value)}
-                    className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    required
-                  />
-                </div>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-foreground">
-                  Batch Type <span className="text-destructive">*</span>
-                </span>
-                <select
-                  value={batchType}
-                  onChange={(e) => setBatchType(e.target.value as BatchType)}
-                  className={inputClass}
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-foreground">
+                Received Date <span className="text-destructive">*</span>
+              </span>
+              <div className="relative">
+                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="date"
+                  value={receivedDate}
+                  max={todayISO()}
+                  onChange={(e) => setReceivedDate(e.target.value)}
+                  className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                   required
-                >
-                  {BATCH_TYPES.map((bt) => (
-                    <option key={bt} value={bt}>
-                      {bt}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+                />
+              </div>
+              {futureDate && (
+                <span className="text-[11px] font-semibold text-destructive">Date cannot be in the future</span>
+              )}
+            </label>
 
             {wsp && user && (
               <ProofImageUpload
@@ -429,10 +417,6 @@ function ReceivePage() {
                   <strong className="text-foreground">{submitResult.receivedDate}</strong>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Batch</span>
-                  <strong className="text-foreground">{submitResult.batchType}</strong>
-                </div>
-                <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">WSP</span>
                   <strong className="font-mono text-primary">{submitResult.wsp}</strong>
                 </div>
@@ -450,6 +434,9 @@ function ReceivePage() {
                               NEW
                             </span>
                           )}
+                          <span className="ml-1 rounded bg-muted px-1 text-[9px] font-semibold text-muted-foreground">
+                            {r.batchType}
+                          </span>
                         </span>
                         <span className="shrink-0 font-bold text-foreground">+{r.qty}</span>
                       </div>
@@ -760,6 +747,24 @@ function ReceiveLineItemRow({
           </div>
         </div>
       </div>
+
+      {/* Batch Type per item */}
+      <label className="block space-y-0.5">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Batch Type <span className="text-destructive">*</span>
+        </span>
+        <select
+          value={item.batchType}
+          onChange={(e) => onChange({ batchType: e.target.value as BatchType })}
+          className="w-full rounded-lg border bg-card px-2.5 py-2 text-xs font-semibold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+        >
+          {BATCH_TYPES.map((bt) => (
+            <option key={bt} value={bt}>
+              {bt}
+            </option>
+          ))}
+        </select>
+      </label>
 
       {dup && (
         <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[11px] font-semibold text-destructive">
