@@ -349,7 +349,7 @@ export async function exportDispatchReport() {
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
-  // Receive Log with PO/invoice details + age + closing balance + proof link
+  // Receive Log with PO/invoice details + age + closing balance + proof + invoice file links
   const receiveHeader = [
     "date",
     "wsp",
@@ -362,9 +362,11 @@ export async function exportDispatchReport() {
     "age_days",
     "quantity",
     "closing_quantity",
+    "invoice_file",
     "proof",
   ];
-  const proofColIdx = receiveHeader.length - 1;
+  const invoiceColIdx = receiveHeader.length - 2;
+  const proofColIdxR = receiveHeader.length - 1;
   const receiveAoa: (string | number)[][] = [
     receiveHeader,
     ...receiveRows.map((r) => [
@@ -379,18 +381,28 @@ export async function exportDispatchReport() {
       r.age_days,
       r.quantity,
       r.closing_quantity,
+      r.invoice_url ? "View Invoice" : "",
       r.proof_url ? "View Proof" : "",
     ]),
   ];
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
-    if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: proofColIdx });
-    wsR[cellRef] = {
-      t: "s",
-      v: "View Proof",
-      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
-    };
+    if (r.invoice_url) {
+      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: invoiceColIdx });
+      wsR[cellRef] = {
+        t: "s",
+        v: "View Invoice",
+        f: `HYPERLINK("${r.invoice_url.replace(/"/g, '""')}","View Invoice")`,
+      };
+    }
+    if (r.proof_url) {
+      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: proofColIdxR });
+      wsR[cellRef] = {
+        t: "s",
+        v: "View Proof",
+        f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+      };
+    }
   });
   wsR["!cols"] = [
     { wch: 18 }, // date
@@ -404,6 +416,7 @@ export async function exportDispatchReport() {
     { wch: 10 }, // age_days
     { wch: 10 }, // quantity
     { wch: 16 }, // closing_quantity
+    { wch: 14 }, // invoice_file
     { wch: 14 }, // proof
   ];
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
