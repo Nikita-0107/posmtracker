@@ -17,9 +17,10 @@ type Props = {
   value: ProofImageValue;
   onChange: (v: ProofImageValue) => void;
   error?: string | null;
+  label?: string;
 };
 
-export function ProofImageUpload({ wsp, userId, kind, value, onChange, error }: Props) {
+export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, label }: Props) {
   const cameraRef = useRef<HTMLInputElement | null>(null);
   const galleryRef = useRef<HTMLInputElement | null>(null);
   const [busy, setBusy] = useState(false);
@@ -87,7 +88,7 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error }: 
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-foreground">
-          {kind === "receive" ? "Upload PO Image" : "Proof Image"}{" "}
+          {label ?? (kind === "receive" ? "Upload PO Image" : "Proof Image")}{" "}
           <span className="text-destructive">*</span>
         </span>
         <span className="text-[10px] text-muted-foreground">JPG / PNG · max 8MB</span>
