@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -11,10 +11,12 @@ import {
   AlertTriangle,
   Loader2,
   Plus,
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
+import { InvoiceFileUpload, type InvoiceFileValue } from "@/components/InvoiceFileUpload";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMaterials,
@@ -41,30 +43,31 @@ export const Route = createFileRoute("/receive")({
   }),
 });
 
+type Mode = { kind: "existing"; material: Material } | { kind: "new"; code: string };
+
 function ReceivePage() {
   const { profile, user } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
-  const { materials, loading: matLoading, addMaterial } = useMaterials();
+  const { materials, loading: matLoading } = useMaterials();
   const { stock, loading: stockLoading, refresh } = useStock();
 
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Material | null>(null);
+  const [mode, setMode] = useState<Mode | null>(null);
+
+  // Receive fields
+  const [newName, setNewName] = useState(""); // only for new materials
   const [qty, setQty] = useState("");
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [receivedDate, setReceivedDate] = useState(todayISO());
   const [batchType, setBatchType] = useState<BatchType>("Cyclical");
   const [proof, setProof] = useState<ProofImageValue>(null);
+  const [invoiceFile, setInvoiceFile] = useState<InvoiceFileValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
+  const [invoiceFileError, setInvoiceFileError] = useState<string | null>(null);
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Add-new-material form state
-  const [addOpen, setAddOpen] = useState(false);
-  const [newCode, setNewCode] = useState("");
-  const [newName, setNewName] = useState("");
-  const [addBusy, setAddBusy] = useState(false);
-  const [addError, setAddError] = useState<string | null>(null);
 
   const [submitResult, setSubmitResult] = useState<{
     code: string;
@@ -72,57 +75,81 @@ function ReceivePage() {
     qty: number;
     total: number;
     wsp: string;
+    isNew: boolean;
   } | null>(null);
 
   const q = query.trim().toLowerCase();
-  const results = q
-    ? materials.filter(
-        (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-      )
-    : [];
+  const results = useMemo(
+    () =>
+      q
+        ? materials.filter(
+            (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
+          )
+        : [],
+    [materials, q],
+  );
 
   const hasQuery = q.length > 0;
   const noResults = hasQuery && results.length === 0;
+
+  const isNewMode = mode?.kind === "new";
+  const selectedCode = mode?.kind === "existing" ? mode.material.code : mode?.kind === "new" ? mode.code : "";
+  const selectedName =
+    mode?.kind === "existing" ? mode.material.name : mode?.kind === "new" ? newName.trim() : "";
+
   const canSubmit =
-    !!selected &&
+    !!mode &&
+    selectedCode.trim().length > 0 &&
+    (mode.kind === "existing" || newName.trim().length > 0) &&
     qty !== "" &&
     Number(qty) > 0 &&
     invoiceNumber.trim().length > 0 &&
     receivedDate !== "" &&
     receivedDate <= todayISO() &&
     !!proof &&
+    !!invoiceFile &&
     !busy;
 
-  function handleSelect(m: Material) {
-    setSelected(m);
+  function resetForm() {
+    setMode(null);
+    setNewName("");
+    setQty("");
+    setInvoiceNumber("");
+    setReceivedDate(todayISO());
+    setBatchType("Cyclical");
+    setQuery("");
+    if (proof?.previewUrl) URL.revokeObjectURL(proof.previewUrl);
+    setProof(null);
+    setInvoiceFile(null);
+    setProofError(null);
+    setInvoiceFileError(null);
     setError(null);
-    setAddOpen(false);
   }
 
-  async function handleAddMaterial() {
-    const code = newCode.trim();
-    const name = newName.trim();
-    if (!code || !name) {
-      setAddError("Code and description are required");
-      return;
-    }
-    setAddBusy(true);
-    setAddError(null);
-    const { material, error: addErr } = await addMaterial(code, name);
-    setAddBusy(false);
-    if (addErr || !material) {
-      setAddError(addErr?.message ?? "Failed to add material");
-      return;
-    }
-    handleSelect(material);
-    setQuery(material.code);
-    setNewCode("");
+  function selectExisting(m: Material) {
+    setMode({ kind: "existing", material: m });
     setNewName("");
-    setAddOpen(false);
+    setError(null);
+  }
+
+  function startNew() {
+    setMode({ kind: "new", code: query.trim() });
+    setNewName("");
+    setError(null);
   }
 
   async function handleSubmit() {
-    if (!selected) return;
+    if (!mode) return;
+    const code = (mode.kind === "new" ? mode.code : mode.material.code).trim();
+    const name = mode.kind === "new" ? newName.trim() : mode.material.name;
+    if (!code) {
+      setError("Material code is required");
+      return;
+    }
+    if (mode.kind === "new" && !name) {
+      setError("Description is required");
+      return;
+    }
     const inv = invoiceNumber.trim();
     if (!inv) {
       setError("Invoice number is required");
@@ -140,16 +167,24 @@ function ReceivePage() {
       setProofError("Proof image is required");
       return;
     }
+    if (!invoiceFile) {
+      setInvoiceFileError("Invoice file is required");
+      return;
+    }
     setProofError(null);
+    setInvoiceFileError(null);
     if (!canSubmit) return;
+
     setBusy(true);
     setError(null);
     const qNum = Number(qty);
     const { newQty, error: rpcError } = await receiveMaterial(
-      selected.code,
+      code,
+      name,
       qNum,
       inv,
       proof.path,
+      invoiceFile.path,
       receivedDate,
       batchType,
     );
@@ -160,27 +195,21 @@ function ReceivePage() {
         msg.toLowerCase().includes("duplicate") ||
         (rpcError as { code?: string }).code === "23505"
       ) {
-        setError("Duplicate entry detected");
+        setError("Duplicate entry detected for this invoice number");
       } else {
         setError(msg || "Failed to save");
       }
       return;
     }
     setSubmitResult({
-      code: selected.code,
-      name: selected.name,
+      code,
+      name,
       qty: qNum,
       total: newQty ?? 0,
       wsp: wsp ?? "",
+      isNew: mode.kind === "new",
     });
-    setSelected(null);
-    setQty("");
-    setInvoiceNumber("");
-    setReceivedDate(todayISO());
-    setBatchType("Cyclical");
-    setQuery("");
-    if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
-    setProof(null);
+    resetForm();
     void refresh();
   }
 
@@ -218,7 +247,9 @@ function ReceivePage() {
         >
           <section className="space-y-2.5">
             <div className="flex items-center gap-2">
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">1</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                1
+              </span>
               <h3 className="text-sm font-bold text-foreground">Select Material</h3>
             </div>
 
@@ -229,9 +260,7 @@ function ReceivePage() {
                 value={query}
                 onChange={(e) => {
                   setQuery(e.target.value);
-                  setSelected(null);
-                  setAddOpen(false);
-                  setAddError(null);
+                  setMode(null);
                 }}
                 placeholder="Search Material Code or Name"
                 className={`${inputClass} pl-9`}
@@ -240,8 +269,7 @@ function ReceivePage() {
                 <button
                   onClick={() => {
                     setQuery("");
-                    setSelected(null);
-                    setAddOpen(false);
+                    setMode(null);
                   }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted"
                   aria-label="Clear search"
@@ -257,12 +285,12 @@ function ReceivePage() {
               </p>
             )}
 
-            {hasQuery && results.length > 0 && !selected && (
+            {hasQuery && results.length > 0 && !mode && (
               <div className="space-y-1.5">
                 {results.slice(0, 20).map((m) => (
                   <button
                     key={m.code}
-                    onClick={() => handleSelect(m)}
+                    onClick={() => selectExisting(m)}
                     className="flex w-full items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 text-left transition hover:border-primary/40 active:scale-[0.99]"
                   >
                     <div className="min-w-0 flex-1">
@@ -274,39 +302,43 @@ function ReceivePage() {
               </div>
             )}
 
-            {noResults && !selected && !addOpen && (
+            {noResults && !mode && (
               <div className="space-y-2">
                 <p className="rounded-xl border border-dashed bg-muted/30 px-3 py-3 text-center text-xs text-muted-foreground">
-                  No materials found
+                  No materials found for <span className="font-mono font-bold">{query.trim()}</span>
                 </p>
                 <button
-                  onClick={() => {
-                    setAddOpen(true);
-                    setAddError(null);
-                    // Pre-fill code with the search query for convenience
-                    setNewCode(query.trim());
-                    setNewName("");
-                  }}
+                  onClick={startNew}
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 py-2.5 text-xs font-bold text-primary transition hover:bg-primary/10 active:scale-[0.99]"
                 >
-                  <Plus size={14} /> Add New Material
+                  <Plus size={14} /> Add New Material & Receive Stock
                 </button>
               </div>
             )}
 
-            {addOpen && !selected && (
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-2.5 rounded-xl border-2 border-primary/30 bg-primary/5 p-3"
-              >
+            {mode?.kind === "existing" && (
+              <div className="flex items-center justify-between gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-xs font-bold text-foreground">{mode.material.code}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{mode.material.name}</p>
+                </div>
+                <button
+                  onClick={() => setMode(null)}
+                  className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+                >
+                  Change
+                </button>
+              </div>
+            )}
+
+            {isNewMode && (
+              <div className="space-y-2.5 rounded-xl border-2 border-accent/40 bg-accent/5 p-3">
                 <div className="flex items-center justify-between">
-                  <p className="text-xs font-bold text-foreground">Add New Material</p>
+                  <p className="flex items-center gap-1.5 text-xs font-bold text-foreground">
+                    <Sparkles size={13} className="text-accent" /> New Material
+                  </p>
                   <button
-                    onClick={() => {
-                      setAddOpen(false);
-                      setAddError(null);
-                    }}
+                    onClick={() => setMode(null)}
                     className="rounded-md p-1 text-muted-foreground hover:bg-muted"
                     aria-label="Cancel"
                   >
@@ -314,17 +346,21 @@ function ReceivePage() {
                   </button>
                 </div>
                 <label className="block space-y-1">
-                  <span className="text-[11px] font-semibold text-foreground">Material Code / ID</span>
+                  <span className="text-[11px] font-semibold text-foreground">
+                    Material Code <span className="text-destructive">*</span>
+                  </span>
                   <input
                     type="text"
-                    value={newCode}
-                    onChange={(e) => setNewCode(e.target.value)}
+                    value={mode.code}
+                    onChange={(e) => setMode({ kind: "new", code: e.target.value })}
                     placeholder="e.g. M/27008019C9"
                     className={`${inputClass} font-mono`}
                   />
                 </label>
                 <label className="block space-y-1">
-                  <span className="text-[11px] font-semibold text-foreground">Description</span>
+                  <span className="text-[11px] font-semibold text-foreground">
+                    Description <span className="text-destructive">*</span>
+                  </span>
                   <input
                     type="text"
                     value={newName}
@@ -333,40 +369,15 @@ function ReceivePage() {
                     className={inputClass}
                   />
                 </label>
-                {addError && (
-                  <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
-                    <AlertTriangle size={14} /> {addError}
-                  </div>
-                )}
-                <button
-                  onClick={handleAddMaterial}
-                  disabled={addBusy || !newCode.trim() || !newName.trim()}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-2.5 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-40"
-                >
-                  {addBusy ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-                  {addBusy ? "Saving…" : "Save Material"}
-                </button>
-              </motion.div>
-            )}
-
-            {selected && (
-              <div className="flex items-center justify-between gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-xs font-bold text-foreground">{selected.code}</p>
-                  <p className="truncate text-[11px] text-muted-foreground">{selected.name}</p>
-                </div>
-                <button
-                  onClick={() => { setSelected(null); setQty(""); }}
-                  className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
-                >
-                  Change
-                </button>
+                <p className="text-[10px] text-muted-foreground">
+                  Material will be created and stock added in one step.
+                </p>
               </div>
             )}
           </section>
 
           <AnimatePresence>
-            {selected && (
+            {mode && (
               <motion.section
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -374,22 +385,28 @@ function ReceivePage() {
                 className="space-y-2.5"
               >
                 <div className="flex items-center gap-2">
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">2</span>
-                  <h3 className="text-sm font-bold text-foreground">Enter Quantity</h3>
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+                    2
+                  </span>
+                  <h3 className="text-sm font-bold text-foreground">Receive Details</h3>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Current Stock
-                  </span>
-                  <span className="font-mono text-base font-bold text-foreground">
-                    {stockLoading ? "…" : (stock[selected.code] ?? 0)}{" "}
-                    <span className="text-[10px] font-semibold text-muted-foreground">units</span>
-                  </span>
-                </div>
+                {!isNewMode && (
+                  <div className="flex items-center justify-between rounded-xl bg-muted/50 px-3 py-2.5">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Current Stock
+                    </span>
+                    <span className="font-mono text-base font-bold text-foreground">
+                      {stockLoading ? "…" : stock[selectedCode] ?? 0}{" "}
+                      <span className="text-[10px] font-semibold text-muted-foreground">units</span>
+                    </span>
+                  </div>
+                )}
 
                 <label className="block space-y-1">
-                  <span className="text-xs font-semibold text-foreground">Quantity</span>
+                  <span className="text-xs font-semibold text-foreground">
+                    Received Quantity <span className="text-destructive">*</span>
+                  </span>
                   <div className="relative">
                     <Hash size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                     <input
@@ -452,6 +469,19 @@ function ReceivePage() {
                 </div>
 
                 {wsp && user && (
+                  <InvoiceFileUpload
+                    wsp={wsp}
+                    userId={user.id}
+                    value={invoiceFile}
+                    onChange={(v) => {
+                      setInvoiceFile(v);
+                      if (v) setInvoiceFileError(null);
+                    }}
+                    error={invoiceFileError}
+                  />
+                )}
+
+                {wsp && user && (
                   <ProofImageUpload
                     wsp={wsp}
                     userId={user.id}
@@ -476,7 +506,7 @@ function ReceivePage() {
                   disabled={!canSubmit}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
                 >
-                  <PackagePlus size={16} />
+                  {busy ? <Loader2 size={16} className="animate-spin" /> : <PackagePlus size={16} />}
                   {busy ? "Saving…" : "Add to WSP Stock"}
                 </button>
               </motion.section>
@@ -493,7 +523,8 @@ function ReceivePage() {
               className="space-y-3 rounded-xl border-2 border-success/30 bg-success/5 p-4"
             >
               <p className="flex items-center gap-1.5 text-sm font-bold text-success">
-                <CheckCircle2 size={18} /> Material Added to Stock
+                <CheckCircle2 size={18} />
+                {submitResult.isNew ? "Material Created & Stock Added" : "Material Added to Stock"}
               </p>
               <div className="space-y-1.5 rounded-lg bg-card p-3 text-xs">
                 <div className="flex justify-between gap-2">
