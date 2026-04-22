@@ -88,9 +88,8 @@ export async function receiveMaterial(
   materialCode: string,
   materialName: string, // used only when creating a new material
   qty: number,
-  invoiceNumber: string,
+  poNumber: string,
   proofImagePath: string,
-  invoiceFilePath: string,
   receivedDate: string, // YYYY-MM-DD
   batchType: BatchType,
 ) {
@@ -98,9 +97,8 @@ export async function receiveMaterial(
     _material_code: materialCode,
     _material_name: materialName,
     _qty: qty,
-    _reference_number: invoiceNumber,
+    _reference_number: poNumber,
     _proof_image_path: proofImagePath,
-    _invoice_file_path: invoiceFilePath,
     _received_date: receivedDate,
     _batch_type: batchType,
   });
