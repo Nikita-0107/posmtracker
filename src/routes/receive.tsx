@@ -748,6 +748,24 @@ function ReceiveLineItemRow({
         </div>
       </div>
 
+      {/* Batch Type per item */}
+      <label className="block space-y-0.5">
+        <span className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Batch Type <span className="text-destructive">*</span>
+        </span>
+        <select
+          value={item.batchType}
+          onChange={(e) => onChange({ batchType: e.target.value as BatchType })}
+          className="w-full rounded-lg border bg-card px-2.5 py-2 text-xs font-semibold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+        >
+          {BATCH_TYPES.map((bt) => (
+            <option key={bt} value={bt}>
+              {bt}
+            </option>
+          ))}
+        </select>
+      </label>
+
       {dup && (
         <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[11px] font-semibold text-destructive">
           <AlertTriangle size={12} />
