@@ -278,41 +278,25 @@ function ReceivePage() {
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-2">
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-foreground">
-                  Received Date <span className="text-destructive">*</span>
-                </span>
-                <div className="relative">
-                  <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="date"
-                    value={receivedDate}
-                    max={todayISO()}
-                    onChange={(e) => setReceivedDate(e.target.value)}
-                    className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-                    required
-                  />
-                </div>
-              </label>
-              <label className="block space-y-1">
-                <span className="text-xs font-semibold text-foreground">
-                  Batch Type <span className="text-destructive">*</span>
-                </span>
-                <select
-                  value={batchType}
-                  onChange={(e) => setBatchType(e.target.value as BatchType)}
-                  className={inputClass}
+            <label className="block space-y-1">
+              <span className="text-xs font-semibold text-foreground">
+                Received Date <span className="text-destructive">*</span>
+              </span>
+              <div className="relative">
+                <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="date"
+                  value={receivedDate}
+                  max={todayISO()}
+                  onChange={(e) => setReceivedDate(e.target.value)}
+                  className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                   required
-                >
-                  {BATCH_TYPES.map((bt) => (
-                    <option key={bt} value={bt}>
-                      {bt}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+                />
+              </div>
+              {futureDate && (
+                <span className="text-[11px] font-semibold text-destructive">Date cannot be in the future</span>
+              )}
+            </label>
 
             {wsp && user && (
               <ProofImageUpload
@@ -433,8 +417,8 @@ function ReceivePage() {
                   <strong className="text-foreground">{submitResult.receivedDate}</strong>
                 </div>
                 <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">Batch</span>
-                  <strong className="text-foreground">{submitResult.batchType}</strong>
+                  <span className="text-muted-foreground">WSP</span>
+                  <strong className="font-mono text-primary">{submitResult.wsp}</strong>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground">WSP</span>
