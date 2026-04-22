@@ -232,7 +232,7 @@ export type Database = {
       receive_material_with_create: {
         Args: {
           _batch_type?: Database["public"]["Enums"]["batch_type"]
-          _invoice_file_path: string
+          _invoice_file_path?: string
           _material_code: string
           _material_name: string
           _proof_image_path: string

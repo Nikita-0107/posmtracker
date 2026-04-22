@@ -87,7 +87,8 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error }: 
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-foreground">
-          Proof Image <span className="text-destructive">*</span>
+          {kind === "receive" ? "Upload PO / Challan Image" : "Proof Image"}{" "}
+          <span className="text-destructive">*</span>
         </span>
         <span className="text-[10px] text-muted-foreground">JPG / PNG · max 8MB</span>
       </div>
