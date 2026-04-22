@@ -133,6 +133,7 @@ export async function exportDispatchReport() {
         date: formatDateTime(m.created_at),
         dispatch_date: m.dispatch_date ?? dayKey(m.created_at),
         dispatch_id: m.dispatch_id ?? "",
+        wsp_name: m.wsp,
         wd_code: wd.code,
         wd_name: wd.name,
         material_code: m.material_code,
