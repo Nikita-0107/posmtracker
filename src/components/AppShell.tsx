@@ -1,44 +1,26 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { Package, Camera, Inbox, Boxes, Building2, LogOut, ShieldCheck, History } from "lucide-react";
+import { Building2, Truck, Camera, LogOut, ShieldCheck } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
-import { supabase } from "@/integrations/supabase/client";
+import { useRoles } from "@/hooks/use-roles";
 
 const tabs = [
-  { to: "/" as const, label: "WSP", icon: Building2 },
-  { to: "/receive" as const, label: "Receive", icon: Inbox },
-  { to: "/stock" as const, label: "Stock", icon: Boxes },
-  { to: "/wd-issue" as const, label: "WD → TL", icon: Package },
-  { to: "/tl-upload" as const, label: "TL Upload", icon: Camera },
-  { to: "/movements" as const, label: "Log", icon: History },
+  { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "admin"] as const },
+  { to: "/wd" as const, label: "WD", icon: Truck, roles: ["wd", "admin"] as const },
+  { to: "/tl" as const, label: "TL", icon: Camera, roles: ["tl", "admin"] as const },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { signOut, profile, user } = useAuth();
+  const { signOut, profile } = useAuth();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { roles, isAdmin } = useRoles();
 
-  useEffect(() => {
-    if (!user) {
-      setIsAdmin(false);
-      return;
-    }
-    let active = true;
-    supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle()
-      .then(({ data }) => {
-        if (active) setIsAdmin(!!data);
-      });
-    return () => {
-      active = false;
-    };
-  }, [user]);
+  const visibleTabs = tabs.filter((t) =>
+    t.roles.some((r) => roles.includes(r)),
+  );
+  // Fallback: if user has no roles yet, show all so they aren't stuck on a blank shell
+  const tabsToRender = visibleTabs.length > 0 ? visibleTabs : tabs;
 
   async function handleSignOut() {
     await signOut();
@@ -74,23 +56,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto px-3 py-4 pb-20">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto px-3 py-4 pb-20">{children}</main>
 
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
-        <div className="mx-auto grid max-w-md grid-cols-6">
-          {tabs.map((tab) => {
-            const isActive = location.pathname === tab.to;
+        <div
+          className="mx-auto grid max-w-md"
+          style={{ gridTemplateColumns: `repeat(${tabsToRender.length}, minmax(0, 1fr))` }}
+        >
+          {tabsToRender.map((tab) => {
+            const isActive =
+              tab.to === "/"
+                ? location.pathname === "/" ||
+                  location.pathname === "/receive" ||
+                  location.pathname === "/wd-issue" ||
+                  location.pathname === "/stock" ||
+                  location.pathname === "/movements"
+                : location.pathname.startsWith(tab.to);
             return (
               <Link
                 key={tab.to}
                 to={tab.to}
-                className={`flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+                className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`}
               >
-                <tab.icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                <tab.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                 <span>{tab.label}</span>
               </Link>
             );
