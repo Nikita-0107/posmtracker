@@ -99,6 +99,7 @@ export type Database = {
           dispatch_id: string | null
           distributor: string | null
           id: string
+          invoice_file_path: string | null
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by: string | null
@@ -115,6 +116,7 @@ export type Database = {
           dispatch_id?: string | null
           distributor?: string | null
           id?: string
+          invoice_file_path?: string | null
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
@@ -131,6 +133,7 @@ export type Database = {
           dispatch_id?: string | null
           distributor?: string | null
           id?: string
+          invoice_file_path?: string | null
           material_code?: string
           movement?: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
@@ -226,6 +229,19 @@ export type Database = {
             }
             Returns: number
           }
+      receive_material_with_create: {
+        Args: {
+          _batch_type?: Database["public"]["Enums"]["batch_type"]
+          _invoice_file_path: string
+          _material_code: string
+          _material_name: string
+          _proof_image_path: string
+          _qty: number
+          _received_date?: string
+          _reference_number: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "wsp"
