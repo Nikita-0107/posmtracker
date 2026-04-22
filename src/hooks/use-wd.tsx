@@ -68,7 +68,7 @@ export async function confirmDispatchItem(
   const { data, error } = await supabase.rpc("confirm_dispatch_item", {
     _movement_id: movementId,
     _action: action,
-    _note: note ?? null,
+    _note: note ?? undefined,
   });
   return { newStatus: data as DispatchItemStatus | null, error };
 }
