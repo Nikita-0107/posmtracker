@@ -86,17 +86,21 @@ export type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
 
 export async function receiveMaterial(
   materialCode: string,
+  materialName: string, // used only when creating a new material
   qty: number,
   invoiceNumber: string,
   proofImagePath: string,
+  invoiceFilePath: string,
   receivedDate: string, // YYYY-MM-DD
   batchType: BatchType,
 ) {
-  const { data, error } = await supabase.rpc("receive_material", {
+  const { data, error } = await supabase.rpc("receive_material_with_create", {
     _material_code: materialCode,
+    _material_name: materialName,
     _qty: qty,
     _reference_number: invoiceNumber,
     _proof_image_path: proofImagePath,
+    _invoice_file_path: invoiceFilePath,
     _received_date: receivedDate,
     _batch_type: batchType,
   });
