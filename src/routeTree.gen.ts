@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
+import { Route as WdRouteImport } from './routes/wd'
 import { Route as TlUploadRouteImport } from './routes/tl-upload'
+import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as MovementsRouteImport } from './routes/movements'
@@ -23,9 +25,19 @@ const WdIssueRoute = WdIssueRouteImport.update({
   path: '/wd-issue',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WdRoute = WdRouteImport.update({
+  id: '/wd',
+  path: '/wd',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TlUploadRoute = TlUploadRouteImport.update({
   id: '/tl-upload',
   path: '/tl-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TlRoute = TlRouteImport.update({
+  id: '/tl',
+  path: '/tl',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StockRoute = StockRouteImport.update({
@@ -65,7 +77,9 @@ export interface FileRoutesByFullPath {
   '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
+  '/tl': typeof TlRoute
   '/tl-upload': typeof TlUploadRoute
+  '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/admin/users': typeof AdminUsersRoute
 }
@@ -75,7 +89,9 @@ export interface FileRoutesByTo {
   '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
+  '/tl': typeof TlRoute
   '/tl-upload': typeof TlUploadRoute
+  '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/admin/users': typeof AdminUsersRoute
 }
@@ -86,7 +102,9 @@ export interface FileRoutesById {
   '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
+  '/tl': typeof TlRoute
   '/tl-upload': typeof TlUploadRoute
+  '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/admin/users': typeof AdminUsersRoute
 }
@@ -98,7 +116,9 @@ export interface FileRouteTypes {
     | '/movements'
     | '/receive'
     | '/stock'
+    | '/tl'
     | '/tl-upload'
+    | '/wd'
     | '/wd-issue'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
@@ -108,7 +128,9 @@ export interface FileRouteTypes {
     | '/movements'
     | '/receive'
     | '/stock'
+    | '/tl'
     | '/tl-upload'
+    | '/wd'
     | '/wd-issue'
     | '/admin/users'
   id:
@@ -118,7 +140,9 @@ export interface FileRouteTypes {
     | '/movements'
     | '/receive'
     | '/stock'
+    | '/tl'
     | '/tl-upload'
+    | '/wd'
     | '/wd-issue'
     | '/admin/users'
   fileRoutesById: FileRoutesById
@@ -129,7 +153,9 @@ export interface RootRouteChildren {
   MovementsRoute: typeof MovementsRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
+  TlRoute: typeof TlRoute
   TlUploadRoute: typeof TlUploadRoute
+  WdRoute: typeof WdRoute
   WdIssueRoute: typeof WdIssueRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
@@ -143,11 +169,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WdIssueRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wd': {
+      id: '/wd'
+      path: '/wd'
+      fullPath: '/wd'
+      preLoaderRoute: typeof WdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/tl-upload': {
       id: '/tl-upload'
       path: '/tl-upload'
       fullPath: '/tl-upload'
       preLoaderRoute: typeof TlUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tl': {
+      id: '/tl'
+      path: '/tl'
+      fullPath: '/tl'
+      preLoaderRoute: typeof TlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/stock': {
@@ -201,7 +241,9 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsRoute: MovementsRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
+  TlRoute: TlRoute,
   TlUploadRoute: TlUploadRoute,
+  WdRoute: WdRoute,
   WdIssueRoute: WdIssueRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
