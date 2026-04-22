@@ -105,6 +105,7 @@ export type Database = {
           performed_by: string | null
           proof_image_path: string | null
           qty: number
+          receive_id: string | null
           received_date: string | null
           reference_number: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
@@ -122,6 +123,7 @@ export type Database = {
           performed_by?: string | null
           proof_image_path?: string | null
           qty: number
+          receive_id?: string | null
           received_date?: string | null
           reference_number?: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
@@ -139,6 +141,7 @@ export type Database = {
           performed_by?: string | null
           proof_image_path?: string | null
           qty?: number
+          receive_id?: string | null
           received_date?: string | null
           reference_number?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"]
@@ -241,6 +244,16 @@ export type Database = {
           _reference_number: string
         }
         Returns: number
+      }
+      receive_materials: {
+        Args: {
+          _batch_type?: Database["public"]["Enums"]["batch_type"]
+          _items: Json
+          _proof_image_path: string
+          _received_date?: string
+          _reference_number: string
+        }
+        Returns: string
       }
     }
     Enums: {
