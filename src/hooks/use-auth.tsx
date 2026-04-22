@@ -9,6 +9,7 @@ export type Profile = {
   mobile: string;
   display_name: string | null;
   wsp: WspCode | null;
+  wd_code: string | null;
 };
 
 const MOBILE_DOMAIN = "posm.local";
@@ -43,7 +44,7 @@ function useAuthState(): AuthContextValue {
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, mobile, display_name, wsp")
+      .select("id, mobile, display_name, wsp, wd_code")
       .eq("id", userId)
       .maybeSingle();
     if (error) {
