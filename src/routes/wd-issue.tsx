@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package,
-  Hash,
   CheckCircle2,
   Search,
   Check,
@@ -12,6 +11,7 @@ import {
   Truck,
   Loader2,
   Plus,
+  Minus,
   Trash2,
   Calendar,
 } from "lucide-react";
