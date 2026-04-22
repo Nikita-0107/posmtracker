@@ -420,10 +420,6 @@ function ReceivePage() {
                   <span className="text-muted-foreground">WSP</span>
                   <strong className="font-mono text-primary">{submitResult.wsp}</strong>
                 </div>
-                <div className="flex justify-between gap-2">
-                  <span className="text-muted-foreground">WSP</span>
-                  <strong className="font-mono text-primary">{submitResult.wsp}</strong>
-                </div>
                 <div className="border-t pt-1.5">
                   <p className="mb-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
                     Items ({submitResult.items.length})
@@ -438,6 +434,9 @@ function ReceivePage() {
                               NEW
                             </span>
                           )}
+                          <span className="ml-1 rounded bg-muted px-1 text-[9px] font-semibold text-muted-foreground">
+                            {r.batchType}
+                          </span>
                         </span>
                         <span className="shrink-0 font-bold text-foreground">+{r.qty}</span>
                       </div>
