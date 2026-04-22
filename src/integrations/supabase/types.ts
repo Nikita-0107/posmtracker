@@ -39,6 +39,7 @@ export type Database = {
           id: string
           mobile: string
           updated_at: string
+          wd_code: string | null
           wsp: Database["public"]["Enums"]["wsp_code"] | null
         }
         Insert: {
@@ -47,6 +48,7 @@ export type Database = {
           id: string
           mobile: string
           updated_at?: string
+          wd_code?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"] | null
         }
         Update: {
@@ -55,6 +57,7 @@ export type Database = {
           id?: string
           mobile?: string
           updated_at?: string
+          wd_code?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"] | null
         }
         Relationships: []
@@ -94,12 +97,18 @@ export type Database = {
       stock_movements: {
         Row: {
           batch_type: Database["public"]["Enums"]["batch_type"] | null
+          confirmed_at: string | null
+          confirmed_by: string | null
           created_at: string
           dispatch_date: string | null
           dispatch_id: string | null
           distributor: string | null
           id: string
           invoice_file_path: string | null
+          issue_note: string | null
+          item_status:
+            | Database["public"]["Enums"]["dispatch_item_status"]
+            | null
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by: string | null
@@ -112,12 +121,18 @@ export type Database = {
         }
         Insert: {
           batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           dispatch_date?: string | null
           dispatch_id?: string | null
           distributor?: string | null
           id?: string
           invoice_file_path?: string | null
+          issue_note?: string | null
+          item_status?:
+            | Database["public"]["Enums"]["dispatch_item_status"]
+            | null
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
@@ -130,12 +145,18 @@ export type Database = {
         }
         Update: {
           batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
           created_at?: string
           dispatch_date?: string | null
           dispatch_id?: string | null
           distributor?: string | null
           id?: string
           invoice_file_path?: string | null
+          issue_note?: string | null
+          item_status?:
+            | Database["public"]["Enums"]["dispatch_item_status"]
+            | null
           material_code?: string
           movement?: Database["public"]["Enums"]["movement_type"]
           performed_by?: string | null
@@ -177,11 +198,79 @@ export type Database = {
         }
         Relationships: []
       }
+      wd_assignments: {
+        Row: {
+          created_at: string
+          id: string
+          wd_code: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          wd_code: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          wd_code?: string
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: []
+      }
+      wd_stock: {
+        Row: {
+          id: string
+          material_code: string
+          qty: number
+          updated_at: string
+          wd_code: string
+        }
+        Insert: {
+          id?: string
+          material_code: string
+          qty?: number
+          updated_at?: string
+          wd_code: string
+        }
+        Update: {
+          id?: string
+          material_code?: string
+          qty?: number
+          updated_at?: string
+          wd_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wd_stock_material_code_fkey"
+            columns: ["material_code"]
+            isOneToOne: false
+            referencedRelation: "materials"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
     }
     Views: {
-      [_ in never]: never
+      dispatch_status_v: {
+        Row: {
+          dispatch_id: string | null
+          issue_items: number | null
+          pending_items: number | null
+          received_items: number | null
+          status: string | null
+          total_items: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      confirm_dispatch_item: {
+        Args: { _action: string; _movement_id: string; _note?: string }
+        Returns: Database["public"]["Enums"]["dispatch_item_status"]
+      }
+      current_user_wd: { Args: never; Returns: string }
       current_user_wsp: {
         Args: never
         Returns: Database["public"]["Enums"]["wsp_code"]
@@ -257,8 +346,9 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "wsp"
+      app_role: "admin" | "wsp" | "wd" | "tl"
       batch_type: "Launch" | "Cyclical" | "SOV" | "Others"
+      dispatch_item_status: "pending" | "received" | "issue"
       movement_type: "receive" | "dispatch"
       wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
@@ -388,8 +478,9 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "wsp"],
+      app_role: ["admin", "wsp", "wd", "tl"],
       batch_type: ["Launch", "Cyclical", "SOV", "Others"],
+      dispatch_item_status: ["pending", "received", "issue"],
       movement_type: ["receive", "dispatch"],
       wsp_code: ["CEVL", "CEVJ", "CEVY"],
     },
