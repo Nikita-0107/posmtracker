@@ -108,12 +108,13 @@ export async function exportDispatchReport() {
   }
 
   // -------------------------------------------------------------
-  // Sign all proof image paths in one batch (7 day signed URLs)
+  // Sign all proof image + invoice file paths in one batch (7 day signed URLs)
   // -------------------------------------------------------------
-  const allProofPaths = movements
-    .map((m) => m.proof_image_path)
-    .filter((p): p is string => !!p);
-  const signedMap = await signProofPaths(allProofPaths);
+  const allSignedPaths = [
+    ...movements.map((m) => m.proof_image_path),
+    ...movements.map((m) => m.invoice_file_path),
+  ].filter((p): p is string => !!p);
+  const signedMap = await signProofPaths(allSignedPaths);
 
   // -------------------------------------------------------------
   // Sheet 1: Dispatch Log
@@ -171,6 +172,7 @@ export async function exportDispatchReport() {
     .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
     .map((m) => {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
+      const invoiceUrl = m.invoice_file_path ? signedMap.get(m.invoice_file_path) ?? "" : "";
       const rdate = m.received_date ?? dayKey(m.created_at);
       const id = `${m.created_at}|${m.wsp}|${m.material_code}|${m.qty}|${m.reference_number ?? ""}`;
       const closing = receiveClosingByMovement.get(id) ?? 0;
@@ -186,6 +188,7 @@ export async function exportDispatchReport() {
         age_days: ageInDays(rdate),
         batch_type: m.batch_type ?? "",
         closing_quantity: closing,
+        invoice_url: invoiceUrl,
         proof_url: proofUrl,
       };
     });
