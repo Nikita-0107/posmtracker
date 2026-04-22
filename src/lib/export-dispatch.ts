@@ -11,6 +11,7 @@ type MovementRow = {
   wsp: string;
   reference_number: string | null;
   proof_image_path: string | null;
+  invoice_file_path: string | null;
   received_date: string | null;
   batch_type: string | null;
   dispatch_id: string | null;
@@ -75,7 +76,7 @@ export async function exportDispatchReport() {
     supabase
       .from("stock_movements")
       .select(
-        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, received_date, batch_type, dispatch_id, dispatch_date",
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, invoice_file_path, received_date, batch_type, dispatch_id, dispatch_date",
       )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
