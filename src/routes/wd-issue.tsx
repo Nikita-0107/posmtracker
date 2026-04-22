@@ -406,6 +406,7 @@ function WdIssuePage() {
                   if (val) setProofError(null);
                 }}
                 error={proofError}
+                label={wd === "WD_FLUSH" ? "Upload Approval Email / Proof" : undefined}
               />
             )}
 

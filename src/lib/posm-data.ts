@@ -88,6 +88,7 @@ export const wdMaster: WdMaster[] = [
   { wd_code: "VI3221", wd_name: "CMK ASSOCIATES" },
   { wd_code: "VI3238", wd_name: "ARUNODAYA ASSOCIATES" },
   { wd_code: "VI3465", wd_name: "VASUDAH ASSOCIATES" },
+  { wd_code: "WD_FLUSH", wd_name: "Flushing WD" },
 ];
 
 export type PosmMaterial = { code: string; name: string };
