@@ -16,7 +16,6 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
-import { InvoiceFileUpload, type InvoiceFileValue } from "@/components/InvoiceFileUpload";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMaterials,
@@ -58,13 +57,11 @@ function ReceivePage() {
   // Receive fields
   const [newName, setNewName] = useState(""); // only for new materials
   const [qty, setQty] = useState("");
-  const [invoiceNumber, setInvoiceNumber] = useState("");
+  const [poNumber, setPoNumber] = useState("");
   const [receivedDate, setReceivedDate] = useState(todayISO());
   const [batchType, setBatchType] = useState<BatchType>("Cyclical");
   const [proof, setProof] = useState<ProofImageValue>(null);
-  const [invoiceFile, setInvoiceFile] = useState<InvoiceFileValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
-  const [invoiceFileError, setInvoiceFileError] = useState<string | null>(null);
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -103,26 +100,23 @@ function ReceivePage() {
     (mode.kind === "existing" || newName.trim().length > 0) &&
     qty !== "" &&
     Number(qty) > 0 &&
-    invoiceNumber.trim().length > 0 &&
+    poNumber.trim().length > 0 &&
     receivedDate !== "" &&
     receivedDate <= todayISO() &&
     !!proof &&
-    !!invoiceFile &&
     !busy;
 
   function resetForm() {
     setMode(null);
     setNewName("");
     setQty("");
-    setInvoiceNumber("");
+    setPoNumber("");
     setReceivedDate(todayISO());
     setBatchType("Cyclical");
     setQuery("");
     if (proof?.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
-    setInvoiceFile(null);
     setProofError(null);
-    setInvoiceFileError(null);
     setError(null);
   }
 
@@ -150,9 +144,9 @@ function ReceivePage() {
       setError("Description is required");
       return;
     }
-    const inv = invoiceNumber.trim();
-    if (!inv) {
-      setError("Invoice number is required");
+    const po = poNumber.trim();
+    if (!po) {
+      setError("PO number is required");
       return;
     }
     if (!receivedDate) {
@@ -164,15 +158,10 @@ function ReceivePage() {
       return;
     }
     if (!proof) {
-      setProofError("Proof image is required");
-      return;
-    }
-    if (!invoiceFile) {
-      setInvoiceFileError("Invoice file is required");
+      setProofError("PO image is required");
       return;
     }
     setProofError(null);
-    setInvoiceFileError(null);
     if (!canSubmit) return;
 
     setBusy(true);
@@ -182,9 +171,8 @@ function ReceivePage() {
       code,
       name,
       qNum,
-      inv,
+      po,
       proof.path,
-      invoiceFile.path,
       receivedDate,
       batchType,
     );
@@ -195,7 +183,7 @@ function ReceivePage() {
         msg.toLowerCase().includes("duplicate") ||
         (rpcError as { code?: string }).code === "23505"
       ) {
-        setError("Duplicate entry detected for this invoice number");
+        setError("Duplicate entry: this PO number already exists for this material");
       } else {
         setError(msg || "Failed to save");
       }
@@ -423,13 +411,13 @@ function ReceivePage() {
 
                 <label className="block space-y-1">
                   <span className="text-xs font-semibold text-foreground">
-                    Invoice Number <span className="text-destructive">*</span>
+                    PO Number <span className="text-destructive">*</span>
                   </span>
                   <input
                     type="text"
-                    placeholder="Enter invoice / PO number"
-                    value={invoiceNumber}
-                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                    placeholder="Enter PO number"
+                    value={poNumber}
+                    onChange={(e) => setPoNumber(e.target.value)}
                     className={inputClass}
                     required
                   />
@@ -467,19 +455,6 @@ function ReceivePage() {
                     </select>
                   </label>
                 </div>
-
-                {wsp && user && (
-                  <InvoiceFileUpload
-                    wsp={wsp}
-                    userId={user.id}
-                    value={invoiceFile}
-                    onChange={(v) => {
-                      setInvoiceFile(v);
-                      if (v) setInvoiceFileError(null);
-                    }}
-                    error={invoiceFileError}
-                  />
-                )}
 
                 {wsp && user && (
                   <ProofImageUpload
