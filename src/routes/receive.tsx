@@ -57,6 +57,8 @@ type LineItem = {
   open: boolean;
   // qty
   qty: string;
+  // batch type per item
+  batchType: BatchType;
 };
 
 function newLine(): LineItem {
@@ -69,6 +71,7 @@ function newLine(): LineItem {
     query: "",
     open: false,
     qty: "",
+    batchType: "Cyclical",
   };
 }
 
