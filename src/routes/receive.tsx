@@ -733,19 +733,54 @@ function ReceiveLineItemRow({
           <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
             Quantity <span className="text-destructive">*</span>
           </p>
-          <div className="relative">
-            <Hash size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              type="number"
-              min={1}
-              inputMode="numeric"
-              placeholder="0"
-              value={item.qty}
-              onChange={(e) => onChange({ qty: e.target.value })}
-              disabled={!item.material && !item.isNew}
-              className="w-full rounded-lg border bg-card py-2 pl-7 pr-2 text-sm font-bold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-40"
-            />
-          </div>
+          {(() => {
+            const disabled = !item.material && !item.isNew;
+            const current = Number(item.qty) || 0;
+            const dec = () => {
+              if (disabled) return;
+              const next = Math.max(0, current - 1);
+              onChange({ qty: next === 0 ? "" : String(next) });
+            };
+            const inc = () => {
+              if (disabled) return;
+              onChange({ qty: String(current + 1) });
+            };
+            return (
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={dec}
+                  disabled={disabled || current <= 0}
+                  aria-label="Decrease quantity"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-border bg-card text-foreground shadow-sm transition hover:border-primary hover:bg-primary/5 active:scale-95 disabled:opacity-40"
+                >
+                  <Minus size={14} />
+                </button>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="0"
+                  value={item.qty}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^0-9]/g, "");
+                    onChange({ qty: v });
+                  }}
+                  disabled={disabled}
+                  className="h-9 w-full min-w-0 rounded-lg border bg-card px-2 text-center text-sm font-bold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-40"
+                />
+                <button
+                  type="button"
+                  onClick={inc}
+                  disabled={disabled}
+                  aria-label="Increase quantity"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-primary/40 bg-primary/10 text-primary shadow-sm transition hover:bg-primary/20 active:scale-95 disabled:opacity-40"
+                >
+                  <Plus size={14} />
+                </button>
+              </div>
+            );
+          })()}
         </div>
       </div>
 
