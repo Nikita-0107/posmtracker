@@ -85,7 +85,6 @@ function ReceivePage() {
   // HEADER
   const [poNumber, setPoNumber] = useState("");
   const [receivedDate, setReceivedDate] = useState(todayISO());
-  const [batchType, setBatchType] = useState<BatchType>("Cyclical");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
 
@@ -98,9 +97,8 @@ function ReceivePage() {
   const [submitResult, setSubmitResult] = useState<{
     poNumber: string;
     receivedDate: string;
-    batchType: BatchType;
     wsp: string;
-    items: { code: string; name: string; qty: number; isNew: boolean }[];
+    items: { code: string; name: string; qty: number; isNew: boolean; batchType: BatchType }[];
     totalQty: number;
   } | null>(null);
 
@@ -162,12 +160,17 @@ function ReceivePage() {
       .filter((it) => itemValidations[items.indexOf(it)].ok)
       .map((it) => {
         if (it.material) {
-          return { material_code: it.material.code, qty: Number(it.qty) };
+          return {
+            material_code: it.material.code,
+            qty: Number(it.qty),
+            batch_type: it.batchType,
+          };
         }
         return {
           material_code: it.newCode.trim(),
           material_name: it.newName.trim(),
           qty: Number(it.qty),
+          batch_type: it.batchType,
         };
       });
 
@@ -178,7 +181,6 @@ function ReceivePage() {
       proof.path,
       payload,
       receivedDate,
-      batchType,
     );
     setBusy(false);
     if (rpcError) {
@@ -201,7 +203,6 @@ function ReceivePage() {
     setSubmitResult({
       poNumber: poNumber.trim(),
       receivedDate,
-      batchType,
       wsp: wsp ?? "",
       items: items
         .filter((it, idx) => itemValidations[idx].ok)
@@ -210,6 +211,7 @@ function ReceivePage() {
           name: it.material ? it.material.name : it.newName.trim(),
           qty: Number(it.qty),
           isNew: it.isNew && !it.material,
+          batchType: it.batchType,
         })),
       totalQty,
     });
@@ -218,7 +220,6 @@ function ReceivePage() {
     setItems([newLine()]);
     setPoNumber("");
     setReceivedDate(todayISO());
-    setBatchType("Cyclical");
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
     void refresh();
