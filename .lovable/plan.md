@@ -1,68 +1,57 @@
 
 
-## Plan: "Receive Materials" Screen
+# Add a "Losses" view so closed-loss items are visible
 
-Build a new mobile-first screen that lets WSP staff search the material catalog, add new materials inline if not found, then enter quantity to add stock — replacing Step 1 of the current dispatch page with a smoother search-driven flow.
+Right now when WSP picks **Accept Loss** on an issue, the dispatch line is marked `closed_loss` and stock is permanently deducted — but it disappears from every screen. There's no place to see what was lost, by how much, or when. This plan adds a dedicated Losses view plus a summary tile so losses stay traceable.
 
-### Where it lives
+## What you'll get
 
-New route: `/receive` (file: `src/routes/receive.tsx`), added to the bottom nav in `AppShell.tsx`. The existing `/` (Stock & Dispatch) page stays intact — this is an additional, focused entry screen for the "Receive Materials" workflow.
+1. **New "Losses" page** at `/losses` listing every dispatch line with `item_status = 'closed_loss'`:
+   - Distributor (WD name + code), material code + description, quantity lost
+   - Original issue reason (`issue_note`)
+   - Date the loss was accepted (`resolved_at`)
+   - Who closed it (performed_by / resolved_by display name when available)
+   - Filters: by WD, by material, and by date range (last 7 / 30 / 90 days / all)
+   - Summary header showing **total quantity lost** and **number of loss events** for the active filter
 
-### Data layer changes (`src/lib/posm-data.ts`)
+2. **Home screen tile** (WSP Operations):
+   - New "Losses" card under "Issues Raised by WD" with a red-tinted icon
+   - Small subtitle showing total loss qty (e.g. "12 units across 4 events")
 
-- Convert `posmMaterials` from `as const` readonly tuple → mutable typed array so new items can be appended at runtime (prototype: in-memory only).
-- Export a small helper `addMaterial(code, name)` that pushes to the array and seeds `initialStock[code] = 0`.
+3. **Losses summary on the WSP Issues page**:
+   - Compact strip at the top: "X open issues · Y units lost to date" with a link to `/losses`
 
-### Screen structure (single column, max-w-md)
+4. **Role visibility**:
+   - WSP role: sees only their own WSP's losses (RLS already enforces this)
+   - Admin: sees all losses across all WSPs, with WSP column visible
+   - WD role: not exposed in nav (losses are a WSP-side concern)
 
-**Header**: "Receive Materials" with a small Inbox/PackagePlus icon.
+## Technical details
 
-**Step 1 — Search or Add Material**
-- Search input with leading magnifier icon, placeholder "Search Material Code or Name".
-- Live filter (case-insensitive, matches code or name) renders a result list of tappable cards:
-  - **Bold code** (top line, monospace-ish)
-  - Smaller muted name (second line)
-  - Selected card gets a primary border + check icon.
-- Empty-state when query is non-empty and zero matches:
-  - "No results found" muted text
-  - **+ Add New Material** outline button → expands an inline form (framer-motion height/opacity):
-    - Input: Code / ID (auto-uppercased, trimmed)
-    - Input: Description
-    - **Save Material** button (disabled until both filled)
-    - On save: append via `addMaterial`, auto-select it, collapse the form, clear search, show small "✅ Material added" toast/badge that fades after 2s.
+- **No DB schema changes.** All data is already in `stock_movements`:
+  - `item_status = 'closed_loss'`, `resolved_at`, `resolved_by`, `issue_note`, `qty`, `material_code`, `distributor`, `wsp`
+  - Existing RLS ("Users can view movements for their WSP" + admin) already scopes correctly
 
-**Step 2 — Enter Quantity** (only visible once a material is selected)
-- Selected material summary chip (code bold + name) with a small "Change" link to clear selection.
-- Number input with Hash icon, `inputMode="numeric"`, min 1.
-- Date field auto-filled with today's ISO date (read-only display using Calendar icon, but editable input type="date" for flexibility).
+- **New files**:
+  - `src/routes/losses.tsx` — the Losses page (uses `AppShell`, mirrors `wsp-issues.tsx` styling)
+  - `src/hooks/use-losses.tsx` — exports `useLosses({ wd?, material?, sinceDays? })` and `useLossesSummary()` (returns `{ totalQty, count }`); uses Supabase realtime on `stock_movements` filtered to `item_status=closed_loss`
 
-**Step 3 — Submit**
-- Full-width primary button: **Add to WSP Stock** (disabled until material + qty>0).
-- On click: increment stock in local state, show success card:
-  - ✅ Added to WSP Stock
-  - Material Code / Name / Quantity / New Stock Total
-- Auto-reset form after ~3s.
+- **Edited files**:
+  - `src/routes/index.tsx` — add Losses tile to the `operations` array; show summary subtitle via `useLossesSummary`
+  - `src/routes/wsp-issues.tsx` — add the small "X units lost to date" link strip
+  - `src/components/AppShell.tsx` — no nav change needed (home tile is the entry)
 
-### Navigation update
+- **Display lookups**:
+  - WD name resolved via existing `wdMaster` from `@/lib/posm-data`
+  - Material name resolved via existing `useMaterials()`
 
-`AppShell.tsx` bottom nav currently has 3 tabs (Dispatch / Issue / Upload). Add a 4th "Receive" tab (Inbox icon) pointing to `/receive`, placed first. Adjust grid to `grid-cols-4`.
+- **Loss summary card example layout**:
+  ```text
+  ┌──────────────────────────────────────┐
+  │ ⚠  Total Lost (last 30 days)         │
+  │ 47 units · 12 events                 │
+  └──────────────────────────────────────┘
+  ```
 
-### Styling
-
-Reuse existing `selectClass`/`inputClass` patterns from `index.tsx` for consistency: rounded-xl cards, border, bg-card, primary accent on selection, success/10 background for confirmations. Framer-motion AnimatePresence for the inline add-form expand and the success card.
-
-### Files touched
-
-```text
-src/routes/receive.tsx          NEW   main screen
-src/lib/posm-data.ts            EDIT  mutable array + addMaterial helper
-src/components/AppShell.tsx     EDIT  add 4th nav tab, grid-cols-4
-```
-
-`routeTree.gen.ts` regenerates automatically — not edited manually.
-
-### Out of scope (prototype constraints)
-
-- No backend persistence — newly added materials live only in-memory and reset on reload (consistent with the rest of the prototype).
-- No duplicate-code validation beyond a simple "already exists" check before saving.
+- **Performance**: queries use `head: true` for counts and a single ordered fetch (limit 200) for the list with an "Load older" pagination button if needed later.
 
