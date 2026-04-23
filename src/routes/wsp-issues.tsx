@@ -59,6 +59,20 @@ function WspIssuesPage() {
           </div>
         </div>
 
+        <Link
+          to="/losses"
+          className="flex items-center justify-between gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] transition hover:bg-destructive/10"
+        >
+          <span className="font-semibold text-foreground">
+            {rows.length} open {rows.length === 1 ? "issue" : "issues"}
+            <span className="mx-1 text-muted-foreground">·</span>
+            <span className="text-destructive">
+              {lossQty} units lost{lossCount > 0 ? ` (${lossCount})` : ""}
+            </span>
+          </span>
+          <span className="text-[10px] font-bold uppercase text-destructive">View losses →</span>
+        </Link>
+
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">
             <Loader2 size={14} className="animate-spin" /> Loading issues…
