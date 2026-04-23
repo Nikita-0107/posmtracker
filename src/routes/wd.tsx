@@ -41,17 +41,8 @@ type Section = "in_transit" | "stock" | "assignments";
 
 function WdHomePage() {
   const { profile } = useAuth();
-  const { isAdmin, isWd, loading: rolesLoading } = useRoles();
-  const navigate = useNavigate();
+  const { isAdmin } = useRoles();
   const [section, setSection] = useState<Section>("in_transit");
-
-  useEffect(() => {
-    // Non-admin without WD code & without WD role: bounce to home
-    if (rolesLoading) return;
-    if (!isAdmin && !isWd) {
-      navigate({ to: "/" });
-    }
-  }, [rolesLoading, isAdmin, isWd, navigate]);
 
   const wdLabel = profile?.wd_code
     ? `${profile.wd_code}${
@@ -75,17 +66,6 @@ function WdHomePage() {
             <p className="truncate text-[11px] text-muted-foreground">{wdLabel}</p>
           </div>
         </div>
-
-        {!isAdmin && !profile?.wd_code && (
-          <div className="rounded-xl border-2 border-destructive/30 bg-destructive/5 p-3">
-            <p className="flex items-center gap-1.5 text-sm font-bold text-destructive">
-              <AlertTriangle size={16} /> No WD code assigned
-            </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              An admin needs to assign your WD code before you can confirm dispatches.
-            </p>
-          </div>
-        )}
 
         {/* Section tabs */}
         <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
