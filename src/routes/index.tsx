@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, ChevronRight, Building2, AlertTriangle, History } from "lucide-react";
+import { Inbox, Truck, Boxes, ChevronRight, Building2, History } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -62,19 +62,6 @@ function WspOperationsPage() {
             </p>
           </div>
         </div>
-
-        {!wsp && (
-          <div className="flex items-start gap-2 rounded-xl border-2 border-destructive/30 bg-destructive/5 p-3">
-            <AlertTriangle size={16} className="mt-0.5 shrink-0 text-destructive" />
-            <div className="space-y-1">
-              <p className="text-sm font-bold text-foreground">Waiting for WSP assignment</p>
-              <p className="text-[11px] text-muted-foreground">
-                Your account ({profile?.mobile ? `+91 ${profile.mobile}` : "you"}) is signed in but
-                does not yet have a WSP assigned. Please contact an admin.
-              </p>
-            </div>
-          </div>
-        )}
 
         <section className="space-y-2">
           <h3 className="text-sm font-bold text-foreground">Choose an operation</h3>
