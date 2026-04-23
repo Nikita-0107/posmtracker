@@ -63,3 +63,50 @@ export async function resolveDispatchIssue(
   });
   return { newStatus: data as string | null, error };
 }
+
+/**
+ * Lightweight count of open issues (item_status = 'issue') visible to the
+ * current user via RLS. Auto-refreshes when the window regains focus and on
+ * any dispatch realtime change.
+ */
+export function useOpenIssuesCount() {
+  const [count, setCount] = useState<number>(0);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    const { count: c, error } = await supabase
+      .from("stock_movements")
+      .select("id", { count: "exact", head: true })
+      .eq("movement", "dispatch")
+      .eq("item_status", "issue");
+    if (error) {
+      console.error("Failed to load open issue count", error);
+      setCount(0);
+    } else {
+      setCount(c ?? 0);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const onFocus = () => void refresh();
+    window.addEventListener("focus", onFocus);
+
+    const channel = supabase
+      .channel("wsp-open-issues")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "stock_movements" },
+        () => void refresh(),
+      )
+      .subscribe();
+
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      void supabase.removeChannel(channel);
+    };
+  }, [refresh]);
+
+  return { count, loading, refresh };
+}
