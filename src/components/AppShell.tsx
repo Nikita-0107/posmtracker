@@ -41,12 +41,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
   const tabsToRender = visibleTabs.length > 0 ? visibleTabs : [];
 
-  // Redirect away from a tab the user can't access
+  // Redirect away from a tab the user can't access (and from "/" for non-WSP roles)
   useEffect(() => {
     if (authLoading || rolesLoading) return;
     if (!user) return;
     if (PUBLIC_PATHS.some((p) => location.pathname.startsWith(p))) return;
     if (isAdmin) return;
+
+    // "/" is the WSP landing — redirect WD/TL users to their own landing
+    if (location.pathname === "/") {
+      if (!roles.includes("wsp")) {
+        const dest = landingForRoles(roles);
+        if (dest !== "/") navigate({ to: dest, replace: true });
+      }
+      return;
+    }
+
     const match = routeRoleMap.find((r) => location.pathname.startsWith(r.prefix));
     if (!match) return;
     const allowed = match.roles.some((r) => roles.includes(r));
@@ -172,12 +182,14 @@ function WaitingScreen({
   let body = `Your account ${mobile ? `(+91 ${mobile})` : ""} is signed in but no role has been assigned yet. An admin needs to grant you a role (WSP, WD, or TL) before you can use the app.`;
 
   if (hasPrimaryRole) {
-    title = "Waiting for assignment";
     if (roles.includes("wsp")) {
+      title = "Waiting for WSP assignment";
       body = "Your role is set to WSP but no WSP has been assigned to your account. Please contact an admin.";
     } else if (roles.includes("wd")) {
+      title = "Waiting for WD assignment";
       body = "Your role is set to WD but no WD code has been assigned to your account. Please contact an admin.";
     } else if (roles.includes("tl")) {
+      title = "Waiting for assignment";
       body = "Your role is set to TL but no WD / region has been assigned to your account. Please contact an admin.";
     }
   }
