@@ -183,6 +183,103 @@ export type Database = {
           },
         ]
       }
+      tl_issuance_items: {
+        Row: {
+          created_at: string
+          id: string
+          issuance_id: string
+          material_code: string
+          qty_issued: number
+          qty_used: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issuance_id: string
+          material_code: string
+          qty_issued: number
+          qty_used?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issuance_id?: string
+          material_code?: string
+          qty_issued?: number
+          qty_used?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tl_issuance_items_issuance_id_fkey"
+            columns: ["issuance_id"]
+            isOneToOne: false
+            referencedRelation: "tl_issuances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tl_issuances: {
+        Row: {
+          created_at: string
+          id: string
+          issue_date: string
+          issued_by: string | null
+          tl_user_id: string
+          wd_code: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issue_date?: string
+          issued_by?: string | null
+          tl_user_id: string
+          wd_code: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issue_date?: string
+          issued_by?: string | null
+          tl_user_id?: string
+          wd_code?: string
+        }
+        Relationships: []
+      }
+      tl_uploads: {
+        Row: {
+          created_at: string
+          id: string
+          issuance_item_id: string
+          performed_by: string | null
+          proof_image_path: string
+          qty: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          issuance_item_id: string
+          performed_by?: string | null
+          proof_image_path: string
+          qty: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          issuance_item_id?: string
+          performed_by?: string | null
+          proof_image_path?: string
+          qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tl_uploads_issuance_item_id_fkey"
+            columns: ["issuance_item_id"]
+            isOneToOne: false
+            referencedRelation: "tl_issuance_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -306,6 +403,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      issue_to_tl: {
+        Args: { _issue_date: string; _items: Json; _tl_user_id: string }
+        Returns: string
+      }
       receive_material:
         | {
             Args: {
@@ -349,6 +450,14 @@ export type Database = {
           _reference_number: string
         }
         Returns: string
+      }
+      record_tl_upload: {
+        Args: {
+          _issuance_item_id: string
+          _proof_image_path: string
+          _qty: number
+        }
+        Returns: number
       }
       resolve_dispatch_issue: {
         Args: {
