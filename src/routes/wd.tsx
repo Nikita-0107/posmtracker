@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+
 import { useMemo, useState } from "react";
 import {
   Truck,
@@ -11,6 +12,8 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  Send,
+  ChevronRight,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
@@ -77,6 +80,23 @@ function WdHomePage() {
         {section === "in_transit" && <InTransitSection />}
         {section === "stock" && <WdStockSection />}
         {section === "assignments" && <AssignmentsSection />}
+
+        {/* Issue-to-TL entry */}
+        <Link
+          to="/wd-issue-tl"
+          className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 transition active:scale-[0.99] hover:border-primary/40"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Send size={18} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-foreground">Issue to TL</p>
+            <p className="text-[11px] text-muted-foreground">
+              Hand WD stock to a Team Leader for placement
+            </p>
+          </div>
+          <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
+        </Link>
 
         <div className="pt-2 text-center">
           <Link to="/" className="text-[11px] font-semibold text-muted-foreground underline">

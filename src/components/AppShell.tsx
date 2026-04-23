@@ -23,6 +23,7 @@ const tabs = [
 
 // Map URL prefixes to the role(s) that can view them.
 const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
+  { prefix: "/wd-issue-tl", roles: ["wd", "admin"] },
   { prefix: "/wd", roles: ["wd", "admin"] },
   { prefix: "/tl", roles: ["tl", "admin"] },
   { prefix: "/tl-upload", roles: ["tl", "admin"] },
