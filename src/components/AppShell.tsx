@@ -18,6 +18,7 @@ const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
   { prefix: "/tl-upload", roles: ["tl", "admin"] },
   { prefix: "/receive", roles: ["wsp", "admin"] },
   { prefix: "/wd-issue", roles: ["wsp", "admin"] },
+  { prefix: "/wsp-issues", roles: ["wsp", "admin"] },
   { prefix: "/stock", roles: ["wsp", "admin"] },
   { prefix: "/movements", roles: ["wsp", "admin"] },
 ];
@@ -146,6 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   ? location.pathname === "/" ||
                     location.pathname === "/receive" ||
                     location.pathname === "/wd-issue" ||
+                    location.pathname === "/wsp-issues" ||
                     location.pathname === "/stock" ||
                     location.pathname === "/movements"
                   : location.pathname.startsWith(tab.to);
