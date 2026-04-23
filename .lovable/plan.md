@@ -1,72 +1,73 @@
 
 
-# Clean "Pending approval" experience for new signups
+# Reflect losses in the Excel export
 
-Right now every new signup is auto-assigned the `wsp` role by the `handle_new_user` trigger, but no WSP code is set on their profile — so they land on the misleading **"Waiting for WSP assignment"** screen even though we don't actually know what role they should have.
+Now that **Accept Loss** permanently deducts stock and we have a Losses view in the app, the exported Excel has gaps:
 
-This plan removes the auto-role assignment and shows a proper **Pending Admin Approval** page instead.
+- The **Dispatch Log** sheet doesn't show whether each dispatch was delivered, is still open as an issue, or was written off as a loss.
+- Losses don't appear anywhere — they silently shrink **Current Stock** with no audit trail.
+- The **WSP Stock Ledger** treats losses identically to dispatches, so reviewers can't tell a delivery from a write-off on a given day.
 
-## What changes
+This plan adds loss visibility everywhere it belongs.
 
-### 1. New signups no longer get a role automatically
-- Migration: update `public.handle_new_user()` to **only** create the profile row (mobile + display_name). It will **not** insert into `user_roles` anymore.
-- Existing users are untouched.
+## Changes to the workbook
 
-### 2. New "Pending Approval" screen replaces the current "Waiting for…" alert
-The `WaitingScreen` in `src/components/AppShell.tsx` becomes a polished page:
+### 1. Dispatch Log — new `status` and `closed_at` columns
 
+Pull `item_status`, `issue_note`, `resolved_at` from `stock_movements` for every dispatch row.
+
+| status value | meaning |
+|---|---|
+| `delivered` | WD confirmed receipt |
+| `open_issue` | WSP raised an issue, not yet resolved |
+| `closed_resolved` | issue resolved by re-dispatch / correction |
+| `closed_loss` | **Accept Loss** — stock written off |
+| `pending` | dispatched, no WD action yet |
+
+New columns appended to the Dispatch Log sheet:
+- `status`
+- `issue_note` (only filled when there is one)
+- `closed_at` (= `resolved_at`, formatted)
+
+### 2. New sheet: **Losses**
+
+Dedicated sheet showing every `dispatch` row with `item_status = 'closed_loss'`, sorted by `resolved_at` desc.
+
+Columns:
 ```text
-┌────────────────────────────────────────────┐
-│         🕒  Account Pending Approval       │
-│                                            │
-│  Hi {display_name},                        │
-│  Your account (+91 9876543210) was created │
-│  successfully and is awaiting admin review.│
-│                                            │
-│  An admin will assign your role            │
-│  (WSP / WD / TL) and the entity you belong │
-│  to. You'll get access as soon as that's   │
-│  done — usually within a few hours.        │
-│                                            │
-│  [ Refresh status ]   [ Sign out ]         │
-│                                            │
-│  Need help? Contact your admin.            │
-└────────────────────────────────────────────┘
+loss_date | dispatch_date | dispatch_id | wsp | wd_code | wd_name |
+material_code | material_name | quantity_lost | issue_note | proof
 ```
 
-- Centered card, neutral colors (not destructive red — pending isn't an error).
-- **Refresh status** button calls `refreshProfile()` + re-fetches roles so the moment an admin assigns them, one tap unlocks the app.
-- **Sign out** button so they can leave cleanly.
-- Shows their mobile (with +91 prefix) and display_name so the admin can match them.
+`proof` is a `HYPERLINK("…","View Proof")` reusing the same signed-URL batch already built. A footer row shows **Total units lost** and **Loss events**.
 
-### 3. Login page copy update
-- After signup the success toast becomes:
-  *"Account created! Sign in. An admin will review and assign your role shortly."*
-  (removes the WSP-specific wording)
+### 3. WSP Stock Ledger — split losses out
 
-### 4. Bottom nav hidden while pending
-- Currently the WSP tab still shows at the bottom because the user has the `wsp` role. After the migration, users with no roles see no tabs (already handled by `tabsToRender.length > 0` check) — so the nav cleanly disappears on the pending screen.
+Today the ledger has one column `dispatched_to_WD` that lumps deliveries and write-offs together. Replace with two columns so opening + received − dispatched − lost = closing still holds:
 
-### 5. Admin Users page: highlight pending users
-- In `src/routes/admin.users.tsx`, sort users with no role to the top and tag them with a **"Pending"** chip so admins immediately see who needs assignment. (Small UX touch — same page, no new route.)
+```text
+date | material_code | material_name |
+opening_quantity | received_from_HO |
+dispatched_to_WD | lost | closing_quantity
+```
+
+The aggregation loop classifies each `dispatch` movement: if `item_status = 'closed_loss'` it goes to `lost`, otherwise to `dispatched_to_WD`. Closing math is unchanged in total (`opening + received − dispatched − lost`), so **Current Stock** still matches the in-app WSP Stock Overview exactly.
+
+### 4. Current Stock — add `total_lost` reference column
+
+Append a `total_lost` column to the Current Stock sheet (cumulative units written off per material, all-time). Leaves `current_stock` calculation untouched — purely informational so a reviewer can spot heavy-loss SKUs at a glance.
 
 ## Technical details
 
-**Files changed**
-- `supabase/migrations/<new>.sql` — replace `handle_new_user()` to drop the `insert into user_roles` block. Add a comment explaining roles are admin-assigned.
-- `src/components/AppShell.tsx` — replace `WaitingScreen` body with the new pending card. Add `refreshProfile` from `useAuth` + manual roles re-fetch (lift roles refresh into `useRoles` as a returned `refresh()` callback).
-- `src/hooks/use-roles.tsx` — expose a `refresh()` function so the pending screen can re-check without a full reload.
-- `src/routes/login.tsx` — update the post-signup info copy.
-- `src/routes/admin.users.tsx` — add "Pending" badge + sort users with zero roles to the top.
+**File touched**: `src/lib/export-dispatch.ts` only. No DB changes, no new hooks, no UI changes.
 
-**Behavior matrix after change**
+- Extend the `MovementRow` type and the `select(...)` string to include `item_status`, `issue_note`, `resolved_at`.
+- Helper `function statusLabel(m): string` maps `item_status` + presence of issue/resolution to one of the 5 labels above (defaults to `pending`).
+- Dispatch Log builder: append the 3 new columns + widen `!cols`.
+- New `lossRows` array filtered from `dispatches` where `item_status === 'closed_loss'`; build a Losses sheet with hyperlink wiring identical to the existing Dispatch Log proof column. Insert it right after Dispatch Log.
+- Ledger loop: bump `DayAgg` to `{ received, dispatched, lost }`. In the classification step, route closed-loss dispatches to `lost`.
+- Current Stock builder: while walking `perKeyDay`, also accumulate per-material `lostByMaterial`. Add `total_lost` column.
+- `exportDispatchReport()` return value gains `lossRows: number` so the toast in `src/routes/stock.tsx` can read it (toast message updated to: *"Exported N dispatches · M losses · K ledger rows · X materials"*).
 
-| User state | What they see |
-|---|---|
-| New signup, no role yet | Pending Approval card |
-| Role assigned but no entity (e.g. wsp role, no wsp code) | Existing role-specific waiting message ("Waiting for WSP assignment", etc.) — unchanged |
-| Role + entity assigned | Normal app |
-| Admin | Normal app |
-
-**No data loss**: existing users keep their roles. Only future signups are affected.
+**No filename change.** **No breaking change** to existing columns — only additions plus splitting one column into two in the ledger.
 
