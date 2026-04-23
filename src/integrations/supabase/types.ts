@@ -117,6 +117,8 @@ export type Database = {
           receive_id: string | null
           received_date: string | null
           reference_number: string | null
+          resolved_at: string | null
+          resolved_by: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
         }
         Insert: {
@@ -141,6 +143,8 @@ export type Database = {
           receive_id?: string | null
           received_date?: string | null
           reference_number?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           wsp: Database["public"]["Enums"]["wsp_code"]
         }
         Update: {
@@ -165,6 +169,8 @@ export type Database = {
           receive_id?: string | null
           received_date?: string | null
           reference_number?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"]
         }
         Relationships: [
@@ -343,6 +349,15 @@ export type Database = {
           _reference_number: string
         }
         Returns: string
+      }
+      resolve_dispatch_issue: {
+        Args: {
+          _action: string
+          _movement_id: string
+          _proof_image_path?: string
+          _redispatch_qty?: number
+        }
+        Returns: Database["public"]["Enums"]["dispatch_item_status"]
       }
     }
     Enums: {
