@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
+import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
 
 export const Route = createFileRoute("/")({
   component: WspOperationsPage,
