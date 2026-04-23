@@ -369,7 +369,7 @@ export type Database = {
         | "issue"
         | "closed_loss"
         | "resolved"
-      movement_type: "receive" | "dispatch"
+      movement_type: "receive" | "dispatch" | "tl_issue"
       wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
     CompositeTypes: {
@@ -507,7 +507,7 @@ export const Constants = {
         "closed_loss",
         "resolved",
       ],
-      movement_type: ["receive", "dispatch"],
+      movement_type: ["receive", "dispatch", "tl_issue"],
       wsp_code: ["CEVL", "CEVJ", "CEVY"],
     },
   },
