@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 export type WspIssueRow = {
   id: string;
@@ -70,6 +71,7 @@ export async function resolveDispatchIssue(
  * any dispatch realtime change.
  */
 export function useOpenIssuesCount() {
+  const { user } = useAuth();
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
@@ -89,12 +91,17 @@ export function useOpenIssuesCount() {
   }, []);
 
   useEffect(() => {
+    if (!user) {
+      setCount(0);
+      setLoading(false);
+      return;
+    }
     void refresh();
     const onFocus = () => void refresh();
     window.addEventListener("focus", onFocus);
 
     const channel = supabase
-      .channel("wsp-open-issues")
+      .channel(`wsp-open-issues-${user.id}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "stock_movements" },
@@ -106,7 +113,7 @@ export function useOpenIssuesCount() {
       window.removeEventListener("focus", onFocus);
       void supabase.removeChannel(channel);
     };
-  }, [refresh]);
+  }, [refresh, user]);
 
   return { count, loading, refresh };
 }
