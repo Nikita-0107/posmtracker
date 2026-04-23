@@ -1,57 +1,72 @@
 
 
-# Add a "Losses" view so closed-loss items are visible
+# Clean "Pending approval" experience for new signups
 
-Right now when WSP picks **Accept Loss** on an issue, the dispatch line is marked `closed_loss` and stock is permanently deducted — but it disappears from every screen. There's no place to see what was lost, by how much, or when. This plan adds a dedicated Losses view plus a summary tile so losses stay traceable.
+Right now every new signup is auto-assigned the `wsp` role by the `handle_new_user` trigger, but no WSP code is set on their profile — so they land on the misleading **"Waiting for WSP assignment"** screen even though we don't actually know what role they should have.
 
-## What you'll get
+This plan removes the auto-role assignment and shows a proper **Pending Admin Approval** page instead.
 
-1. **New "Losses" page** at `/losses` listing every dispatch line with `item_status = 'closed_loss'`:
-   - Distributor (WD name + code), material code + description, quantity lost
-   - Original issue reason (`issue_note`)
-   - Date the loss was accepted (`resolved_at`)
-   - Who closed it (performed_by / resolved_by display name when available)
-   - Filters: by WD, by material, and by date range (last 7 / 30 / 90 days / all)
-   - Summary header showing **total quantity lost** and **number of loss events** for the active filter
+## What changes
 
-2. **Home screen tile** (WSP Operations):
-   - New "Losses" card under "Issues Raised by WD" with a red-tinted icon
-   - Small subtitle showing total loss qty (e.g. "12 units across 4 events")
+### 1. New signups no longer get a role automatically
+- Migration: update `public.handle_new_user()` to **only** create the profile row (mobile + display_name). It will **not** insert into `user_roles` anymore.
+- Existing users are untouched.
 
-3. **Losses summary on the WSP Issues page**:
-   - Compact strip at the top: "X open issues · Y units lost to date" with a link to `/losses`
+### 2. New "Pending Approval" screen replaces the current "Waiting for…" alert
+The `WaitingScreen` in `src/components/AppShell.tsx` becomes a polished page:
 
-4. **Role visibility**:
-   - WSP role: sees only their own WSP's losses (RLS already enforces this)
-   - Admin: sees all losses across all WSPs, with WSP column visible
-   - WD role: not exposed in nav (losses are a WSP-side concern)
+```text
+┌────────────────────────────────────────────┐
+│         🕒  Account Pending Approval       │
+│                                            │
+│  Hi {display_name},                        │
+│  Your account (+91 9876543210) was created │
+│  successfully and is awaiting admin review.│
+│                                            │
+│  An admin will assign your role            │
+│  (WSP / WD / TL) and the entity you belong │
+│  to. You'll get access as soon as that's   │
+│  done — usually within a few hours.        │
+│                                            │
+│  [ Refresh status ]   [ Sign out ]         │
+│                                            │
+│  Need help? Contact your admin.            │
+└────────────────────────────────────────────┘
+```
+
+- Centered card, neutral colors (not destructive red — pending isn't an error).
+- **Refresh status** button calls `refreshProfile()` + re-fetches roles so the moment an admin assigns them, one tap unlocks the app.
+- **Sign out** button so they can leave cleanly.
+- Shows their mobile (with +91 prefix) and display_name so the admin can match them.
+
+### 3. Login page copy update
+- After signup the success toast becomes:
+  *"Account created! Sign in. An admin will review and assign your role shortly."*
+  (removes the WSP-specific wording)
+
+### 4. Bottom nav hidden while pending
+- Currently the WSP tab still shows at the bottom because the user has the `wsp` role. After the migration, users with no roles see no tabs (already handled by `tabsToRender.length > 0` check) — so the nav cleanly disappears on the pending screen.
+
+### 5. Admin Users page: highlight pending users
+- In `src/routes/admin.users.tsx`, sort users with no role to the top and tag them with a **"Pending"** chip so admins immediately see who needs assignment. (Small UX touch — same page, no new route.)
 
 ## Technical details
 
-- **No DB schema changes.** All data is already in `stock_movements`:
-  - `item_status = 'closed_loss'`, `resolved_at`, `resolved_by`, `issue_note`, `qty`, `material_code`, `distributor`, `wsp`
-  - Existing RLS ("Users can view movements for their WSP" + admin) already scopes correctly
+**Files changed**
+- `supabase/migrations/<new>.sql` — replace `handle_new_user()` to drop the `insert into user_roles` block. Add a comment explaining roles are admin-assigned.
+- `src/components/AppShell.tsx` — replace `WaitingScreen` body with the new pending card. Add `refreshProfile` from `useAuth` + manual roles re-fetch (lift roles refresh into `useRoles` as a returned `refresh()` callback).
+- `src/hooks/use-roles.tsx` — expose a `refresh()` function so the pending screen can re-check without a full reload.
+- `src/routes/login.tsx` — update the post-signup info copy.
+- `src/routes/admin.users.tsx` — add "Pending" badge + sort users with zero roles to the top.
 
-- **New files**:
-  - `src/routes/losses.tsx` — the Losses page (uses `AppShell`, mirrors `wsp-issues.tsx` styling)
-  - `src/hooks/use-losses.tsx` — exports `useLosses({ wd?, material?, sinceDays? })` and `useLossesSummary()` (returns `{ totalQty, count }`); uses Supabase realtime on `stock_movements` filtered to `item_status=closed_loss`
+**Behavior matrix after change**
 
-- **Edited files**:
-  - `src/routes/index.tsx` — add Losses tile to the `operations` array; show summary subtitle via `useLossesSummary`
-  - `src/routes/wsp-issues.tsx` — add the small "X units lost to date" link strip
-  - `src/components/AppShell.tsx` — no nav change needed (home tile is the entry)
+| User state | What they see |
+|---|---|
+| New signup, no role yet | Pending Approval card |
+| Role assigned but no entity (e.g. wsp role, no wsp code) | Existing role-specific waiting message ("Waiting for WSP assignment", etc.) — unchanged |
+| Role + entity assigned | Normal app |
+| Admin | Normal app |
 
-- **Display lookups**:
-  - WD name resolved via existing `wdMaster` from `@/lib/posm-data`
-  - Material name resolved via existing `useMaterials()`
-
-- **Loss summary card example layout**:
-  ```text
-  ┌──────────────────────────────────────┐
-  │ ⚠  Total Lost (last 30 days)         │
-  │ 47 units · 12 events                 │
-  └──────────────────────────────────────┘
-  ```
-
-- **Performance**: queries use `head: true` for counts and a single ordered fetch (limit 200) for the list with an "Load older" pagination button if needed later.
+**No data loss**: existing users keep their roles. Only future signups are affected.
 
