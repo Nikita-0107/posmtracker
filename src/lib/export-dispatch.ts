@@ -16,6 +16,10 @@ type MovementRow = {
   batch_type: string | null;
   dispatch_id: string | null;
   dispatch_date: string | null;
+  item_status: string | null;
+  issue_note: string | null;
+  resolved_at: string | null;
+  confirmed_at: string | null;
 };
 
 function ageInDays(fromISO: string): number {
@@ -33,7 +37,6 @@ async function signProofPaths(paths: string[]): Promise<Map<string, string>> {
   const map = new Map<string, string>();
   const unique = Array.from(new Set(paths.filter((p) => !!p)));
   if (unique.length === 0) return map;
-  // Supabase supports batch sign via createSignedUrls
   const { data, error } = await supabase.storage
     .from("proofs")
     .createSignedUrls(unique, SIGNED_URL_TTL_SECONDS);
@@ -71,12 +74,24 @@ function todayStamp() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** Map raw item_status (+ ancillary fields) into a human-readable label. */
+function statusLabel(m: MovementRow): string {
+  const s = (m.item_status ?? "").toLowerCase();
+  if (s === "closed_loss") return "closed_loss";
+  if (s === "closed_resolved" || s === "resolved") return "closed_resolved";
+  if (s === "open_issue" || s === "issue_open" || s === "open") return "open_issue";
+  if (s === "delivered" || s === "confirmed") return "delivered";
+  if (m.confirmed_at) return "delivered";
+  if (m.issue_note && !m.resolved_at) return "open_issue";
+  return "pending";
+}
+
 export async function exportDispatchReport() {
   const [movementsRes, materialsRes] = await Promise.all([
     supabase
       .from("stock_movements")
       .select(
-        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, invoice_file_path, received_date, batch_type, dispatch_id, dispatch_date",
+        "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, invoice_file_path, received_date, batch_type, dispatch_id, dispatch_date, item_status, issue_note, resolved_at, confirmed_at",
       )
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
@@ -91,7 +106,6 @@ export async function exportDispatchReport() {
   const matMap = new Map(materials.map((m) => [m.code, m.name]));
   const wdMap = new Map(wdMaster.map((w) => [w.wd_code, w.wd_name]));
 
-  // Legacy distributor-name → wd_code resolver
   const normalizeName = (s: string) =>
     s.split(/[–-]/)[0].replace(/\s+/g, " ").trim().toUpperCase();
   const nameToCode = new Map<string, string>();
@@ -107,9 +121,7 @@ export async function exportDispatchReport() {
     return { code: "", name: raw.split(/[–-]/)[0].trim() };
   }
 
-  // -------------------------------------------------------------
-  // Sign all proof image + invoice file paths in one batch (7 day signed URLs)
-  // -------------------------------------------------------------
+  // Sign all proof image + invoice file paths in one batch
   const allSignedPaths = [
     ...movements.map((m) => m.proof_image_path),
     ...movements.map((m) => m.invoice_file_path),
@@ -117,7 +129,7 @@ export async function exportDispatchReport() {
   const signedMap = await signProofPaths(allSignedPaths);
 
   // -------------------------------------------------------------
-  // Sheet 1: Dispatch Log
+  // Sheet 1: Dispatch Log (now with status / issue_note / closed_at)
   // -------------------------------------------------------------
   const dispatches = movements.filter(
     (m) => m.movement === "dispatch" && m.material_code && m.qty > 0,
@@ -139,22 +151,35 @@ export async function exportDispatchReport() {
         material_code: m.material_code,
         material_name: matMap.get(m.material_code) ?? "",
         quantity: m.qty,
+        status: statusLabel(m),
+        issue_note: m.issue_note ?? "",
+        closed_at: m.resolved_at ? formatDateTime(m.resolved_at) : "",
         proof_url: proofUrl,
       };
     });
 
   // -------------------------------------------------------------
-  // Sheet (extra): Receive Log — receive movements with proof links
+  // Losses (subset of dispatches) — used for both the Losses sheet
+  // and the per-material lost totals on the Current Stock sheet.
+  // -------------------------------------------------------------
+  const lossRows = dispatchRows
+    .filter((r) => r.status === "closed_loss")
+    .slice()
+    .sort((a, b) => {
+      const ax = a.closed_at || a.date;
+      const bx = b.closed_at || b.date;
+      return ax < bx ? 1 : -1;
+    });
+
+  // -------------------------------------------------------------
+  // Receive Log (unchanged)
   // -------------------------------------------------------------
   const receives = movements.filter(
     (m) => m.movement === "receive" && m.material_code && m.qty > 0,
   );
 
-  // Walk all movements chronologically (ascending) and track running balance
-  // per (wsp, material_code). For each receive, capture the closing balance
-  // immediately after the receive is applied.
   const runningBalance = new Map<string, number>();
-  const receiveClosingByMovement = new Map<string, number>(); // key: created_at|wsp|code|qty|ref
+  const receiveClosingByMovement = new Map<string, number>();
   for (const m of movements) {
     if (!m.material_code || m.qty <= 0) continue;
     const k = `${m.wsp}::${m.material_code}`;
@@ -195,16 +220,9 @@ export async function exportDispatchReport() {
     });
 
   // -------------------------------------------------------------
-  // Sheet 2: WSP Stock Ledger (per material per day)
-  //   opening = closing of previous day (running balance per material)
-  //   received_from_HO = sum of receive qty that day
-  //   dispatched_to_WD = sum of dispatch qty that day
-  //   closing = opening + received - dispatched
+  // WSP Stock Ledger — split dispatched_to_WD vs lost
   // -------------------------------------------------------------
-  type DayAgg = { received: number; dispatched: number };
-  // key = `${wsp}::${material_code}` -> day -> agg
-  // Group by WSP + material so the running balance per material matches
-  // the per-WSP stock table exactly (admins may see multiple WSPs).
+  type DayAgg = { received: number; dispatched: number; lost: number };
   const perKeyDay = new Map<string, Map<string, DayAgg>>();
 
   for (const m of movements) {
@@ -218,11 +236,15 @@ export async function exportDispatchReport() {
     }
     let agg = dayMap.get(day);
     if (!agg) {
-      agg = { received: 0, dispatched: 0 };
+      agg = { received: 0, dispatched: 0, lost: 0 };
       dayMap.set(day, agg);
     }
-    if (m.movement === "receive") agg.received += m.qty;
-    else if (m.movement === "dispatch") agg.dispatched += m.qty;
+    if (m.movement === "receive") {
+      agg.received += m.qty;
+    } else if (m.movement === "dispatch") {
+      if ((m.item_status ?? "").toLowerCase() === "closed_loss") agg.lost += m.qty;
+      else agg.dispatched += m.qty;
+    }
   }
 
   const ledgerRows: {
@@ -232,22 +254,20 @@ export async function exportDispatchReport() {
     opening_quantity: number;
     received_from_HO: number;
     dispatched_to_WD: number;
+    lost: number;
     closing_quantity: number;
   }[] = [];
 
-  // For each (wsp, material) key, walk days in chronological order and
-  // carry the closing balance forward as the next day's opening. This is
-  // the cumulative running stock — it does NOT reset per date.
   const keys = Array.from(perKeyDay.keys()).sort();
   for (const key of keys) {
     const code = key.split("::")[1];
     const dayMap = perKeyDay.get(key)!;
-    const days = Array.from(dayMap.keys()).sort(); // ascending by date
-    let running = 0; // cumulative closing carried across days
+    const days = Array.from(dayMap.keys()).sort();
+    let running = 0;
     for (const day of days) {
       const agg = dayMap.get(day)!;
-      const opening = running; // previous day's closing
-      const closing = opening + agg.received - agg.dispatched;
+      const opening = running;
+      const closing = opening + agg.received - agg.dispatched - agg.lost;
       ledgerRows.push({
         date: day,
         material_code: code,
@@ -255,36 +275,35 @@ export async function exportDispatchReport() {
         opening_quantity: opening,
         received_from_HO: agg.received,
         dispatched_to_WD: agg.dispatched,
+        lost: agg.lost,
         closing_quantity: closing,
       });
-      running = closing; // carry forward to next day
+      running = closing;
     }
   }
 
-  // Sort ledger by date desc, then material_code for readability
   ledgerRows.sort((a, b) => {
     if (a.date !== b.date) return a.date < b.date ? 1 : -1;
     return a.material_code.localeCompare(b.material_code);
   });
 
   // -------------------------------------------------------------
-  // Sheet 3: Current Stock (per material)
-  //   current_stock = total received - total dispatched (cumulative)
-  //   Derived from the same running balance used by the ledger so
-  //   it always matches the WSP Stock Overview in the app.
+  // Current Stock — add total_lost reference column
   // -------------------------------------------------------------
-  // Compute latest cumulative closing per (wsp, material), then sum
-  // across WSPs to get current stock per material.
   const currentByMaterial = new Map<string, number>();
+  const lostByMaterial = new Map<string, number>();
   for (const [key, dayMap] of perKeyDay.entries()) {
     const days = Array.from(dayMap.keys()).sort();
     let running = 0;
+    let lost = 0;
     for (const day of days) {
       const agg = dayMap.get(day)!;
-      running = running + agg.received - agg.dispatched;
+      running = running + agg.received - agg.dispatched - agg.lost;
+      lost += agg.lost;
     }
     const code = key.split("::")[1];
     currentByMaterial.set(code, (currentByMaterial.get(code) ?? 0) + running);
+    lostByMaterial.set(code, (lostByMaterial.get(code) ?? 0) + lost);
   }
 
   const currentStockRows = Array.from(currentByMaterial.entries())
@@ -292,6 +311,7 @@ export async function exportDispatchReport() {
       material_code: code,
       material_name: matMap.get(code) ?? "",
       current_stock: qty,
+      total_lost: lostByMaterial.get(code) ?? 0,
     }))
     .sort((a, b) => a.material_code.localeCompare(b.material_code));
 
@@ -300,7 +320,7 @@ export async function exportDispatchReport() {
   // -------------------------------------------------------------
   const wb = XLSX.utils.book_new();
 
-  // Dispatch Log with View Proof hyperlink column
+  // ----- Dispatch Log -----
   const dispatchHeader = [
     "date",
     "dispatch_date",
@@ -311,6 +331,9 @@ export async function exportDispatchReport() {
     "material_code",
     "material_name",
     "quantity",
+    "status",
+    "issue_note",
+    "closed_at",
     "proof",
   ];
   const dispatchProofCol = dispatchHeader.length - 1;
@@ -326,6 +349,9 @@ export async function exportDispatchReport() {
       r.material_code,
       r.material_name,
       r.quantity,
+      r.status,
+      r.issue_note,
+      r.closed_at,
       r.proof_url ? "View Proof" : "",
     ]),
   ];
@@ -349,11 +375,73 @@ export async function exportDispatchReport() {
     { wch: 14 }, // material_code
     { wch: 36 }, // material_name
     { wch: 10 }, // quantity
+    { wch: 16 }, // status
+    { wch: 32 }, // issue_note
+    { wch: 18 }, // closed_at
     { wch: 14 }, // proof
   ];
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
-  // Receive Log with PO/invoice details + age + closing balance + proof + invoice file links
+  // ----- Losses sheet -----
+  const lossHeader = [
+    "loss_date",
+    "dispatch_date",
+    "dispatch_id",
+    "wsp",
+    "wd_code",
+    "wd_name",
+    "material_code",
+    "material_name",
+    "quantity_lost",
+    "issue_note",
+    "proof",
+  ];
+  const lossProofCol = lossHeader.length - 1;
+  const totalLostUnits = lossRows.reduce((s, r) => s + (r.quantity ?? 0), 0);
+  const lossAoa: (string | number)[][] = [
+    lossHeader,
+    ...lossRows.map((r) => [
+      r.closed_at || r.date,
+      r.dispatch_date,
+      r.dispatch_id,
+      r.wsp_name,
+      r.wd_code,
+      r.wd_name,
+      r.material_code,
+      r.material_name,
+      r.quantity,
+      r.issue_note,
+      r.proof_url ? "View Proof" : "",
+    ]),
+    [],
+    ["TOTAL", "", "", "", "", "", "", `${lossRows.length} loss events`, totalLostUnits, "", ""],
+  ];
+  const wsL = XLSX.utils.aoa_to_sheet(lossAoa);
+  lossRows.forEach((r, i) => {
+    if (!r.proof_url) return;
+    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: lossProofCol });
+    wsL[cellRef] = {
+      t: "s",
+      v: "View Proof",
+      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+    };
+  });
+  wsL["!cols"] = [
+    { wch: 18 }, // loss_date
+    { wch: 13 }, // dispatch_date
+    { wch: 36 }, // dispatch_id
+    { wch: 10 }, // wsp
+    { wch: 10 }, // wd_code
+    { wch: 36 }, // wd_name
+    { wch: 14 }, // material_code
+    { wch: 36 }, // material_name
+    { wch: 14 }, // quantity_lost
+    { wch: 40 }, // issue_note
+    { wch: 14 }, // proof
+  ];
+  XLSX.utils.book_append_sheet(wb, wsL, "Losses");
+
+  // ----- Receive Log -----
   const receiveHeader = [
     "date",
     "wsp",
@@ -409,22 +497,23 @@ export async function exportDispatchReport() {
     }
   });
   wsR["!cols"] = [
-    { wch: 18 }, // date
-    { wch: 8 },  // wsp
-    { wch: 14 }, // material_code
-    { wch: 36 }, // material_name
-    { wch: 18 }, // invoice_number
-    { wch: 12 }, // batch_type
-    { wch: 13 }, // received_date
-    { wch: 13 }, // current_date
-    { wch: 10 }, // age_days
-    { wch: 10 }, // quantity
-    { wch: 16 }, // closing_quantity
-    { wch: 14 }, // invoice_file
-    { wch: 14 }, // proof
+    { wch: 18 },
+    { wch: 8 },
+    { wch: 14 },
+    { wch: 36 },
+    { wch: 18 },
+    { wch: 12 },
+    { wch: 13 },
+    { wch: 13 },
+    { wch: 10 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 14 },
+    { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
+  // ----- WSP Stock Ledger -----
   const ws2 = XLSX.utils.json_to_sheet(ledgerRows, {
     header: [
       "date",
@@ -433,6 +522,7 @@ export async function exportDispatchReport() {
       "opening_quantity",
       "received_from_HO",
       "dispatched_to_WD",
+      "lost",
       "closing_quantity",
     ],
   });
@@ -443,14 +533,16 @@ export async function exportDispatchReport() {
     { wch: 16 },
     { wch: 16 },
     { wch: 16 },
+    { wch: 10 },
     { wch: 16 },
   ];
   XLSX.utils.book_append_sheet(wb, ws2, "WSP Stock Ledger");
 
+  // ----- Current Stock -----
   const ws3 = XLSX.utils.json_to_sheet(currentStockRows, {
-    header: ["material_code", "material_name", "current_stock"],
+    header: ["material_code", "material_name", "current_stock", "total_lost"],
   });
-  ws3["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 14 }];
+  ws3["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 14 }, { wch: 12 }];
   XLSX.utils.book_append_sheet(wb, ws3, "Current Stock");
 
   const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
@@ -458,6 +550,7 @@ export async function exportDispatchReport() {
 
   return {
     rows: dispatchRows.length,
+    lossRows: lossRows.length,
     ledgerRows: ledgerRows.length,
     currentStockRows: currentStockRows.length,
     filename,
