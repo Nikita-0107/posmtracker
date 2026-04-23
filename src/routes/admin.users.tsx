@@ -98,17 +98,22 @@ function AdminUsersPage() {
       list.push(a.wsp as WspCode);
       wspsByWd.set(a.wd_code, list);
     });
-    setRows(
-      (profiles ?? []).map((p) => ({
-        id: p.id,
-        mobile: p.mobile,
-        display_name: p.display_name,
-        wsp: p.wsp as WspCode | null,
-        wd_code: p.wd_code,
-        roles: rolesByUser.get(p.id) ?? [],
-        allowed_wsps: p.wd_code ? wspsByWd.get(p.wd_code) ?? [] : [],
-      })),
-    );
+    const mapped: Row[] = (profiles ?? []).map((p) => ({
+      id: p.id,
+      mobile: p.mobile,
+      display_name: p.display_name,
+      wsp: p.wsp as WspCode | null,
+      wd_code: p.wd_code,
+      roles: rolesByUser.get(p.id) ?? [],
+      allowed_wsps: p.wd_code ? wspsByWd.get(p.wd_code) ?? [] : [],
+    }));
+    // Sort users with no role to the top so admins see pending signups first.
+    mapped.sort((a, b) => {
+      const aPending = a.roles.length === 0 ? 0 : 1;
+      const bPending = b.roles.length === 0 ? 0 : 1;
+      return aPending - bPending;
+    });
+    setRows(mapped);
     setLoading(false);
   }, []);
 
@@ -316,14 +321,27 @@ function AdminUsersPage() {
               const isRowAdmin = row.roles.includes("admin");
               const primary = primaryRoleOf(row.roles);
               const saving = savingId === row.id;
+              const isPending = row.roles.length === 0;
               return (
-                <div key={row.id} className="space-y-2 rounded-xl border bg-card p-3 shadow-sm">
+                <div
+                  key={row.id}
+                  className={`space-y-2 rounded-xl border bg-card p-3 shadow-sm ${
+                    isPending ? "border-primary/40 ring-1 ring-primary/20" : ""
+                  }`}
+                >
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="font-semibold text-foreground">
-                        {row.display_name || row.mobile}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold text-foreground">
+                          {row.display_name || row.mobile}
+                        </span>
+                        {isPending && (
+                          <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                            Pending
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-muted-foreground">{row.mobile}</div>
+                      <div className="text-xs text-muted-foreground">+91 {row.mobile}</div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
