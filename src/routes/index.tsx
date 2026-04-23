@@ -95,11 +95,20 @@ function WspOperationsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-foreground">{op.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{op.desc}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {op.to === "/losses" && lossCount > 0
+                      ? `${lossQty} units across ${lossCount} ${lossCount === 1 ? "event" : "events"}`
+                      : op.desc}
+                  </p>
                 </div>
                 {op.to === "/wsp-issues" && openIssuesCount > 0 ? (
                   <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive px-2.5 py-1 text-xs font-bold text-destructive-foreground">
                     {openIssuesCount > 99 ? "99+" : openIssuesCount}
+                  </span>
+                ) : null}
+                {op.to === "/losses" && lossQty > 0 ? (
+                  <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive/15 px-2.5 py-1 text-xs font-bold text-destructive">
+                    −{lossQty > 999 ? "999+" : lossQty}
                   </span>
                 ) : null}
                 <ChevronRight size={18} className="shrink-0 text-muted-foreground" />

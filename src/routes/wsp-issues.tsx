@@ -13,6 +13,7 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useMaterials } from "@/hooks/use-stock";
 import { useWspIssues, resolveDispatchIssue, type ResolveAction } from "@/hooks/use-wsp-issues";
+import { useLossesSummary } from "@/hooks/use-losses";
 import { wdMaster } from "@/lib/posm-data";
 import { toast } from "sonner";
 
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/wsp-issues")({
 
 function WspIssuesPage() {
   const { rows, loading, refresh } = useWspIssues();
+  const { totalQty: lossQty, count: lossCount } = useLossesSummary();
   const { materials } = useMaterials();
   const matMap = useMemo(
     () => new Map(materials.map((m) => [m.code, m.name])),
