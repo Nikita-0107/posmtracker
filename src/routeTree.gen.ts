@@ -17,6 +17,7 @@ import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as MovementsRouteImport } from './routes/movements'
+import { Route as LossesRouteImport } from './routes/losses'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -61,6 +62,11 @@ const MovementsRoute = MovementsRouteImport.update({
   path: '/movements',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LossesRoute = LossesRouteImport.update({
+  id: '/losses',
+  path: '/losses',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -80,6 +86,7 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
@@ -93,6 +100,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
@@ -107,6 +115,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
@@ -122,6 +131,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/losses'
     | '/movements'
     | '/receive'
     | '/stock'
@@ -135,6 +145,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/login'
+    | '/losses'
     | '/movements'
     | '/receive'
     | '/stock'
@@ -148,6 +159,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/login'
+    | '/losses'
     | '/movements'
     | '/receive'
     | '/stock'
@@ -162,6 +174,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  LossesRoute: typeof LossesRoute
   MovementsRoute: typeof MovementsRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
@@ -231,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MovementsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/losses': {
+      id: '/losses'
+      path: '/losses'
+      fullPath: '/losses'
+      preLoaderRoute: typeof LossesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -258,6 +278,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  LossesRoute: LossesRoute,
   MovementsRoute: MovementsRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,

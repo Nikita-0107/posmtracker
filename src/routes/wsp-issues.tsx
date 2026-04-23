@@ -13,6 +13,7 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useMaterials } from "@/hooks/use-stock";
 import { useWspIssues, resolveDispatchIssue, type ResolveAction } from "@/hooks/use-wsp-issues";
+import { useLossesSummary } from "@/hooks/use-losses";
 import { wdMaster } from "@/lib/posm-data";
 import { toast } from "sonner";
 
@@ -31,6 +32,7 @@ export const Route = createFileRoute("/wsp-issues")({
 
 function WspIssuesPage() {
   const { rows, loading, refresh } = useWspIssues();
+  const { totalQty: lossQty, count: lossCount } = useLossesSummary();
   const { materials } = useMaterials();
   const matMap = useMemo(
     () => new Map(materials.map((m) => [m.code, m.name])),
@@ -56,6 +58,20 @@ function WspIssuesPage() {
             </p>
           </div>
         </div>
+
+        <Link
+          to="/losses"
+          className="flex items-center justify-between gap-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2 text-[11px] transition hover:bg-destructive/10"
+        >
+          <span className="font-semibold text-foreground">
+            {rows.length} open {rows.length === 1 ? "issue" : "issues"}
+            <span className="mx-1 text-muted-foreground">·</span>
+            <span className="text-destructive">
+              {lossQty} units lost{lossCount > 0 ? ` (${lossCount})` : ""}
+            </span>
+          </span>
+          <span className="text-[10px] font-bold uppercase text-destructive">View losses →</span>
+        </Link>
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-10 text-xs text-muted-foreground">

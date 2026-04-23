@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle } from "lucide-react";
+import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle, XOctagon } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
+import { useLossesSummary } from "@/hooks/use-losses";
 
 export const Route = createFileRoute("/")({
   component: WspOperationsPage,
@@ -50,11 +51,19 @@ const operations = [
     icon: AlertTriangle,
     color: "bg-destructive/10 text-destructive",
   },
+  {
+    to: "/losses" as const,
+    label: "Losses",
+    desc: "Stock written off from accepted issues",
+    icon: XOctagon,
+    color: "bg-destructive/10 text-destructive",
+  },
 ];
 
 function WspOperationsPage() {
   const { profile } = useAuth();
   const { count: openIssuesCount } = useOpenIssuesCount();
+  const { totalQty: lossQty, count: lossCount } = useLossesSummary();
   const wsp = profile?.wsp;
 
   return (
@@ -86,11 +95,20 @@ function WspOperationsPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-bold text-foreground">{op.label}</p>
-                  <p className="text-[11px] text-muted-foreground">{op.desc}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {op.to === "/losses" && lossCount > 0
+                      ? `${lossQty} units across ${lossCount} ${lossCount === 1 ? "event" : "events"}`
+                      : op.desc}
+                  </p>
                 </div>
                 {op.to === "/wsp-issues" && openIssuesCount > 0 ? (
                   <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive px-2.5 py-1 text-xs font-bold text-destructive-foreground">
                     {openIssuesCount > 99 ? "99+" : openIssuesCount}
+                  </span>
+                ) : null}
+                {op.to === "/losses" && lossQty > 0 ? (
+                  <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive/15 px-2.5 py-1 text-xs font-bold text-destructive">
+                    −{lossQty > 999 ? "999+" : lossQty}
                   </span>
                 ) : null}
                 <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
