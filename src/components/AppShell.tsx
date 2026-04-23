@@ -41,12 +41,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
   const tabsToRender = visibleTabs.length > 0 ? visibleTabs : [];
 
-  // Redirect away from a tab the user can't access
+  // Redirect away from a tab the user can't access (and from "/" for non-WSP roles)
   useEffect(() => {
     if (authLoading || rolesLoading) return;
     if (!user) return;
     if (PUBLIC_PATHS.some((p) => location.pathname.startsWith(p))) return;
     if (isAdmin) return;
+
+    // "/" is the WSP landing — redirect WD/TL users to their own landing
+    if (location.pathname === "/") {
+      if (!roles.includes("wsp")) {
+        const dest = landingForRoles(roles);
+        if (dest !== "/") navigate({ to: dest, replace: true });
+      }
+      return;
+    }
+
     const match = routeRoleMap.find((r) => location.pathname.startsWith(r.prefix));
     if (!match) return;
     const allowed = match.roles.some((r) => roles.includes(r));
