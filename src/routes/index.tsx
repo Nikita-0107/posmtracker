@@ -54,6 +54,7 @@ const operations = [
 
 function WspOperationsPage() {
   const { profile } = useAuth();
+  const { count: openIssuesCount } = useOpenIssuesCount();
   const wsp = profile?.wsp;
 
   return (
@@ -87,6 +88,11 @@ function WspOperationsPage() {
                   <p className="text-sm font-bold text-foreground">{op.label}</p>
                   <p className="text-[11px] text-muted-foreground">{op.desc}</p>
                 </div>
+                {op.to === "/wsp-issues" && openIssuesCount > 0 ? (
+                  <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive px-2.5 py-1 text-xs font-bold text-destructive-foreground">
+                    {openIssuesCount > 99 ? "99+" : openIssuesCount}
+                  </span>
+                ) : null}
                 <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
               </Link>
             ))}
