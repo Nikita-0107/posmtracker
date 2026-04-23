@@ -1,6 +1,16 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { Building2, Truck, Camera, LogOut, ShieldCheck, AlertTriangle, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Building2,
+  Truck,
+  Camera,
+  LogOut,
+  ShieldCheck,
+  AlertTriangle,
+  Loader2,
+  Clock,
+  RefreshCw,
+} from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
@@ -35,9 +45,9 @@ function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { signOut, profile, loading: authLoading, user } = useAuth();
+  const { signOut, profile, loading: authLoading, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { roles, isAdmin, loading: rolesLoading } = useRoles();
+  const { roles, isAdmin, loading: rolesLoading, refresh: refreshRoles } = useRoles();
 
   // Filter tabs by roles
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
@@ -128,8 +138,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         ) : showWaitingScreen ? (
           <WaitingScreen
             mobile={profile?.mobile}
+            displayName={profile?.display_name}
             hasPrimaryRole={hasPrimaryRole}
             roles={roles}
+            onRefresh={async () => {
+              await Promise.all([refreshProfile?.(), refreshRoles()]);
+            }}
+            onSignOut={handleSignOut}
           />
         ) : (
           children
@@ -175,36 +190,115 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function WaitingScreen({
   mobile,
+  displayName,
   hasPrimaryRole,
   roles,
+  onRefresh,
+  onSignOut,
 }: {
   mobile?: string;
+  displayName?: string | null;
   hasPrimaryRole: boolean;
   roles: AppRole[];
+  onRefresh: () => Promise<void> | void;
+  onSignOut: () => Promise<void> | void;
 }) {
-  let title = "Waiting for role and assignment";
-  let body = `Your account ${mobile ? `(+91 ${mobile})` : ""} is signed in but no role has been assigned yet. An admin needs to grant you a role (WSP, WD, or TL) before you can use the app.`;
+  const [refreshing, setRefreshing] = useState(false);
 
-  if (hasPrimaryRole) {
+  // Pending = brand new signup with no role yet. Other states = role exists
+  // but the entity (WSP / WD code) hasn't been linked.
+  const pending = !hasPrimaryRole;
+
+  let title = "Account pending approval";
+  let body =
+    "Your account was created successfully and is awaiting admin review. An admin will assign your role (WSP, WD, or TL) and the entity you belong to. You'll get access as soon as that's done — usually within a few hours.";
+
+  if (!pending) {
     if (roles.includes("wsp")) {
       title = "Waiting for WSP assignment";
-      body = "Your role is set to WSP but no WSP has been assigned to your account. Please contact an admin.";
+      body =
+        "Your role is set to WSP but no WSP has been assigned to your account. Please contact an admin.";
     } else if (roles.includes("wd")) {
       title = "Waiting for WD assignment";
-      body = "Your role is set to WD but no WD code has been assigned to your account. Please contact an admin.";
+      body =
+        "Your role is set to WD but no WD code has been assigned to your account. Please contact an admin.";
     } else if (roles.includes("tl")) {
       title = "Waiting for assignment";
-      body = "Your role is set to TL but no WD / region has been assigned to your account. Please contact an admin.";
+      body =
+        "Your role is set to TL but no WD / region has been assigned to your account. Please contact an admin.";
     }
   }
 
+  async function handleRefresh() {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await onRefresh();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  const Icon = pending ? Clock : AlertTriangle;
+  const accent = pending
+    ? {
+        wrap: "border-primary/30 bg-primary/5",
+        iconWrap: "bg-primary/10 text-primary",
+      }
+    : {
+        wrap: "border-destructive/30 bg-destructive/5",
+        iconWrap: "bg-destructive/10 text-destructive",
+      };
+
   return (
-    <div className="mx-auto max-w-md pt-6">
-      <div className="flex items-start gap-2 rounded-xl border-2 border-destructive/30 bg-destructive/5 p-4">
-        <AlertTriangle size={18} className="mt-0.5 shrink-0 text-destructive" />
-        <div className="space-y-1">
-          <p className="text-sm font-bold text-foreground">{title}</p>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">{body}</p>
+    <div className="mx-auto max-w-md pt-8">
+      <div className={`rounded-2xl border-2 p-5 shadow-sm ${accent.wrap}`}>
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${accent.iconWrap}`}
+          >
+            <Icon size={20} />
+          </div>
+          <div className="min-w-0 flex-1 space-y-2">
+            <h2 className="font-heading text-base font-bold text-foreground">{title}</h2>
+            {displayName && (
+              <p className="text-xs font-semibold text-foreground">Hi {displayName},</p>
+            )}
+            <p className="text-[12px] leading-relaxed text-muted-foreground">{body}</p>
+
+            {mobile && (
+              <div className="rounded-lg border bg-card px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Your account
+                </p>
+                <p className="font-mono text-sm font-bold text-foreground">+91 {mobile}</p>
+              </div>
+            )}
+
+            <div className="flex flex-wrap gap-2 pt-1">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-60"
+              >
+                <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
+                {refreshing ? "Checking…" : "Refresh status"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onSignOut()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-muted-foreground/20 bg-card px-3 py-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted"
+              >
+                <LogOut size={13} />
+                Sign out
+              </button>
+            </div>
+
+            <p className="pt-1 text-[10px] text-muted-foreground">
+              Need help? Contact your admin and share the mobile number above.
+            </p>
+          </div>
         </div>
       </div>
     </div>
