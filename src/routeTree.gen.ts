@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WspIssuesRouteImport } from './routes/wsp-issues'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as WdRouteImport } from './routes/wd'
 import { Route as TlUploadRouteImport } from './routes/tl-upload'
@@ -20,6 +21,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 
+const WspIssuesRoute = WspIssuesRouteImport.update({
+  id: '/wsp-issues',
+  path: '/wsp-issues',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WdIssueRoute = WdIssueRouteImport.update({
   id: '/wd-issue',
   path: '/wd-issue',
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/tl-upload': typeof TlUploadRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
+  '/wsp-issues': typeof WspIssuesRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
@@ -93,6 +100,7 @@ export interface FileRoutesByTo {
   '/tl-upload': typeof TlUploadRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
+  '/wsp-issues': typeof WspIssuesRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesById {
@@ -106,6 +114,7 @@ export interface FileRoutesById {
   '/tl-upload': typeof TlUploadRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
+  '/wsp-issues': typeof WspIssuesRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRouteTypes {
@@ -120,6 +129,7 @@ export interface FileRouteTypes {
     | '/tl-upload'
     | '/wd'
     | '/wd-issue'
+    | '/wsp-issues'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -132,6 +142,7 @@ export interface FileRouteTypes {
     | '/tl-upload'
     | '/wd'
     | '/wd-issue'
+    | '/wsp-issues'
     | '/admin/users'
   id:
     | '__root__'
@@ -144,6 +155,7 @@ export interface FileRouteTypes {
     | '/tl-upload'
     | '/wd'
     | '/wd-issue'
+    | '/wsp-issues'
     | '/admin/users'
   fileRoutesById: FileRoutesById
 }
@@ -157,11 +169,19 @@ export interface RootRouteChildren {
   TlUploadRoute: typeof TlUploadRoute
   WdRoute: typeof WdRoute
   WdIssueRoute: typeof WdIssueRoute
+  WspIssuesRoute: typeof WspIssuesRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/wsp-issues': {
+      id: '/wsp-issues'
+      path: '/wsp-issues'
+      fullPath: '/wsp-issues'
+      preLoaderRoute: typeof WspIssuesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/wd-issue': {
       id: '/wd-issue'
       path: '/wd-issue'
@@ -245,6 +265,7 @@ const rootRouteChildren: RootRouteChildren = {
   TlUploadRoute: TlUploadRoute,
   WdRoute: WdRoute,
   WdIssueRoute: WdIssueRoute,
+  WspIssuesRoute: WspIssuesRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport

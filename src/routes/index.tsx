@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, ChevronRight, Building2, History } from "lucide-react";
+import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -41,6 +41,13 @@ const operations = [
     desc: "Recent receives & dispatches",
     icon: History,
     color: "bg-muted text-muted-foreground",
+  },
+  {
+    to: "/wsp-issues" as const,
+    label: "Issues Raised by WD",
+    desc: "Resolve dispatch issues from distributors",
+    icon: AlertTriangle,
+    color: "bg-destructive/10 text-destructive",
   },
 ];
 
