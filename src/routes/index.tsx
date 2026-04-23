@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle } from "lucide-react";
+import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle, XOctagon } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
+import { useLossesSummary } from "@/hooks/use-losses";
 
 export const Route = createFileRoute("/")({
   component: WspOperationsPage,
@@ -50,11 +51,19 @@ const operations = [
     icon: AlertTriangle,
     color: "bg-destructive/10 text-destructive",
   },
+  {
+    to: "/losses" as const,
+    label: "Losses",
+    desc: "Stock written off from accepted issues",
+    icon: XOctagon,
+    color: "bg-destructive/10 text-destructive",
+  },
 ];
 
 function WspOperationsPage() {
   const { profile } = useAuth();
   const { count: openIssuesCount } = useOpenIssuesCount();
+  const { totalQty: lossQty, count: lossCount } = useLossesSummary();
   const wsp = profile?.wsp;
 
   return (
