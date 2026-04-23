@@ -70,7 +70,7 @@ function LoginPage() {
         setError(signUpError.message);
         return;
       }
-      setInfo("Account created! You can sign in now. An admin will assign your WSP shortly.");
+      setInfo("Account created! Sign in to continue. An admin will review and assign your role shortly.");
       setMode("signin");
       setPassword("");
     }
@@ -204,7 +204,7 @@ function LoginPage() {
 
             {mode === "signup" && (
               <p className="text-center text-[10px] text-muted-foreground">
-                After signup, an admin will assign your WSP. You can sign in immediately.
+                After signup, an admin will review and assign your role (WSP, WD, or TL). You can sign in immediately to check your status.
               </p>
             )}
           </motion.section>
