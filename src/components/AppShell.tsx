@@ -182,12 +182,14 @@ function WaitingScreen({
   let body = `Your account ${mobile ? `(+91 ${mobile})` : ""} is signed in but no role has been assigned yet. An admin needs to grant you a role (WSP, WD, or TL) before you can use the app.`;
 
   if (hasPrimaryRole) {
-    title = "Waiting for assignment";
     if (roles.includes("wsp")) {
+      title = "Waiting for WSP assignment";
       body = "Your role is set to WSP but no WSP has been assigned to your account. Please contact an admin.";
     } else if (roles.includes("wd")) {
+      title = "Waiting for WD assignment";
       body = "Your role is set to WD but no WD code has been assigned to your account. Please contact an admin.";
     } else if (roles.includes("tl")) {
+      title = "Waiting for assignment";
       body = "Your role is set to TL but no WD / region has been assigned to your account. Please contact an admin.";
     }
   }
