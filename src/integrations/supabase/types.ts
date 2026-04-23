@@ -348,7 +348,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "wsp" | "wd" | "tl"
       batch_type: "Launch" | "Cyclical" | "SOV" | "Others"
-      dispatch_item_status: "pending" | "received" | "issue"
+      dispatch_item_status:
+        | "pending"
+        | "received"
+        | "issue"
+        | "closed_loss"
+        | "resolved"
       movement_type: "receive" | "dispatch"
       wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
@@ -480,7 +485,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "wsp", "wd", "tl"],
       batch_type: ["Launch", "Cyclical", "SOV", "Others"],
-      dispatch_item_status: ["pending", "received", "issue"],
+      dispatch_item_status: [
+        "pending",
+        "received",
+        "issue",
+        "closed_loss",
+        "resolved",
+      ],
       movement_type: ["receive", "dispatch"],
       wsp_code: ["CEVL", "CEVJ", "CEVY"],
     },
