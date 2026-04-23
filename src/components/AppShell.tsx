@@ -45,9 +45,9 @@ function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const { signOut, profile, loading: authLoading, user } = useAuth();
+  const { signOut, profile, loading: authLoading, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { roles, isAdmin, loading: rolesLoading } = useRoles();
+  const { roles, isAdmin, loading: rolesLoading, refresh: refreshRoles } = useRoles();
 
   // Filter tabs by roles
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
