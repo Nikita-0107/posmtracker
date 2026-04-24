@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -7,10 +7,14 @@ import {
   Loader2,
   ExternalLink,
   Search,
+  Pencil,
+  History,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
+import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/movements")({
@@ -36,9 +40,22 @@ type Movement = {
   reference_number: string | null;
   proof_image_path: string | null;
   wsp: string;
+  item_status: "pending" | "received" | "issue" | string | null;
+};
+
+type EditRow = {
+  id: string;
+  movement_id: string;
+  old_quantity: number;
+  new_quantity: number;
+  edited_by: string;
+  edited_at: string;
+  edit_reason: string;
+  editor_name?: string | null;
 };
 
 const SIGNED_TTL = 60 * 60; // 1 hour
+const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
@@ -53,56 +70,92 @@ function formatDateTime(iso: string) {
 }
 
 function MovementsPage() {
+  const { profile } = useAuth();
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
   const [rows, setRows] = useState<Movement[]>([]);
+  const [edits, setEdits] = useState<Record<string, EditRow[]>>({});
   const [loading, setLoading] = useState(true);
   const [signed, setSigned] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"all" | "receive" | "dispatch">("all");
   const [query, setQuery] = useState("");
+  const [editTarget, setEditTarget] = useState<Movement | null>(null);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("stock_movements")
+      .select(
+        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) {
+      toast.error("Failed to load movements", { description: error.message });
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    const list = (data ?? []) as Movement[];
+    setRows(list);
+    setLoading(false);
+
+    // Load any edit history for these movements
+    const ids = list.map((r) => r.id);
+    if (ids.length > 0) {
+      const { data: editsData } = await supabase
+        .from("stock_movement_edits")
+        .select("id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason")
+        .in("movement_id", ids)
+        .order("edited_at", { ascending: false });
+
+      const editList = (editsData ?? []) as EditRow[];
+      // resolve editor names
+      const editorIds = Array.from(new Set(editList.map((e) => e.edited_by)));
+      const nameMap: Record<string, string | null> = {};
+      if (editorIds.length > 0) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("id, display_name, mobile")
+          .in("id", editorIds);
+        for (const p of (prof ?? []) as Array<{
+          id: string;
+          display_name: string | null;
+          mobile: string;
+        }>) {
+          nameMap[p.id] = p.display_name || p.mobile;
+        }
+      }
+      const grouped: Record<string, EditRow[]> = {};
+      for (const e of editList) {
+        const enriched = { ...e, editor_name: nameMap[e.edited_by] ?? "Unknown" };
+        (grouped[e.movement_id] ||= []).push(enriched);
+      }
+      setEdits(grouped);
+    } else {
+      setEdits({});
+    }
+
+    // Batch sign all proof paths (1 hour)
+    const paths = Array.from(
+      new Set(list.map((r) => r.proof_image_path).filter((p): p is string => !!p)),
+    );
+    if (paths.length === 0) return;
+    const { data: signedData } = await supabase.storage
+      .from("proofs")
+      .createSignedUrls(paths, SIGNED_TTL);
+    if (!signedData) return;
+    const map: Record<string, string> = {};
+    for (const item of signedData) {
+      if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
+    }
+    setSigned(map);
+  }, []);
 
   useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    (async () => {
-      const { data, error } = await supabase
-        .from("stock_movements")
-        .select(
-          "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp",
-        )
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (!alive) return;
-      if (error) {
-        toast.error("Failed to load movements", { description: error.message });
-        setRows([]);
-        setLoading(false);
-        return;
-      }
-      const list = (data ?? []) as Movement[];
-      setRows(list);
-      setLoading(false);
-
-      // Batch sign all proof paths (1 hour)
-      const paths = Array.from(
-        new Set(list.map((r) => r.proof_image_path).filter((p): p is string => !!p)),
-      );
-      if (paths.length === 0) return;
-      const { data: signedData } = await supabase.storage
-        .from("proofs")
-        .createSignedUrls(paths, SIGNED_TTL);
-      if (!alive || !signedData) return;
-      const map: Record<string, string> = {};
-      for (const item of signedData) {
-        if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
-      }
-      setSigned(map);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+    void refresh();
+  }, [refresh]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -118,6 +171,34 @@ function MovementsPage() {
       );
     });
   }, [rows, filter, query, matMap]);
+
+  // Decide if a row is editable by the current WSP user
+  function getEditState(r: Movement): { canEdit: boolean; reason?: string } {
+    if (!profile?.wsp || profile.wsp !== r.wsp) {
+      return { canEdit: false };
+    }
+    const ageMs = Date.now() - new Date(r.created_at).getTime();
+    if (ageMs > EDIT_WINDOW_MS) {
+      return { canEdit: false, reason: "Editing locked. Contact admin." };
+    }
+    if (r.movement === "dispatch" && r.item_status && r.item_status !== "pending") {
+      return { canEdit: false, reason: "Already verified by WD." };
+    }
+    if (r.movement === "receive") {
+      // Client-side hint: lock if any later dispatch of the same material exists.
+      const laterDispatch = rows.some(
+        (other) =>
+          other.movement === "dispatch" &&
+          other.wsp === r.wsp &&
+          other.material_code === r.material_code &&
+          new Date(other.created_at).getTime() > new Date(r.created_at).getTime(),
+      );
+      if (laterDispatch) {
+        return { canEdit: false, reason: "Already dispatched. Locked." };
+      }
+    }
+    return { canEdit: true };
+  }
 
   return (
     <AppShell>
@@ -175,6 +256,8 @@ function MovementsPage() {
           {filtered.map((r) => {
             const isReceive = r.movement === "receive";
             const url = r.proof_image_path ? signed[r.proof_image_path] : undefined;
+            const editState = getEditState(r);
+            const rowEdits = edits[r.id] ?? [];
             return (
               <li
                 key={r.id}
@@ -252,6 +335,48 @@ function MovementsPage() {
                         </span>
                       )}
                     </div>
+
+                    {/* Action row: Request Correction */}
+                    {profile?.wsp === r.wsp && (
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        {editState.canEdit ? (
+                          <button
+                            onClick={() => setEditTarget(r)}
+                            className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted"
+                          >
+                            <Pencil size={10} /> Request Correction
+                          </button>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">
+                            🔒 {editState.reason ?? "Locked"}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Edit history */}
+                    {rowEdits.length > 0 && (
+                      <div className="mt-1 space-y-1 rounded-md border border-dashed border-border bg-muted/30 p-1.5">
+                        <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
+                          <History size={10} /> Edit history
+                        </div>
+                        {rowEdits.map((e) => (
+                          <div
+                            key={e.id}
+                            className="text-[10px] leading-snug text-muted-foreground"
+                          >
+                            Edited from{" "}
+                            <span className="font-bold text-foreground">{e.old_quantity}</span> →{" "}
+                            <span className="font-bold text-foreground">{e.new_quantity}</span> by{" "}
+                            <span className="font-semibold text-foreground">
+                              {e.editor_name}
+                            </span>{" "}
+                            at {formatDateTime(e.edited_at)}
+                            <div className="italic">Reason: {e.edit_reason}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </li>
@@ -259,6 +384,155 @@ function MovementsPage() {
           })}
         </ul>
       </div>
+
+      {editTarget && (
+        <CorrectionDialog
+          movement={editTarget}
+          materialName={matMap.get(editTarget.material_code) ?? ""}
+          onClose={() => setEditTarget(null)}
+          onSaved={() => {
+            setEditTarget(null);
+            void refresh();
+          }}
+        />
+      )}
     </AppShell>
+  );
+}
+
+function CorrectionDialog({
+  movement,
+  materialName,
+  onClose,
+  onSaved,
+}: {
+  movement: Movement;
+  materialName: string;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [step, setStep] = useState<"confirm" | "form">("confirm");
+  const [newQty, setNewQty] = useState<string>(String(movement.qty));
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit() {
+    const parsed = Number(newQty);
+    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+      toast.error("Enter a valid positive whole number");
+      return;
+    }
+    if (reason.trim().length === 0) {
+      toast.error("Reason is required");
+      return;
+    }
+    setSubmitting(true);
+    const { error } = await supabase.rpc("request_movement_correction", {
+      _movement_id: movement.id,
+      _new_qty: parsed,
+      _reason: reason.trim(),
+    });
+    setSubmitting(false);
+    if (error) {
+      toast.error("Could not save correction", { description: error.message });
+      return;
+    }
+    toast.success("Correction saved");
+    onSaved();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
+      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-card shadow-xl">
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <h3 className="font-heading text-sm font-bold">Request Correction</h3>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-3 p-4">
+          <div className="rounded-lg bg-muted/40 p-2 text-[11px]">
+            <div className="font-mono font-bold text-foreground">{movement.material_code}</div>
+            <div className="text-muted-foreground">{materialName}</div>
+            <div className="mt-1 text-muted-foreground">
+              Current qty: <span className="font-bold text-foreground">{movement.qty}</span>
+            </div>
+          </div>
+
+          {step === "confirm" ? (
+            <>
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
+                This will modify stock records. Are you sure?
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={onClose}
+                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setStep("form")}
+                  className="flex-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Continue
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  New quantity
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={newQty}
+                  onChange={(e) => setNewQty(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                  Reason for change <span className="text-destructive">*</span>
+                </span>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={3}
+                  maxLength={300}
+                  placeholder="Explain why this quantity needs to change"
+                  className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={onClose}
+                  className="flex-1 rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={submit}
+                  disabled={submitting}
+                  className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {submitting && <Loader2 size={12} className="animate-spin" />}
+                  Save
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
