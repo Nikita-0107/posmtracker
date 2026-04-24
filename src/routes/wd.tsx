@@ -266,35 +266,19 @@ function DispatchCard({
           </div>
 
           <div className="space-y-1.5 border-t bg-muted/20 p-2">
-            {group.items.map((item) => (
-              <LineRow
-                key={item.id}
-                item={item}
-                matMap={matMap}
-                draft={drafts[item.id] ?? null}
-                onDraft={(d) => setDraft(item.id, d)}
-              />
-            ))}
-          </div>
-
-          {/* Final confirmation */}
-          <div className="border-t bg-card p-2">
-            <button
-              onClick={confirmAll}
-              disabled={!allMarked || !hasDrafts || finalizing}
-              className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-xs font-bold text-primary-foreground transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {finalizing ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <CheckCircle2 size={14} />
-              )}
-              {allMarked
-                ? hasDrafts
-                  ? "Confirm Receipt"
-                  : "Nothing to confirm"
-                : `Mark all items first (${totalCount - verifiedCount} left)`}
-            </button>
+            {parentItems.map((item) => {
+              // Find any sibling rows created from a partial split, so we can show received+issue together.
+              const siblings = group.items.filter((r) => r.parent_movement_id === item.id);
+              return (
+                <LineRow
+                  key={item.id}
+                  item={item}
+                  siblings={siblings}
+                  matMap={matMap}
+                  onChange={onChange}
+                />
+              );
+            })}
           </div>
         </>
       )}
