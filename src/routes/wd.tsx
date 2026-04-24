@@ -433,11 +433,13 @@ function IssuePopup({
   matMap,
   onClose,
   onSubmit,
+  submitting,
 }: {
   item: InTransitMovement;
   matMap: Map<string, string>;
   onClose: () => void;
   onSubmit: (receivedQty: number, reason: string) => void;
+  submitting?: boolean;
 }) {
   const [issueQtyStr, setIssueQtyStr] = useState("0");
   const [reasonType, setReasonType] = useState<"shortage" | "other">("shortage");
