@@ -260,7 +260,7 @@ function DispatchCard({
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full bg-primary transition-all"
-                style={{ width: `${(verifiedCount / totalCount) * 100}%` }}
+                style={{ width: `${totalCount === 0 ? 0 : (verifiedCount / totalCount) * 100}%` }}
               />
             </div>
           </div>
