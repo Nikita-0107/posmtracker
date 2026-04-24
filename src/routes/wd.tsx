@@ -207,61 +207,16 @@ function DispatchCard({
   onChange: () => Promise<void> | void;
 }) {
   const [open, setOpen] = useState(true);
-  const [finalizing, setFinalizing] = useState(false);
   const status = deriveStatus(group.items);
   const wdName = wdMaster.find((w) => w.wd_code === group.distributor)?.wd_name ?? group.distributor;
 
-  // Local "draft" state per line — stays until the user clicks Confirm Receipt
-  type Draft =
-    | { kind: "received" }
-    | { kind: "issue"; receivedQty: number; reason: string };
-  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
-
-  const verifiedCount = group.items.filter(
-    (i) => i.item_status !== "pending" || drafts[i.id],
-  ).length;
-  const totalCount = group.items.length;
-  const allMarked = verifiedCount === totalCount;
-  const hasDrafts = Object.keys(drafts).length > 0;
-
-  function setDraft(id: string, d: Draft | null) {
-    setDrafts((prev) => {
-      const next = { ...prev };
-      if (d === null) delete next[id];
-      else next[id] = d;
-      return next;
-    });
-  }
-
-  async function confirmAll() {
-    setFinalizing(true);
-    try {
-      for (const item of group.items) {
-        if (item.item_status !== "pending") continue;
-        const d = drafts[item.id];
-        if (!d) continue;
-        if (d.kind === "received") {
-          const { error } = await confirmDispatchItem(item.id, "received");
-          if (error) throw new Error(error.message);
-        } else {
-          const { error } = await confirmDispatchItem(
-            item.id,
-            "partial",
-            d.reason || "Shortage",
-            d.receivedQty,
-          );
-          if (error) throw new Error(error.message);
-        }
-      }
-      toast.success("Receipt confirmed");
-      setDrafts({});
-      await onChange();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to confirm receipt");
-    } finally {
-      setFinalizing(false);
-    }
-  }
+  // Verification progress comes straight from persisted DB state — no local drafts.
+  // A "parent" pending row is unverified; rows that are 'received' or 'issue' are verified.
+  // Children created by a partial split (parent_movement_id != null) are not counted —
+  // they belong to a parent line that's already considered verified.
+  const parentItems = group.items.filter((i) => !i.parent_movement_id);
+  const verifiedCount = parentItems.filter((i) => i.item_status !== "pending").length;
+  const totalCount = parentItems.length;
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
