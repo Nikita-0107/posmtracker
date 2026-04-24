@@ -15,57 +15,81 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-const operations = [
+type Tone = "neutral" | "warning" | "danger";
+
+const operations: Array<{
+  to: "/receive" | "/wd-issue" | "/wsp-in-transit" | "/stock" | "/movements" | "/wsp-issues" | "/losses";
+  label: string;
+  desc: string;
+  icon: typeof Inbox;
+  iconColor: string;
+  tone: Tone;
+}> = [
   {
-    to: "/receive" as const,
+    to: "/receive",
     label: "Receive Materials",
-    desc: "Add stock into your WSP",
+    desc: "Add stock",
     icon: Inbox,
-    color: "bg-accent/10 text-accent",
+    iconColor: "bg-accent/10 text-accent",
+    tone: "neutral",
   },
   {
-    to: "/wd-issue" as const,
+    to: "/wd-issue",
     label: "Dispatch to WD",
-    desc: "Send POSM to distributors",
+    desc: "Send POSM",
     icon: Truck,
-    color: "bg-primary/10 text-primary",
+    iconColor: "bg-primary/10 text-primary",
+    tone: "neutral",
   },
   {
-    to: "/wsp-in-transit" as const,
+    to: "/wsp-in-transit",
     label: "In Transit to WD",
-    desc: "Track dispatches awaiting WD confirmation",
+    desc: "Awaiting WD confirmation",
     icon: Send,
-    color: "bg-primary/10 text-primary",
+    iconColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+    tone: "warning",
   },
   {
-    to: "/stock" as const,
+    to: "/stock",
     label: "View Stock",
-    desc: "Current WSP stock levels",
+    desc: "Current levels",
     icon: Boxes,
-    color: "bg-success/10 text-success",
+    iconColor: "bg-success/10 text-success",
+    tone: "neutral",
   },
   {
-    to: "/movements" as const,
+    to: "/movements",
     label: "Movement Log",
-    desc: "Recent receives & dispatches",
+    desc: "Recent activity",
     icon: History,
-    color: "bg-muted text-muted-foreground",
+    iconColor: "bg-muted text-muted-foreground",
+    tone: "neutral",
   },
   {
-    to: "/wsp-issues" as const,
-    label: "Issues Raised by WD",
-    desc: "Resolve dispatch issues from distributors",
+    to: "/wsp-issues",
+    label: "Issues from WD",
+    desc: "Resolve disputes",
     icon: AlertTriangle,
-    color: "bg-destructive/10 text-destructive",
+    iconColor: "bg-destructive/15 text-destructive",
+    tone: "danger",
   },
   {
-    to: "/losses" as const,
+    to: "/losses",
     label: "Losses",
-    desc: "Stock written off from accepted issues",
+    desc: "Written-off stock",
     icon: XOctagon,
-    color: "bg-destructive/10 text-destructive",
+    iconColor: "bg-destructive/10 text-destructive",
+    tone: "neutral",
   },
 ];
+
+const toneClasses: Record<Tone, string> = {
+  neutral: "bg-card hover:border-primary/40",
+  warning:
+    "bg-amber-50 border-amber-200 hover:border-amber-400 dark:bg-amber-950/30 dark:border-amber-900/60",
+  danger:
+    "bg-red-50 border-red-200 hover:border-red-400 dark:bg-red-950/30 dark:border-red-900/60",
+};
 
 function WspOperationsPage() {
   const { profile } = useAuth();
