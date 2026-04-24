@@ -99,7 +99,7 @@ function WspOperationsPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-md space-y-5">
+      <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <Building2 size={20} className="text-primary" />
@@ -114,37 +114,40 @@ function WspOperationsPage() {
 
         <section className="space-y-2">
           <h3 className="text-sm font-bold text-foreground">Choose an operation</h3>
-          <div className="space-y-2">
-            {operations.map((op) => (
-              <Link
-                key={op.label}
-                to={op.to}
-                className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 transition active:scale-[0.99] hover:border-primary/40"
-              >
-                <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${op.color}`}>
-                  <op.icon size={20} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-bold text-foreground">{op.label}</p>
-                  <p className="text-[11px] text-muted-foreground">
-                    {op.to === "/losses" && lossCount > 0
-                      ? `${lossQty} units across ${lossCount} ${lossCount === 1 ? "event" : "events"}`
-                      : op.desc}
-                  </p>
-                </div>
-                {op.to === "/wsp-issues" && openIssuesCount > 0 ? (
-                  <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive px-2.5 py-1 text-xs font-bold text-destructive-foreground">
-                    {openIssuesCount > 99 ? "99+" : openIssuesCount}
-                  </span>
-                ) : null}
-                {op.to === "/losses" && lossQty > 0 ? (
-                  <span className="inline-flex min-w-9 items-center justify-center rounded-full bg-destructive/15 px-2.5 py-1 text-xs font-bold text-destructive">
-                    −{lossQty > 999 ? "999+" : lossQty}
-                  </span>
-                ) : null}
-                <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
-              </Link>
-            ))}
+          <div className="grid grid-cols-2 gap-3">
+            {operations.map((op) => {
+              const showIssueBadge = op.to === "/wsp-issues" && openIssuesCount > 0;
+              const showLossBadge = op.to === "/losses" && lossQty > 0;
+              return (
+                <Link
+                  key={op.label}
+                  to={op.to}
+                  className={`relative flex min-h-[120px] flex-col items-start gap-2 rounded-2xl border p-4 transition active:scale-[0.98] ${toneClasses[op.tone]}`}
+                >
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${op.iconColor}`}>
+                    <op.icon size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                      {op.to === "/losses" && lossCount > 0
+                        ? `${lossQty} units · ${lossCount} ${lossCount === 1 ? "event" : "events"}`
+                        : op.desc}
+                    </p>
+                  </div>
+                  {showIssueBadge ? (
+                    <span className="absolute right-3 top-3 inline-flex min-w-7 items-center justify-center rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
+                      {openIssuesCount > 99 ? "99+" : openIssuesCount}
+                    </span>
+                  ) : null}
+                  {showLossBadge ? (
+                    <span className="absolute right-3 top-3 inline-flex min-w-7 items-center justify-center rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive">
+                      −{lossQty > 999 ? "999+" : lossQty}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
           </div>
         </section>
       </div>
