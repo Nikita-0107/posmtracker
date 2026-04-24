@@ -17,6 +17,7 @@ export type InTransitMovement = {
   item_status: DispatchItemStatus;
   proof_image_path: string | null;
   issue_note: string | null;
+  parent_movement_id: string | null;
 };
 
 /**
@@ -34,7 +35,7 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
     let query = supabase
       .from("stock_movements")
       .select(
-        "id, created_at, dispatch_id, dispatch_date, wsp, distributor, material_code, qty, item_status, proof_image_path, issue_note",
+        "id, created_at, dispatch_id, dispatch_date, wsp, distributor, material_code, qty, item_status, proof_image_path, issue_note, parent_movement_id",
       )
       .eq("movement", "dispatch")
       .order("created_at", { ascending: false });
