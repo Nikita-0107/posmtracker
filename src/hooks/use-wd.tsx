@@ -17,6 +17,7 @@ export type InTransitMovement = {
   item_status: DispatchItemStatus;
   proof_image_path: string | null;
   issue_note: string | null;
+  parent_movement_id: string | null;
 };
 
 /**
