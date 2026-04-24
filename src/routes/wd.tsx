@@ -207,8 +207,61 @@ function DispatchCard({
   onChange: () => Promise<void> | void;
 }) {
   const [open, setOpen] = useState(true);
+  const [finalizing, setFinalizing] = useState(false);
   const status = deriveStatus(group.items);
   const wdName = wdMaster.find((w) => w.wd_code === group.distributor)?.wd_name ?? group.distributor;
+
+  // Local "draft" state per line — stays until the user clicks Confirm Receipt
+  type Draft =
+    | { kind: "received" }
+    | { kind: "issue"; receivedQty: number; reason: string };
+  const [drafts, setDrafts] = useState<Record<string, Draft>>({});
+
+  const verifiedCount = group.items.filter(
+    (i) => i.item_status !== "pending" || drafts[i.id],
+  ).length;
+  const totalCount = group.items.length;
+  const allMarked = verifiedCount === totalCount;
+  const hasDrafts = Object.keys(drafts).length > 0;
+
+  function setDraft(id: string, d: Draft | null) {
+    setDrafts((prev) => {
+      const next = { ...prev };
+      if (d === null) delete next[id];
+      else next[id] = d;
+      return next;
+    });
+  }
+
+  async function confirmAll() {
+    setFinalizing(true);
+    try {
+      for (const item of group.items) {
+        if (item.item_status !== "pending") continue;
+        const d = drafts[item.id];
+        if (!d) continue;
+        if (d.kind === "received") {
+          const { error } = await confirmDispatchItem(item.id, "received");
+          if (error) throw new Error(error.message);
+        } else {
+          const { error } = await confirmDispatchItem(
+            item.id,
+            "partial",
+            d.reason || "Shortage",
+            d.receivedQty,
+          );
+          if (error) throw new Error(error.message);
+        }
+      }
+      toast.success("Receipt confirmed");
+      setDrafts({});
+      await onChange();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to confirm receipt");
+    } finally {
+      setFinalizing(false);
+    }
+  }
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card shadow-sm">
@@ -233,105 +286,375 @@ function DispatchCard({
             <span className="text-muted-foreground">{wdName}</span>
           </p>
           <p className="text-[10px] text-muted-foreground">
-            {group.dispatch_date} · {group.items.length} items
+            {group.dispatch_date} · {totalCount} items
           </p>
         </div>
         {open ? <ChevronUp size={16} className="text-muted-foreground" /> : <ChevronDown size={16} className="text-muted-foreground" />}
       </button>
 
       {open && (
-        <div className="space-y-1.5 border-t bg-muted/20 p-2">
-          {group.items.map((item) => (
-            <LineRow key={item.id} item={item} matMap={matMap} onChange={onChange} />
-          ))}
-        </div>
+        <>
+          {/* Progress bar */}
+          <div className="border-t bg-muted/40 px-3 py-2">
+            <div className="mb-1 flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+              <span>Verification progress</span>
+              <span className="text-foreground">
+                {verifiedCount} / {totalCount} items
+              </span>
+            </div>
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full bg-primary transition-all"
+                style={{ width: `${(verifiedCount / totalCount) * 100}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5 border-t bg-muted/20 p-2">
+            {group.items.map((item) => (
+              <LineRow
+                key={item.id}
+                item={item}
+                matMap={matMap}
+                draft={drafts[item.id] ?? null}
+                onDraft={(d) => setDraft(item.id, d)}
+              />
+            ))}
+          </div>
+
+          {/* Final confirmation */}
+          <div className="border-t bg-card p-2">
+            <button
+              onClick={confirmAll}
+              disabled={!allMarked || !hasDrafts || finalizing}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary py-2 text-xs font-bold text-primary-foreground transition active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {finalizing ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              {allMarked
+                ? hasDrafts
+                  ? "Confirm Receipt"
+                  : "Nothing to confirm"
+                : `Mark all items first (${totalCount - verifiedCount} left)`}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
 }
 
+type Draft =
+  | { kind: "received" }
+  | { kind: "issue"; receivedQty: number; reason: string };
+
 function LineRow({
   item,
   matMap,
-  onChange,
+  draft,
+  onDraft,
 }: {
   item: InTransitMovement;
   matMap: Map<string, string>;
-  onChange: () => Promise<void> | void;
+  draft: Draft | null;
+  onDraft: (d: Draft | null) => void;
 }) {
-  const [busy, setBusy] = useState<"received" | "issue" | null>(null);
-  const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
-
-  async function handle(action: "received" | "issue") {
-    if (action === "issue" && !showNote) {
-      setShowNote(true);
-      return;
-    }
-    setBusy(action);
-    const { error } = await confirmDispatchItem(item.id, action, action === "issue" ? note : undefined);
-    setBusy(null);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success(action === "received" ? "Marked received" : "Issue logged");
-    setShowNote(false);
-    setNote("");
-    await onChange();
-  }
-
+  const [popupOpen, setPopupOpen] = useState(false);
   const isPending = item.item_status === "pending";
   const isIssue = item.item_status === "issue";
+  const isReceived = item.item_status === "received";
 
+  // Already-finalized rows: show static status
+  if (!isPending) {
+    return (
+      <div className="rounded-lg border bg-card p-2">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono text-[11px] font-bold text-foreground">
+              {item.material_code}
+            </p>
+            <p className="truncate text-[10px] text-muted-foreground">
+              {matMap.get(item.material_code) ?? ""}
+            </p>
+          </div>
+          <div className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-right">
+            <p className="font-mono text-sm font-bold text-foreground">{item.qty}</p>
+          </div>
+        </div>
+        {isIssue && (
+          <div className="mt-1.5 flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive">
+            <AlertTriangle size={11} /> Issue ({item.qty}): {item.issue_note || "no note"}
+          </div>
+        )}
+        {isReceived && (
+          <div className="mt-1.5 flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">
+            <CheckCircle2 size={11} /> Received ({item.qty})
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Draft state takes priority over pending
+  if (draft?.kind === "received") {
+    return (
+      <DraftRow
+        item={item}
+        matMap={matMap}
+        statusBadge={
+          <div className="flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">
+            <CheckCircle2 size={11} /> Received ({item.qty})
+          </div>
+        }
+        onUndo={() => onDraft(null)}
+      />
+    );
+  }
+
+  if (draft?.kind === "issue") {
+    const issueQty = item.qty - draft.receivedQty;
+    return (
+      <DraftRow
+        item={item}
+        matMap={matMap}
+        statusBadge={
+          <div className="space-y-1">
+            {draft.receivedQty > 0 && (
+              <div className="flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-[10px] font-semibold text-success">
+                <CheckCircle2 size={11} /> Received ({draft.receivedQty})
+              </div>
+            )}
+            <div className="flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive">
+              <AlertTriangle size={11} /> Issue ({issueQty}): {draft.reason}
+            </div>
+          </div>
+        }
+        onUndo={() => onDraft(null)}
+      />
+    );
+  }
+
+  // Pending + no draft: show action buttons
   return (
-    <div className="rounded-lg border bg-card p-2">
+    <>
+      <div className="rounded-lg border bg-card p-2">
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-mono text-[11px] font-bold text-foreground">
+              {item.material_code}
+            </p>
+            <p className="truncate text-[10px] text-muted-foreground">
+              {matMap.get(item.material_code) ?? ""}
+            </p>
+          </div>
+          <div className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-right">
+            <p className="font-mono text-sm font-bold text-foreground">{item.qty}</p>
+          </div>
+        </div>
+
+        <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+          <button
+            onClick={() => onDraft({ kind: "received" })}
+            className="flex items-center justify-center gap-1 rounded-md bg-success py-1.5 text-[11px] font-bold text-success-foreground transition active:scale-[0.98]"
+          >
+            <CheckCircle2 size={12} /> Received
+          </button>
+          <button
+            onClick={() => setPopupOpen(true)}
+            className="flex items-center justify-center gap-1 rounded-md bg-destructive/10 py-1.5 text-[11px] font-bold text-destructive transition active:scale-[0.98]"
+          >
+            <AlertTriangle size={12} /> Report Issue
+          </button>
+        </div>
+      </div>
+
+      {popupOpen && (
+        <IssuePopup
+          item={item}
+          matMap={matMap}
+          onClose={() => setPopupOpen(false)}
+          onSubmit={(receivedQty, reason) => {
+            onDraft({ kind: "issue", receivedQty, reason });
+            setPopupOpen(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function DraftRow({
+  item,
+  matMap,
+  statusBadge,
+  onUndo,
+}: {
+  item: InTransitMovement;
+  matMap: Map<string, string>;
+  statusBadge: React.ReactNode;
+  onUndo: () => void;
+}) {
+  return (
+    <div className="rounded-lg border-2 border-primary/30 bg-card p-2">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate font-mono text-[11px] font-bold text-foreground">{item.material_code}</p>
-          <p className="truncate text-[10px] text-muted-foreground">{matMap.get(item.material_code) ?? ""}</p>
+          <p className="truncate font-mono text-[11px] font-bold text-foreground">
+            {item.material_code}
+          </p>
+          <p className="truncate text-[10px] text-muted-foreground">
+            {matMap.get(item.material_code) ?? ""}
+          </p>
         </div>
         <div className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-right">
           <p className="font-mono text-sm font-bold text-foreground">{item.qty}</p>
         </div>
       </div>
+      <div className="mt-1.5">{statusBadge}</div>
+      <button
+        onClick={onUndo}
+        className="mt-1.5 w-full rounded-md border border-dashed border-muted-foreground/40 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+      >
+        Undo
+      </button>
+    </div>
+  );
+}
 
-      {isIssue && (
-        <div className="mt-1.5 rounded-md bg-destructive/10 px-2 py-1 text-[10px] font-semibold text-destructive">
-          Issue: {item.issue_note || "no note"}
+function IssuePopup({
+  item,
+  matMap,
+  onClose,
+  onSubmit,
+}: {
+  item: InTransitMovement;
+  matMap: Map<string, string>;
+  onClose: () => void;
+  onSubmit: (receivedQty: number, reason: string) => void;
+}) {
+  const [issueQtyStr, setIssueQtyStr] = useState("0");
+  const [reasonType, setReasonType] = useState<"shortage" | "other">("shortage");
+  const [otherReason, setOtherReason] = useState("");
+
+  const total = item.qty;
+  const issueQty = Math.max(0, Math.min(total, Number(issueQtyStr) || 0));
+  const receivedQty = total - issueQty;
+
+  const reason =
+    reasonType === "shortage"
+      ? "Shortage"
+      : otherReason.trim() || "";
+
+  const valid = issueQty > 0 && issueQty <= total && reason.length > 0;
+
+  function submit() {
+    if (!valid) return;
+    onSubmit(receivedQty, reason);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
+      <div className="w-full max-w-sm space-y-3 rounded-2xl border bg-card p-4 shadow-2xl">
+        <div className="flex items-start gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+            <AlertTriangle size={16} className="text-destructive" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-heading text-sm font-bold text-foreground">Report Issue</h3>
+            <p className="truncate font-mono text-[10px] text-muted-foreground">
+              {item.material_code} · {matMap.get(item.material_code) ?? ""}
+            </p>
+          </div>
         </div>
-      )}
 
-      {isPending && (
-        <>
-          {showNote && (
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Note (damaged / missing / etc.)"
-              className="mt-1.5 w-full rounded-md border bg-background px-2 py-1 text-[11px] text-foreground"
-            />
-          )}
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+        {/* Total quantity (fixed) */}
+        <div className="rounded-lg bg-muted px-3 py-2">
+          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            Total Quantity (fixed)
+          </p>
+          <p className="font-mono text-xl font-bold text-foreground">{total}</p>
+        </div>
+
+        {/* Issue qty input */}
+        <label className="block space-y-1">
+          <span className="text-[11px] font-bold text-foreground">Quantity with Issue</span>
+          <input
+            type="number"
+            inputMode="numeric"
+            min={0}
+            max={total}
+            value={issueQtyStr}
+            onChange={(e) => setIssueQtyStr(e.target.value)}
+            className="w-full rounded-md border bg-background px-3 py-2 text-sm font-bold text-foreground"
+          />
+        </label>
+
+        {/* Auto-calculated received */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-lg bg-success/10 px-3 py-2 text-success">
+            <p className="text-[9px] font-bold uppercase">Received</p>
+            <p className="font-mono text-lg font-bold">{receivedQty}</p>
+          </div>
+          <div className="rounded-lg bg-destructive/10 px-3 py-2 text-destructive">
+            <p className="text-[9px] font-bold uppercase">Issue</p>
+            <p className="font-mono text-lg font-bold">{issueQty}</p>
+          </div>
+        </div>
+
+        {/* Reason */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] font-bold text-foreground">Reason</span>
+          <div className="grid grid-cols-2 gap-1.5">
             <button
-              onClick={() => handle("received")}
-              disabled={busy !== null}
-              className="flex items-center justify-center gap-1 rounded-md bg-success py-1.5 text-[11px] font-bold text-success-foreground transition active:scale-[0.98] disabled:opacity-50"
+              onClick={() => setReasonType("shortage")}
+              className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
+                reasonType === "shortage"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"
+              }`}
             >
-              {busy === "received" ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle2 size={12} />}
-              Received
+              Shortage
             </button>
             <button
-              onClick={() => handle("issue")}
-              disabled={busy !== null}
-              className="flex items-center justify-center gap-1 rounded-md bg-destructive/10 py-1.5 text-[11px] font-bold text-destructive transition active:scale-[0.98] disabled:opacity-50"
+              onClick={() => setReasonType("other")}
+              className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
+                reasonType === "other"
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border bg-background text-muted-foreground"
+              }`}
             >
-              {busy === "issue" ? <Loader2 size={12} className="animate-spin" /> : <AlertTriangle size={12} />}
-              {showNote ? "Confirm Issue" : "Issue"}
+              Other
             </button>
           </div>
-        </>
-      )}
+          {reasonType === "other" && (
+            <input
+              value={otherReason}
+              onChange={(e) => setOtherReason(e.target.value)}
+              placeholder="Enter reason"
+              className="w-full rounded-md border bg-background px-3 py-2 text-xs text-foreground"
+            />
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="grid grid-cols-2 gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="rounded-md border bg-card py-2 text-xs font-bold text-foreground transition active:scale-[0.98]"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={submit}
+            disabled={!valid}
+            className="rounded-md bg-destructive py-2 text-xs font-bold text-destructive-foreground transition active:scale-[0.98] disabled:opacity-40"
+          >
+            Save Issue
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
