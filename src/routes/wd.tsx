@@ -555,9 +555,10 @@ function IssuePopup({
           </button>
           <button
             onClick={submit}
-            disabled={!valid}
-            className="rounded-md bg-destructive py-2 text-xs font-bold text-destructive-foreground transition active:scale-[0.98] disabled:opacity-40"
+            disabled={!valid || submitting}
+            className="flex items-center justify-center gap-1.5 rounded-md bg-destructive py-2 text-xs font-bold text-destructive-foreground transition active:scale-[0.98] disabled:opacity-40"
           >
+            {submitting && <Loader2 size={12} className="animate-spin" />}
             Save Issue
           </button>
         </div>
