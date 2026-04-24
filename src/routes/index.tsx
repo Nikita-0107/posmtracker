@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle, XOctagon, Send } from "lucide-react";
+import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
