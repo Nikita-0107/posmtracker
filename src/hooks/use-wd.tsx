@@ -32,16 +32,54 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    const select =
+      "id, created_at, dispatch_id, dispatch_date, wsp, distributor, material_code, qty, item_status, proof_image_path, issue_note, parent_movement_id";
+
+    if (filter === "in_transit") {
+      // Step 1: find every dispatch_id that still has at least one pending or issue line.
+      const { data: openLines, error: openErr } = await supabase
+        .from("stock_movements")
+        .select("dispatch_id")
+        .eq("movement", "dispatch")
+        .in("item_status", ["pending", "issue"]);
+      if (openErr) {
+        console.error("Failed to load in-transit dispatches", openErr);
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+      const ids = Array.from(
+        new Set((openLines ?? []).map((r) => r.dispatch_id).filter((x): x is string => !!x)),
+      );
+      if (ids.length === 0) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+      // Step 2: pull ALL rows for those dispatches so received parents + issue siblings render together.
+      const { data, error } = await supabase
+        .from("stock_movements")
+        .select(select)
+        .eq("movement", "dispatch")
+        .in("dispatch_id", ids)
+        .order("created_at", { ascending: false });
+      if (error) {
+        console.error("Failed to load dispatches", error);
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+      setRows((data ?? []) as InTransitMovement[]);
+      setLoading(false);
+      return;
+    }
+
     let query = supabase
       .from("stock_movements")
-      .select(
-        "id, created_at, dispatch_id, dispatch_date, wsp, distributor, material_code, qty, item_status, proof_image_path, issue_note, parent_movement_id",
-      )
+      .select(select)
       .eq("movement", "dispatch")
       .order("created_at", { ascending: false });
-
-    if (filter === "in_transit") query = query.in("item_status", ["pending", "issue"]);
-    else if (filter === "received") query = query.eq("item_status", "received");
+    if (filter === "received") query = query.eq("item_status", "received");
 
     const { data, error } = await query;
     if (error) {
