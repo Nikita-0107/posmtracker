@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle, XOctagon } from "lucide-react";
+import { Inbox, Truck, Boxes, ChevronRight, Building2, History, AlertTriangle, XOctagon, Send } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
@@ -28,6 +28,13 @@ const operations = [
     label: "Dispatch to WD",
     desc: "Send POSM to distributors",
     icon: Truck,
+    color: "bg-primary/10 text-primary",
+  },
+  {
+    to: "/wsp-in-transit" as const,
+    label: "In Transit to WD",
+    desc: "Track dispatches awaiting WD confirmation",
+    icon: Send,
     color: "bg-primary/10 text-primary",
   },
   {
