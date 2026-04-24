@@ -94,6 +94,36 @@ export type Database = {
           },
         ]
       }
+      stock_movement_edits: {
+        Row: {
+          edit_reason: string
+          edited_at: string
+          edited_by: string
+          id: string
+          movement_id: string
+          new_quantity: number
+          old_quantity: number
+        }
+        Insert: {
+          edit_reason: string
+          edited_at?: string
+          edited_by: string
+          id?: string
+          movement_id: string
+          new_quantity: number
+          old_quantity: number
+        }
+        Update: {
+          edit_reason?: string
+          edited_at?: string
+          edited_by?: string
+          id?: string
+          movement_id?: string
+          new_quantity?: number
+          old_quantity?: number
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           batch_type: Database["public"]["Enums"]["batch_type"] | null
@@ -472,6 +502,10 @@ export type Database = {
           _proof_image_path: string
           _qty: number
         }
+        Returns: number
+      }
+      request_movement_correction: {
+        Args: { _movement_id: string; _new_qty: number; _reason: string }
         Returns: number
       }
       resolve_dispatch_issue: {
