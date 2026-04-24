@@ -111,6 +111,7 @@ export type Database = {
             | null
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
+          parent_movement_id: string | null
           performed_by: string | null
           proof_image_path: string | null
           qty: number
@@ -137,6 +138,7 @@ export type Database = {
             | null
           material_code: string
           movement: Database["public"]["Enums"]["movement_type"]
+          parent_movement_id?: string | null
           performed_by?: string | null
           proof_image_path?: string | null
           qty: number
@@ -163,6 +165,7 @@ export type Database = {
             | null
           material_code?: string
           movement?: Database["public"]["Enums"]["movement_type"]
+          parent_movement_id?: string | null
           performed_by?: string | null
           proof_image_path?: string | null
           qty?: number
@@ -180,6 +183,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "materials"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "stock_movements_parent_movement_id_fkey"
+            columns: ["parent_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -370,7 +380,12 @@ export type Database = {
     }
     Functions: {
       confirm_dispatch_item: {
-        Args: { _action: string; _movement_id: string; _note?: string }
+        Args: {
+          _action: string
+          _movement_id: string
+          _note?: string
+          _received_qty?: number
+        }
         Returns: Database["public"]["Enums"]["dispatch_item_status"]
       }
       current_user_wd: { Args: never; Returns: string }

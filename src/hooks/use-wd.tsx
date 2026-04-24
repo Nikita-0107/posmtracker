@@ -62,13 +62,15 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
 
 export async function confirmDispatchItem(
   movementId: string,
-  action: "received" | "issue",
+  action: "received" | "issue" | "partial",
   note?: string,
+  receivedQty?: number,
 ) {
   const { data, error } = await supabase.rpc("confirm_dispatch_item", {
     _movement_id: movementId,
     _action: action,
     _note: note ?? undefined,
+    _received_qty: receivedQty ?? undefined,
   });
   return { newStatus: data as DispatchItemStatus | null, error };
 }
