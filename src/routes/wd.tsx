@@ -442,7 +442,9 @@ function IssuePopup({
   submitting?: boolean;
 }) {
   const [issueQtyStr, setIssueQtyStr] = useState("0");
-  const [reasonType, setReasonType] = useState<"shortage" | "other">("shortage");
+  const [reasonType, setReasonType] = useState<"shortage" | "damaged" | "mismatched" | "other">(
+    "shortage",
+  );
   const [otherReason, setOtherReason] = useState("");
 
   const total = item.qty;
@@ -452,7 +454,11 @@ function IssuePopup({
   const reason =
     reasonType === "shortage"
       ? "Shortage"
-      : otherReason.trim() || "";
+      : reasonType === "damaged"
+        ? "Damaged"
+        : reasonType === "mismatched"
+          ? "Mismatched"
+          : otherReason.trim() || "";
 
   const valid = issueQty > 0 && issueQty <= total && reason.length > 0;
 
@@ -514,26 +520,24 @@ function IssuePopup({
         <div className="space-y-1.5">
           <span className="text-[11px] font-bold text-foreground">Reason</span>
           <div className="grid grid-cols-2 gap-1.5">
-            <button
-              onClick={() => setReasonType("shortage")}
-              className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
-                reasonType === "shortage"
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground"
-              }`}
-            >
-              Shortage
-            </button>
-            <button
-              onClick={() => setReasonType("other")}
-              className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
-                reasonType === "other"
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border bg-background text-muted-foreground"
-              }`}
-            >
-              Other
-            </button>
+            {([
+              ["shortage", "Shortage"],
+              ["damaged", "Damaged"],
+              ["mismatched", "Mismatched"],
+              ["other", "Other"],
+            ] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setReasonType(key)}
+                className={`rounded-md border px-2 py-1.5 text-[11px] font-bold transition ${
+                  reasonType === key
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           {reasonType === "other" && (
             <input
