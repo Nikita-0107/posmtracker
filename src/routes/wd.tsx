@@ -442,7 +442,9 @@ function IssuePopup({
   submitting?: boolean;
 }) {
   const [issueQtyStr, setIssueQtyStr] = useState("0");
-  const [reasonType, setReasonType] = useState<"shortage" | "other">("shortage");
+  const [reasonType, setReasonType] = useState<"shortage" | "damaged" | "mismatched" | "other">(
+    "shortage",
+  );
   const [otherReason, setOtherReason] = useState("");
 
   const total = item.qty;
@@ -452,7 +454,11 @@ function IssuePopup({
   const reason =
     reasonType === "shortage"
       ? "Shortage"
-      : otherReason.trim() || "";
+      : reasonType === "damaged"
+        ? "Damaged"
+        : reasonType === "mismatched"
+          ? "Mismatched"
+          : otherReason.trim() || "";
 
   const valid = issueQty > 0 && issueQty <= total && reason.length > 0;
 
