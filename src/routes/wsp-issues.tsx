@@ -256,6 +256,17 @@ function IssueCard({
             Keep Pending
           </button>
         </div>
+
+        <p className="pt-1 text-center text-[10px] text-muted-foreground">
+          Available stock at WSP:{" "}
+          <span
+            className={`font-mono font-bold ${
+              currentStock < row.qty ? "text-destructive" : "text-foreground"
+            }`}
+          >
+            {currentStock}
+          </span>
+        </p>
       </div>
     </div>
   );
