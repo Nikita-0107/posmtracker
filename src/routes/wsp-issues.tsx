@@ -116,10 +116,12 @@ function WspIssuesPage() {
 function IssueCard({
   row,
   materialName,
+  currentStock,
   onChange,
 }: {
   row: ReturnType<typeof useWspIssues>["rows"][number];
   materialName: string;
+  currentStock: number;
   onChange: () => Promise<void> | void;
 }) {
   const [busy, setBusy] = useState<ResolveAction | null>(null);
