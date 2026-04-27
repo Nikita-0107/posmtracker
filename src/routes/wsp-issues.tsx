@@ -93,6 +93,7 @@ function WspIssuesPage() {
                 key={r.id}
                 row={r}
                 materialName={matMap.get(r.material_code) ?? ""}
+                currentStock={stock[r.material_code] ?? 0}
                 onChange={refresh}
               />
             ))}
