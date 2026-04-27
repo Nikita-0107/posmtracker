@@ -34,6 +34,7 @@ function WspIssuesPage() {
   const { rows, loading, refresh } = useWspIssues();
   const { totalQty: lossQty, count: lossCount } = useLossesSummary();
   const { materials } = useMaterials();
+  const { stock } = useStock();
   const matMap = useMemo(
     () => new Map(materials.map((m) => [m.code, m.name])),
     [materials],
