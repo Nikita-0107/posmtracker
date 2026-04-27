@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
-import { useMaterials } from "@/hooks/use-stock";
+import { useMaterials, useStock } from "@/hooks/use-stock";
 import { useWspIssues, resolveDispatchIssue, type ResolveAction } from "@/hooks/use-wsp-issues";
 import { useLossesSummary } from "@/hooks/use-losses";
 import { wdMaster } from "@/lib/posm-data";
