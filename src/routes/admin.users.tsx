@@ -473,7 +473,7 @@ function AdminUsersPage() {
                   )}
 
                   {primary === "tl" && (
-                    <div className="rounded-lg border bg-muted/30 p-2.5">
+                    <div className="space-y-2 rounded-lg border bg-muted/30 p-2.5">
                       <label className="block space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Assign WD / Region
@@ -488,6 +488,26 @@ function AdminUsersPage() {
                           {wdMaster.map((w) => (
                             <option key={w.wd_code} value={w.wd_code}>
                               {w.wd_code} — {w.wd_name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          TL Type
+                        </span>
+                        <select
+                          disabled={saving}
+                          value={row.tl_type ?? ""}
+                          onChange={(e) =>
+                            updateTlType(row.id, e.target.value || null)
+                          }
+                          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+                        >
+                          <option value="">— Select type —</option>
+                          {TL_TYPE_OPTIONS.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
                             </option>
                           ))}
                         </select>
