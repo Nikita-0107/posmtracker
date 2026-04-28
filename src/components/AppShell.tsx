@@ -111,9 +111,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-card px-3 py-2 shadow-sm">
-        <h1 className="font-heading text-sm font-bold tracking-tight text-foreground">
-          📦 POSM Tracker
-        </h1>
+        <div className="flex min-w-0 flex-col">
+          <h1 className="font-heading text-sm font-bold tracking-tight text-foreground">
+            📦 POSM Tracker
+          </h1>
+          {profile?.display_name && (
+            <p className="truncate text-[10px] font-medium text-muted-foreground">
+              Hi {profile.display_name.split(" ")[0]} 👋
+            </p>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           <WspBadge />
           {isAdmin && (
