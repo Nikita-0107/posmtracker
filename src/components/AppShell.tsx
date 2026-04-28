@@ -22,13 +22,15 @@ const tabs = [
 ];
 
 // Map URL prefixes to the role(s) that can view them.
+// IMPORTANT: order matters — more specific prefixes MUST come before shorter ones
+// (e.g. "/wd-issue" before "/wd", otherwise "/wd-issue" matches the "/wd" rule).
 const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
   { prefix: "/wd-issue-tl", roles: ["wd", "admin"] },
-  { prefix: "/wd", roles: ["wd", "admin"] },
-  { prefix: "/tl", roles: ["tl", "admin"] },
-  { prefix: "/tl-upload", roles: ["tl", "admin"] },
-  { prefix: "/receive", roles: ["wsp", "admin"] },
   { prefix: "/wd-issue", roles: ["wsp", "admin"] },
+  { prefix: "/wd", roles: ["wd", "admin"] },
+  { prefix: "/tl-upload", roles: ["tl", "admin"] },
+  { prefix: "/tl", roles: ["tl", "admin"] },
+  { prefix: "/receive", roles: ["wsp", "admin"] },
   { prefix: "/wsp-issues", roles: ["wsp", "admin"] },
   { prefix: "/losses", roles: ["wsp", "admin"] },
   { prefix: "/stock", roles: ["wsp", "admin"] },
