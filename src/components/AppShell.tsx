@@ -39,6 +39,10 @@ const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
 
 const PUBLIC_PATHS = ["/login", "/admin"];
 
+function matchesRoutePrefix(pathname: string, prefix: string) {
+  return pathname === prefix || pathname.startsWith(`${prefix}/`);
+}
+
 function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" {
   if (roles.includes("admin") || roles.includes("wsp")) return "/";
   if (roles.includes("wd")) return "/wd";
@@ -72,7 +76,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    const match = routeRoleMap.find((r) => location.pathname.startsWith(r.prefix));
+    const match = routeRoleMap.find((r) => matchesRoutePrefix(location.pathname, r.prefix));
     if (!match) return;
     const allowed = match.roles.some((r) => roles.includes(r));
     if (!allowed) {
