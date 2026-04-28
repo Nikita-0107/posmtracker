@@ -303,26 +303,37 @@ export type Database = {
           id: string
           issue_date: string
           issued_by: string | null
-          tl_user_id: string
+          tl_user_id: string | null
           wd_code: string
+          wd_tl_id: string | null
         }
         Insert: {
           created_at?: string
           id?: string
           issue_date?: string
           issued_by?: string | null
-          tl_user_id: string
+          tl_user_id?: string | null
           wd_code: string
+          wd_tl_id?: string | null
         }
         Update: {
           created_at?: string
           id?: string
           issue_date?: string
           issued_by?: string | null
-          tl_user_id?: string
+          tl_user_id?: string | null
           wd_code?: string
+          wd_tl_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tl_issuances_wd_tl_id_fkey"
+            columns: ["wd_tl_id"]
+            isOneToOne: false
+            referencedRelation: "wd_tls"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tl_uploads: {
         Row: {
@@ -433,6 +444,39 @@ export type Database = {
           },
         ]
       }
+      wd_tls: {
+        Row: {
+          created_at: string
+          id: string
+          legacy_tl_id: number | null
+          tl_name: string
+          tl_type: string | null
+          updated_at: string
+          wd_code: string
+          wd_name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          legacy_tl_id?: number | null
+          tl_name: string
+          tl_type?: string | null
+          updated_at?: string
+          wd_code: string
+          wd_name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          legacy_tl_id?: number | null
+          tl_name?: string
+          tl_type?: string | null
+          updated_at?: string
+          wd_code?: string
+          wd_name?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       dispatch_status_v: {
@@ -489,6 +533,10 @@ export type Database = {
       }
       issue_to_tl: {
         Args: { _issue_date: string; _items: Json; _tl_user_id: string }
+        Returns: string
+      }
+      issue_to_tl_v2: {
+        Args: { _issue_date: string; _items: Json; _wd_tl_id: string }
         Returns: string
       }
       receive_material:
