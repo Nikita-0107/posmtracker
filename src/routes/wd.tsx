@@ -70,6 +70,21 @@ function WdHomePage() {
           </div>
         </div>
 
+        {/* Primary CTA — Issue to TL */}
+        <Link
+          to="/wd-issue-tl"
+          className="flex w-full items-center gap-3 rounded-xl bg-primary px-4 py-4 text-primary-foreground shadow-md transition active:scale-[0.99] hover:bg-primary/90"
+        >
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15">
+            <Send size={22} />
+          </div>
+          <div className="min-w-0 flex-1 text-left">
+            <p className="text-base font-bold leading-tight">Issue to TL</p>
+            <p className="text-[12px] opacity-90">Hand stock to team leader</p>
+          </div>
+          <ChevronRight size={20} className="shrink-0 opacity-90" />
+        </Link>
+
         {/* Section tabs */}
         <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
           <SectionBtn label="In Transit" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
@@ -80,23 +95,6 @@ function WdHomePage() {
         {section === "in_transit" && <InTransitSection />}
         {section === "stock" && <WdStockSection />}
         {section === "assignments" && <AssignmentsSection />}
-
-        {/* Issue-to-TL entry */}
-        <Link
-          to="/wd-issue-tl"
-          className="flex items-center gap-3 rounded-xl border bg-card px-3 py-3 transition active:scale-[0.99] hover:border-primary/40"
-        >
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <Send size={18} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold text-foreground">Issue to TL</p>
-            <p className="text-[11px] text-muted-foreground">
-              Hand WD stock to a Team Leader for placement
-            </p>
-          </div>
-          <ChevronRight size={18} className="shrink-0 text-muted-foreground" />
-        </Link>
 
         <div className="pt-2 text-center">
           <Link to="/" className="text-[11px] font-semibold text-muted-foreground underline">
