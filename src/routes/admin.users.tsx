@@ -23,10 +23,13 @@ type Row = {
   display_name: string | null;
   wsp: WspCode | null;
   wd_code: string | null;
+  tl_type: string | null;
   roles: AppRole[];
   // For WD users: which WSPs they're allowed to receive from
   allowed_wsps: WspCode[];
 };
+
+const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
 
 function primaryRoleOf(roles: AppRole[]): PrimaryRole | null {
   if (roles.includes("wsp")) return "wsp";
@@ -75,7 +78,7 @@ function AdminUsersPage() {
     ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, mobile, display_name, wsp, wd_code")
+        .select("id, mobile, display_name, wsp, wd_code, tl_type")
         .order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("wd_assignments").select("wd_code, wsp"),
