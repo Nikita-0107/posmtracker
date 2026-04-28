@@ -198,6 +198,20 @@ function AdminUsersPage() {
     await loadUsers();
   }
 
+  async function updateTlType(userId: string, tl_type: string | null) {
+    setSavingId(userId);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ tl_type })
+      .eq("id", userId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success(tl_type ? `TL type set to ${tl_type}` : "TL type cleared");
+    setRows((prev) =>
+      prev.map((r) => (r.id === userId ? { ...r, tl_type } : r)),
+    );
+  }
+
   async function toggleAllowedWsp(row: Row, wsp: WspCode, on: boolean) {
     if (!row.wd_code) {
       toast.error("Assign a WD code first");
