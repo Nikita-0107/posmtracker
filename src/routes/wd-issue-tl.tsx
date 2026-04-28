@@ -43,6 +43,11 @@ function WdIssueTlPage() {
   const { user } = useAuth();
   const { tls, loading: tlsLoading } = useTlsForMyWd();
   const { stock, loading: stockLoading, refresh: refreshStock } = useWdStock();
+  const {
+    items: history,
+    loading: historyLoading,
+    refresh: refreshHistory,
+  } = useWdIssuanceHistory();
   const { materials } = useMaterials();
   const matName = useMemo(
     () => new Map(materials.map((m) => [m.code, m.name])),
