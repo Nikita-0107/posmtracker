@@ -7,6 +7,7 @@ export type TlOption = {
   mobile: string;
   display_name: string | null;
   wd_code: string | null;
+  tl_type: string | null;
 };
 
 /** WD-side: list of TLs linked to the current WD (or all TLs for admin). */
@@ -37,7 +38,7 @@ export function useTlsForMyWd() {
     }
     let q = supabase
       .from("profiles")
-      .select("id, mobile, display_name, wd_code")
+      .select("id, mobile, display_name, wd_code, tl_type")
       .in("id", ids);
     if (wd) q = q.eq("wd_code", wd);
     const { data, error } = await q;
