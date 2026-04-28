@@ -13,6 +13,7 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
+  ChevronRight,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
