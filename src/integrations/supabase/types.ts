@@ -74,6 +74,7 @@ export type Database = {
           display_name: string | null
           id: string
           mobile: string
+          tl_type: string | null
           updated_at: string
           wd_code: string | null
           wsp: Database["public"]["Enums"]["wsp_code"] | null
@@ -83,6 +84,7 @@ export type Database = {
           display_name?: string | null
           id: string
           mobile: string
+          tl_type?: string | null
           updated_at?: string
           wd_code?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"] | null
@@ -92,6 +94,7 @@ export type Database = {
           display_name?: string | null
           id?: string
           mobile?: string
+          tl_type?: string | null
           updated_at?: string
           wd_code?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"] | null

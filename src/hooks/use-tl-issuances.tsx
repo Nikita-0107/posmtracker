@@ -7,6 +7,7 @@ export type TlOption = {
   mobile: string;
   display_name: string | null;
   wd_code: string | null;
+  tl_type: string | null;
 };
 
 /** WD-side: list of TLs linked to the current WD (or all TLs for admin). */
@@ -37,7 +38,7 @@ export function useTlsForMyWd() {
     }
     let q = supabase
       .from("profiles")
-      .select("id, mobile, display_name, wd_code")
+      .select("id, mobile, display_name, wd_code, tl_type")
       .in("id", ids);
     if (wd) q = q.eq("wd_code", wd);
     const { data, error } = await q;
@@ -163,4 +164,101 @@ export async function recordTlUpload(
     _proof_image_path: proofImagePath,
   });
   return { remaining: data as number | null, error };
+}
+
+export type WdIssuanceHistoryItem = {
+  issuance_id: string;
+  issue_date: string;
+  created_at: string;
+  tl_user_id: string;
+  tl_name: string;
+  tl_type: string | null;
+  material_code: string;
+  qty_issued: number;
+};
+
+/** WD-side: full history of issuances created by/for the current WD. */
+export function useWdIssuanceHistory() {
+  const { profile } = useAuth();
+  const wd = profile?.wd_code ?? null;
+  const [items, setItems] = useState<WdIssuanceHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    let q = supabase
+      .from("tl_issuances")
+      .select("id, wd_code, issue_date, created_at, tl_user_id")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (wd) q = q.eq("wd_code", wd);
+    const { data: issRows, error: iErr } = await q;
+    if (iErr) {
+      console.error("Failed to load WD issuance history", iErr);
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const issuanceIds = (issRows ?? []).map((r) => r.id);
+    const tlIds = Array.from(new Set((issRows ?? []).map((r) => r.tl_user_id)));
+    if (issuanceIds.length === 0) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const [{ data: lineRows, error: lErr }, { data: profRows, error: pErr }] =
+      await Promise.all([
+        supabase
+          .from("tl_issuance_items")
+          .select("issuance_id, material_code, qty_issued")
+          .in("issuance_id", issuanceIds),
+        supabase
+          .from("profiles")
+          .select("id, display_name, mobile, tl_type")
+          .in("id", tlIds),
+      ]);
+    if (lErr || pErr) {
+      console.error("Failed to load issuance lines/tls", lErr || pErr);
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const profById = new Map(
+      (profRows ?? []).map((p) => [
+        p.id,
+        {
+          name: (p.display_name ?? "").trim() || `+91 ${p.mobile}`,
+          tl_type: p.tl_type as string | null,
+        },
+      ]),
+    );
+    const issById = new Map(
+      (issRows ?? []).map((r) => [
+        r.id,
+        { issue_date: r.issue_date, created_at: r.created_at, tl_user_id: r.tl_user_id },
+      ]),
+    );
+    const merged: WdIssuanceHistoryItem[] = (lineRows ?? []).map((l) => {
+      const head = issById.get(l.issuance_id)!;
+      const prof = profById.get(head.tl_user_id);
+      return {
+        issuance_id: l.issuance_id,
+        issue_date: head.issue_date,
+        created_at: head.created_at,
+        tl_user_id: head.tl_user_id,
+        tl_name: prof?.name ?? "—",
+        tl_type: prof?.tl_type ?? null,
+        material_code: l.material_code,
+        qty_issued: l.qty_issued,
+      };
+    });
+    setItems(merged);
+    setLoading(false);
+  }, [wd]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { items, loading, refresh };
 }

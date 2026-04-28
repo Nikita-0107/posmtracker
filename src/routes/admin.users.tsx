@@ -23,10 +23,13 @@ type Row = {
   display_name: string | null;
   wsp: WspCode | null;
   wd_code: string | null;
+  tl_type: string | null;
   roles: AppRole[];
   // For WD users: which WSPs they're allowed to receive from
   allowed_wsps: WspCode[];
 };
+
+const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
 
 function primaryRoleOf(roles: AppRole[]): PrimaryRole | null {
   if (roles.includes("wsp")) return "wsp";
@@ -75,7 +78,7 @@ function AdminUsersPage() {
     ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, mobile, display_name, wsp, wd_code")
+        .select("id, mobile, display_name, wsp, wd_code, tl_type")
         .order("created_at", { ascending: false }),
       supabase.from("user_roles").select("user_id, role"),
       supabase.from("wd_assignments").select("wd_code, wsp"),
@@ -104,6 +107,7 @@ function AdminUsersPage() {
       display_name: p.display_name,
       wsp: p.wsp as WspCode | null,
       wd_code: p.wd_code,
+      tl_type: (p as { tl_type: string | null }).tl_type ?? null,
       roles: rolesByUser.get(p.id) ?? [],
       allowed_wsps: p.wd_code ? wspsByWd.get(p.wd_code) ?? [] : [],
     }));
@@ -192,6 +196,20 @@ function AdminUsersPage() {
     toast.success("WD assigned");
     // refresh allowed_wsps after wd_code change
     await loadUsers();
+  }
+
+  async function updateTlType(userId: string, tl_type: string | null) {
+    setSavingId(userId);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ tl_type })
+      .eq("id", userId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success(tl_type ? `TL type set to ${tl_type}` : "TL type cleared");
+    setRows((prev) =>
+      prev.map((r) => (r.id === userId ? { ...r, tl_type } : r)),
+    );
   }
 
   async function toggleAllowedWsp(row: Row, wsp: WspCode, on: boolean) {
@@ -455,7 +473,7 @@ function AdminUsersPage() {
                   )}
 
                   {primary === "tl" && (
-                    <div className="rounded-lg border bg-muted/30 p-2.5">
+                    <div className="space-y-2 rounded-lg border bg-muted/30 p-2.5">
                       <label className="block space-y-1">
                         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Assign WD / Region
@@ -470,6 +488,26 @@ function AdminUsersPage() {
                           {wdMaster.map((w) => (
                             <option key={w.wd_code} value={w.wd_code}>
                               {w.wd_code} — {w.wd_name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block space-y-1">
+                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          TL Type
+                        </span>
+                        <select
+                          disabled={saving}
+                          value={row.tl_type ?? ""}
+                          onChange={(e) =>
+                            updateTlType(row.id, e.target.value || null)
+                          }
+                          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+                        >
+                          <option value="">— Select type —</option>
+                          {TL_TYPE_OPTIONS.map((t) => (
+                            <option key={t} value={t}>
+                              {t}
                             </option>
                           ))}
                         </select>

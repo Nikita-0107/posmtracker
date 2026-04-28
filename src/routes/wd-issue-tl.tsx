@@ -5,7 +5,11 @@ import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
 import { useWdStock } from "@/hooks/use-wd";
-import { useTlsForMyWd, issueToTl } from "@/hooks/use-tl-issuances";
+import {
+  useTlsForMyWd,
+  issueToTl,
+  useWdIssuanceHistory,
+} from "@/hooks/use-tl-issuances";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-issue-tl")({
@@ -39,6 +43,11 @@ function WdIssueTlPage() {
   const { user } = useAuth();
   const { tls, loading: tlsLoading } = useTlsForMyWd();
   const { stock, loading: stockLoading, refresh: refreshStock } = useWdStock();
+  const {
+    items: history,
+    loading: historyLoading,
+    refresh: refreshHistory,
+  } = useWdIssuanceHistory();
   const { materials } = useMaterials();
   const matName = useMemo(
     () => new Map(materials.map((m) => [m.code, m.name])),
@@ -129,8 +138,32 @@ function WdIssueTlPage() {
     toast.success(`Issued to TL · ref ${(issuanceId ?? "").slice(0, 8)}`);
     setLines([newLine()]);
     setTlId("");
-    await refreshStock();
+    await Promise.all([refreshStock(), refreshHistory()]);
   }
+
+  // TL-wise totals from history
+  const tlTotals = useMemo(() => {
+    const map = new Map<
+      string,
+      { tl_name: string; tl_type: string | null; total: number }
+    >();
+    for (const h of history) {
+      const existing = map.get(h.tl_user_id);
+      if (existing) {
+        existing.total += h.qty_issued;
+      } else {
+        map.set(h.tl_user_id, {
+          tl_name: h.tl_name,
+          tl_type: h.tl_type,
+          total: h.qty_issued,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [history]);
+
+  // Recent issues (latest 8 line items)
+  const recent = useMemo(() => history.slice(0, 8), [history]);
 
   if (!user) return null;
 
@@ -159,12 +192,16 @@ function WdIssueTlPage() {
             className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <option value="">— Select TL —</option>
-            {tls.map((t) => (
-              <option key={t.id} value={t.id}>
-                {(t.display_name ?? "").trim() || `+91 ${t.mobile}`}{" "}
-                {t.display_name ? `· +91 ${t.mobile}` : ""}
-              </option>
-            ))}
+            {tls.map((t) => {
+              const name = (t.display_name ?? "").trim() || `+91 ${t.mobile}`;
+              const suffix = t.tl_type ? ` (${t.tl_type})` : "";
+              return (
+                <option key={t.id} value={t.id}>
+                  {name}
+                  {suffix}
+                </option>
+              );
+            })}
           </select>
           {!tlsLoading && tls.length === 0 && (
             <p className="text-[11px] text-muted-foreground">
@@ -289,6 +326,90 @@ function WdIssueTlPage() {
           )}
           Issue to TL
         </button>
+
+        {/* TL-wise summary */}
+        <div className="space-y-2 rounded-xl border bg-card p-3">
+          <div className="flex items-center justify-between">
+            <h3 className="font-heading text-sm font-bold text-foreground">
+              TL-wise summary
+            </h3>
+            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+              total units issued
+            </span>
+          </div>
+          {historyLoading ? (
+            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" /> Loading…
+            </div>
+          ) : tlTotals.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
+              No issuances yet.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border bg-background">
+              {tlTotals.map((t, i) => (
+                <li
+                  key={i}
+                  className="flex items-center justify-between gap-2 px-3 py-2"
+                >
+                  <span className="min-w-0 truncate text-xs font-bold text-foreground">
+                    {t.tl_name}
+                    {t.tl_type ? (
+                      <span className="ml-1 font-normal text-muted-foreground">
+                        ({t.tl_type})
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
+                    {t.total}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Recent activity */}
+        <div className="space-y-2 rounded-xl border bg-card p-3">
+          <h3 className="font-heading text-sm font-bold text-foreground">
+            Recent activity
+          </h3>
+          {historyLoading ? (
+            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" /> Loading…
+            </div>
+          ) : recent.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
+              No recent issuances.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border bg-background">
+              {recent.map((r, i) => (
+                <li
+                  key={`${r.issuance_id}-${r.material_code}-${i}`}
+                  className="flex items-center justify-between gap-2 px-3 py-2"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-foreground">
+                      {r.tl_name}
+                      {r.tl_type ? (
+                        <span className="ml-1 font-normal text-muted-foreground">
+                          ({r.tl_type})
+                        </span>
+                      ) : null}
+                    </p>
+                    <p className="truncate font-mono text-[10px] text-muted-foreground">
+                      {r.material_code} · {r.issue_date}
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
+                    {r.qty_issued}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
 
         <div className="pt-2 text-center">
           <Link
