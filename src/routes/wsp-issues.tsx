@@ -241,7 +241,7 @@ function IssueCard({
             ) : (
               <RotateCw size={14} />
             )}
-            {showRedispatch ? "Confirm" : "Re-dispatch"}
+            {showRedispatch ? "Confirm" : "Check & Re-dispatch"}
           </button>
           <button
             onClick={() => act("keep_pending")}
