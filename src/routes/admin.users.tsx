@@ -107,6 +107,7 @@ function AdminUsersPage() {
       display_name: p.display_name,
       wsp: p.wsp as WspCode | null,
       wd_code: p.wd_code,
+      tl_type: (p as { tl_type: string | null }).tl_type ?? null,
       roles: rolesByUser.get(p.id) ?? [],
       allowed_wsps: p.wd_code ? wspsByWd.get(p.wd_code) ?? [] : [],
     }));
