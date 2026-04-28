@@ -3,14 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
 export type TlOption = {
-  id: string;
-  mobile: string;
-  display_name: string | null;
-  wd_code: string | null;
+  id: string; // wd_tls.id
+  tl_name: string;
+  wd_code: string;
   tl_type: string | null;
+  legacy_tl_id: number | null;
 };
 
-/** WD-side: list of TLs linked to the current WD (or all TLs for admin). */
+/** WD-side: list of TLs from wd_tls reference table, filtered by current user's wd_code (via RLS). */
 export function useTlsForMyWd() {
   const { profile } = useAuth();
   const wd = profile?.wd_code ?? null;
@@ -19,38 +19,22 @@ export function useTlsForMyWd() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    // Get user_ids that have the 'tl' role
-    const { data: roleRows, error: rErr } = await supabase
-      .from("user_roles")
-      .select("user_id")
-      .eq("role", "tl");
-    if (rErr) {
-      console.error("Failed to load TL roles", rErr);
-      setTls([]);
-      setLoading(false);
-      return;
-    }
-    const ids = Array.from(new Set((roleRows ?? []).map((r) => r.user_id)));
-    if (ids.length === 0) {
-      setTls([]);
-      setLoading(false);
-      return;
-    }
     let q = supabase
-      .from("profiles")
-      .select("id, mobile, display_name, wd_code, tl_type")
-      .in("id", ids);
+      .from("wd_tls")
+      .select("id, tl_name, wd_code, tl_type, legacy_tl_id");
     if (wd) q = q.eq("wd_code", wd);
     const { data, error } = await q;
     if (error) {
-      console.error("Failed to load TL profiles", error);
+      console.error("Failed to load TLs", error);
       setTls([]);
       setLoading(false);
       return;
     }
-    setTls(((data ?? []) as TlOption[]).slice().sort((a, b) =>
-      (a.display_name ?? a.mobile).localeCompare(b.display_name ?? b.mobile),
-    ));
+    setTls(
+      ((data ?? []) as TlOption[])
+        .slice()
+        .sort((a, b) => a.tl_name.localeCompare(b.tl_name)),
+    );
     setLoading(false);
   }, [wd]);
 
@@ -72,7 +56,7 @@ export type TlIssuanceLine = {
   wd_code: string;
 };
 
-/** TL-side: open issuance items where remaining > 0. */
+/** TL-side (legacy app-user TL): open issuance items where remaining > 0. */
 export function useOpenIssuancesForTl() {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -141,12 +125,12 @@ export function useOpenIssuancesForTl() {
 }
 
 export async function issueToTl(
-  tlUserId: string,
+  wdTlId: string,
   issueDate: string,
   items: { material_code: string; qty: number }[],
 ) {
-  const { data, error } = await supabase.rpc("issue_to_tl", {
-    _tl_user_id: tlUserId,
+  const { data, error } = await supabase.rpc("issue_to_tl_v2", {
+    _wd_tl_id: wdTlId,
     _issue_date: issueDate,
     _items: items,
   });
@@ -170,14 +154,14 @@ export type WdIssuanceHistoryItem = {
   issuance_id: string;
   issue_date: string;
   created_at: string;
-  tl_user_id: string;
+  wd_tl_id: string | null;
   tl_name: string;
   tl_type: string | null;
   material_code: string;
   qty_issued: number;
 };
 
-/** WD-side: full history of issuances created by/for the current WD. */
+/** WD-side: full history of issuances for the current WD. */
 export function useWdIssuanceHistory() {
   const { profile } = useAuth();
   const wd = profile?.wd_code ?? null;
@@ -188,7 +172,7 @@ export function useWdIssuanceHistory() {
     setLoading(true);
     let q = supabase
       .from("tl_issuances")
-      .select("id, wd_code, issue_date, created_at, tl_user_id")
+      .select("id, wd_code, issue_date, created_at, wd_tl_id")
       .order("created_at", { ascending: false })
       .limit(200);
     if (wd) q = q.eq("wd_code", wd);
@@ -200,22 +184,30 @@ export function useWdIssuanceHistory() {
       return;
     }
     const issuanceIds = (issRows ?? []).map((r) => r.id);
-    const tlIds = Array.from(new Set((issRows ?? []).map((r) => r.tl_user_id)));
+    const tlIds = Array.from(
+      new Set(
+        (issRows ?? [])
+          .map((r) => r.wd_tl_id)
+          .filter((v): v is string => !!v),
+      ),
+    );
     if (issuanceIds.length === 0) {
       setItems([]);
       setLoading(false);
       return;
     }
-    const [{ data: lineRows, error: lErr }, { data: profRows, error: pErr }] =
+    const [{ data: lineRows, error: lErr }, { data: tlRows, error: pErr }] =
       await Promise.all([
         supabase
           .from("tl_issuance_items")
           .select("issuance_id, material_code, qty_issued")
           .in("issuance_id", issuanceIds),
-        supabase
-          .from("profiles")
-          .select("id, display_name, mobile, tl_type")
-          .in("id", tlIds),
+        tlIds.length > 0
+          ? supabase
+              .from("wd_tls")
+              .select("id, tl_name, tl_type")
+              .in("id", tlIds)
+          : Promise.resolve({ data: [], error: null } as const),
       ]);
     if (lErr || pErr) {
       console.error("Failed to load issuance lines/tls", lErr || pErr);
@@ -223,31 +215,32 @@ export function useWdIssuanceHistory() {
       setLoading(false);
       return;
     }
-    const profById = new Map(
-      (profRows ?? []).map((p) => [
+    const tlById = new Map(
+      (tlRows ?? []).map((p) => [
         p.id,
-        {
-          name: (p.display_name ?? "").trim() || `+91 ${p.mobile}`,
-          tl_type: p.tl_type as string | null,
-        },
+        { name: p.tl_name, tl_type: p.tl_type as string | null },
       ]),
     );
     const issById = new Map(
       (issRows ?? []).map((r) => [
         r.id,
-        { issue_date: r.issue_date, created_at: r.created_at, tl_user_id: r.tl_user_id },
+        {
+          issue_date: r.issue_date,
+          created_at: r.created_at,
+          wd_tl_id: r.wd_tl_id as string | null,
+        },
       ]),
     );
     const merged: WdIssuanceHistoryItem[] = (lineRows ?? []).map((l) => {
       const head = issById.get(l.issuance_id)!;
-      const prof = profById.get(head.tl_user_id);
+      const tl = head.wd_tl_id ? tlById.get(head.wd_tl_id) : undefined;
       return {
         issuance_id: l.issuance_id,
         issue_date: head.issue_date,
         created_at: head.created_at,
-        tl_user_id: head.tl_user_id,
-        tl_name: prof?.name ?? "—",
-        tl_type: prof?.tl_type ?? null,
+        wd_tl_id: head.wd_tl_id,
+        tl_name: tl?.name ?? "—",
+        tl_type: tl?.tl_type ?? null,
         material_code: l.material_code,
         qty_issued: l.qty_issued,
       };
