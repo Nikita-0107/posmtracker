@@ -13,7 +13,6 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
-  ChevronRight,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
@@ -70,25 +69,17 @@ function WdHomePage() {
           </div>
         </div>
 
-        {/* Primary CTA — Issue to TL */}
-        <Link
-          to="/wd-issue-tl"
-          className="flex w-full items-center gap-3 rounded-xl bg-primary px-4 py-4 text-primary-foreground shadow-md transition active:scale-[0.99] hover:bg-primary/90"
-        >
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary-foreground/15">
-            <Send size={22} />
-          </div>
-          <div className="min-w-0 flex-1 text-left">
-            <p className="text-base font-bold leading-tight">Issue to TL</p>
-            <p className="text-[12px] opacity-90">Hand stock to team leader</p>
-          </div>
-          <ChevronRight size={20} className="shrink-0 opacity-90" />
-        </Link>
-
         {/* Section tabs */}
-        <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
+        <div className="grid grid-cols-4 gap-1.5 rounded-xl border bg-card p-1">
           <SectionBtn label="In Transit" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
           <SectionBtn label="WD Stock" icon={Boxes} active={section === "stock"} onClick={() => setSection("stock")} />
+          <Link
+            to="/wd-issue-tl"
+            className="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] font-bold text-muted-foreground transition hover:bg-muted"
+          >
+            <Send size={16} />
+            Issue to TL
+          </Link>
           <SectionBtn label="Assignments" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
         </div>
 
