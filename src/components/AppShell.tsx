@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
+import { NotificationBell } from "@/components/NotificationBell";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
 
@@ -123,6 +124,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex items-center gap-2">
           <WspBadge />
+          {user && <NotificationBell />}
           {isAdmin && (
             <Link
               to="/admin/users"
