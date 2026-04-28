@@ -148,11 +148,12 @@ function WdIssueTlPage() {
       { tl_name: string; tl_type: string | null; total: number }
     >();
     for (const h of history) {
-      const existing = map.get(h.tl_user_id);
+      const key = h.wd_tl_id ?? h.tl_name;
+      const existing = map.get(key);
       if (existing) {
         existing.total += h.qty_issued;
       } else {
-        map.set(h.tl_user_id, {
+        map.set(key, {
           tl_name: h.tl_name,
           tl_type: h.tl_type,
           total: h.qty_issued,
@@ -193,11 +194,10 @@ function WdIssueTlPage() {
           >
             <option value="">— Select TL —</option>
             {tls.map((t) => {
-              const name = (t.display_name ?? "").trim() || `+91 ${t.mobile}`;
               const suffix = t.tl_type ? ` (${t.tl_type})` : "";
               return (
                 <option key={t.id} value={t.id}>
-                  {name}
+                  {t.tl_name}
                   {suffix}
                 </option>
               );
