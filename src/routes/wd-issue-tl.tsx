@@ -138,8 +138,32 @@ function WdIssueTlPage() {
     toast.success(`Issued to TL · ref ${(issuanceId ?? "").slice(0, 8)}`);
     setLines([newLine()]);
     setTlId("");
-    await refreshStock();
+    await Promise.all([refreshStock(), refreshHistory()]);
   }
+
+  // TL-wise totals from history
+  const tlTotals = useMemo(() => {
+    const map = new Map<
+      string,
+      { tl_name: string; tl_type: string | null; total: number }
+    >();
+    for (const h of history) {
+      const existing = map.get(h.tl_user_id);
+      if (existing) {
+        existing.total += h.qty_issued;
+      } else {
+        map.set(h.tl_user_id, {
+          tl_name: h.tl_name,
+          tl_type: h.tl_type,
+          total: h.qty_issued,
+        });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  }, [history]);
+
+  // Recent issues (latest 8 line items)
+  const recent = useMemo(() => history.slice(0, 8), [history]);
 
   if (!user) return null;
 
