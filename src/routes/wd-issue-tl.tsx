@@ -5,7 +5,11 @@ import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
 import { useWdStock } from "@/hooks/use-wd";
-import { useTlsForMyWd, issueToTl } from "@/hooks/use-tl-issuances";
+import {
+  useTlsForMyWd,
+  issueToTl,
+  useWdIssuanceHistory,
+} from "@/hooks/use-tl-issuances";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-issue-tl")({
@@ -159,12 +163,16 @@ function WdIssueTlPage() {
             className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
           >
             <option value="">— Select TL —</option>
-            {tls.map((t) => (
-              <option key={t.id} value={t.id}>
-                {(t.display_name ?? "").trim() || `+91 ${t.mobile}`}{" "}
-                {t.display_name ? `· +91 ${t.mobile}` : ""}
-              </option>
-            ))}
+            {tls.map((t) => {
+              const name = (t.display_name ?? "").trim() || `+91 ${t.mobile}`;
+              const suffix = t.tl_type ? ` (${t.tl_type})` : "";
+              return (
+                <option key={t.id} value={t.id}>
+                  {name}
+                  {suffix}
+                </option>
+              );
+            })}
           </select>
           {!tlsLoading && tls.length === 0 && (
             <p className="text-[11px] text-muted-foreground">
