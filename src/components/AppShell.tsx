@@ -110,6 +110,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !PUBLIC_PATHS.some((p) => location.pathname.startsWith(p)) &&
     (!hasPrimaryRole || !hasEntity);
 
+  const homePath = landingForRoles(roles);
+  const onPublicPath = PUBLIC_PATHS.some((p) => location.pathname.startsWith(p));
+  const showBackHome =
+    !!user &&
+    !authLoading &&
+    !rolesLoading &&
+    !onPublicPath &&
+    !showWaitingScreen &&
+    location.pathname !== homePath;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-card px-3 py-2 shadow-sm">
