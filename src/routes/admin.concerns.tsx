@@ -82,7 +82,7 @@ function AdminConcernsPage() {
     const { error } = await supabase.rpc("resolve_stock_concern", {
       _concern_id: id,
       _action: action,
-      _resolution_note: note ?? null,
+      _resolution_note: note ?? undefined,
     });
     setActingId(null);
     if (error) {

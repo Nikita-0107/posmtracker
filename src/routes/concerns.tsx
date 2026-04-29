@@ -118,8 +118,8 @@ function ConcernsPage() {
       _material_code: material.code,
       _actual_qty: actualNum,
       _reason: reason,
-      _note: note || null,
-      _proof_image_path: proof?.path ?? null,
+      _note: note || undefined,
+      _proof_image_path: proof?.path ?? undefined,
     });
     setSubmitting(false);
     if (rpcErr) {
