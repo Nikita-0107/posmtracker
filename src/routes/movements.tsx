@@ -206,7 +206,7 @@ function MovementsPage() {
         <div>
           <h2 className="font-heading text-lg font-bold text-foreground">Movements</h2>
           <p className="text-xs text-muted-foreground">
-            Latest 200 entries · proof links valid for 1 hour
+            Latest 200 entries · proofs always available
           </p>
         </div>
 
