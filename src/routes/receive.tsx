@@ -214,9 +214,10 @@ function ReceivePage() {
 
     setBusy(true);
     setError(null);
+    const proofPath = proof!.path;
     const { error: rpcError } = await receiveMaterials(
       poNumber.trim(),
-      proof.path,
+      proofPath,
       payload,
       receivedDate,
     );
