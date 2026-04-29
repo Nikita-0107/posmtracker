@@ -397,6 +397,9 @@ function ReceivePage() {
                       stockQty={stockQty}
                       stockLoading={stockLoading}
                       dup={v.dup}
+                      validation={v}
+                      submitted={submitted}
+                      rowRef={(el) => { itemRefs.current[it.id] = el; }}
                       onChange={(patch) => updateItem(it.id, patch)}
                       onRemove={() => removeItem(it.id)}
                       canRemove={items.length > 1}
