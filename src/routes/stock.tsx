@@ -119,7 +119,7 @@ function StockPage() {
             </div>
             <p className="text-[11px] text-muted-foreground">
               {wsp
-                ? `${wsp} · ${materials.length} materials · ${totalUnits} total units`
+                ? `${wsp} · ${materials.length} materials`
                 : "No WSP assigned"}
             </p>
           </div>
