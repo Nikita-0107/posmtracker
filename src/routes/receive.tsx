@@ -722,6 +722,10 @@ function ReceiveLineItemRow({
         </div>
       )}
 
+      {showMaterialError && !item.isNew && !item.material && (
+        <p className="text-[11px] font-semibold text-destructive">Please select or add a material</p>
+      )}
+
       {/* Existing material chip */}
       {item.material && (
         <div className={`flex items-center justify-between gap-2 rounded-lg border bg-muted/50 px-2.5 py-2 ${dup ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
