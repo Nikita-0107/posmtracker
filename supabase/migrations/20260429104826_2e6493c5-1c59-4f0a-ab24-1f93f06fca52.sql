@@ -1,0 +1,25 @@
+
+UPDATE public.stock_movements SET received_date = '2026-02-16' WHERE reference_number='OPENING-CEVL' AND material_code='M/3026901900';
+UPDATE public.stock_movements SET received_date = '2026-02-19' WHERE reference_number='OPENING-CEVL' AND material_code='M/0127401101';
+UPDATE public.stock_movements SET received_date = '2026-02-20' WHERE reference_number='OPENING-CEVL' AND material_code='M/3027401901';
+UPDATE public.stock_movements SET received_date = '2026-02-20' WHERE reference_number='OPENING-CEVL' AND material_code='M/0127401301';
+UPDATE public.stock_movements SET received_date = '2026-02-23' WHERE reference_number='OPENING-CEVL' AND material_code='M/3927401901';
+UPDATE public.stock_movements SET received_date = '2026-03-09' WHERE reference_number='OPENING-CEVL' AND material_code='M/0127801300';
+UPDATE public.stock_movements SET received_date = '2026-03-10' WHERE reference_number='OPENING-CEVL' AND material_code='M/3802001903';
+UPDATE public.stock_movements SET received_date = '2026-03-10' WHERE reference_number='OPENING-CEVL' AND material_code='M/0127701300';
+UPDATE public.stock_movements SET received_date = '2026-03-13' WHERE reference_number='OPENING-CEVL' AND material_code='M/3802001902';
+UPDATE public.stock_movements SET received_date = '2026-03-31' WHERE reference_number='OPENING-CEVL' AND material_code='M/3027701101';
+UPDATE public.stock_movements SET received_date = '2026-03-31' WHERE reference_number='OPENING-CEVL' AND material_code='M/3027801101';
+UPDATE public.stock_movements SET received_date = '2026-03-31' WHERE reference_number='OPENING-CEVL' AND material_code='M/3927801900';
+UPDATE public.stock_movements SET received_date = '2026-03-31' WHERE reference_number='OPENING-CEVL' AND material_code='M/3127701900';
+UPDATE public.stock_movements SET received_date = '2026-03-31' WHERE reference_number='OPENING-CEVL' AND material_code='M/3127801900';
+UPDATE public.stock_movements SET received_date = '2026-03-04' WHERE reference_number='OPENING-CEVL' AND material_code='M/0167002102';
+UPDATE public.stock_movements SET received_date = '2026-03-04' WHERE reference_number='OPENING-CEVL' AND material_code='M/3928201900';
+UPDATE public.stock_movements SET received_date = '2026-03-04' WHERE reference_number='OPENING-CEVL' AND material_code='M/0128201100';
+UPDATE public.stock_movements SET received_date = '2026-04-14' WHERE reference_number='OPENING-CEVL' AND material_code='M/3927701900';
+UPDATE public.stock_movements SET received_date = '2026-04-17' WHERE reference_number='OPENING-CEVL' AND material_code='M/3128601900';
+UPDATE public.stock_movements SET received_date = '2026-04-17' WHERE reference_number='OPENING-CEVL' AND material_code='M/0228609900';
+UPDATE public.stock_movements SET received_date = '2026-04-17' WHERE reference_number='OPENING-CEVL' AND material_code='M/3028101102';
+UPDATE public.stock_movements SET received_date = '2026-04-17' WHERE reference_number='OPENING-CEVL' AND material_code='M/3128101900';
+UPDATE public.stock_movements SET received_date = '2026-04-23' WHERE reference_number='OPENING-CEVL' AND material_code='M/2719401936';
+UPDATE public.stock_movements SET received_date = '2026-04-23' WHERE reference_number='OPENING-CEVL' AND material_code='M/3928101902';
