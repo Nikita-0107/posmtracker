@@ -276,7 +276,9 @@ export async function exportDispatchReport() {
         received_from_HO: agg.received,
         dispatched_to_WD: agg.dispatched,
         lost: agg.lost,
-        closing_quantity: closing,
+        available_at_wsp: closing,
+        in_transit_to_wd: 0,
+        total_stock: closing,
       });
       running = closing;
     }
