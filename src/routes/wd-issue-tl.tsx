@@ -59,6 +59,11 @@ function WdIssueTlPage() {
   const [date, setDate] = useState(today);
   const [lines, setLines] = useState<LineDraft[]>([newLine()]);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const tlRef = useRef<HTMLSelectElement | null>(null);
+  const dateRef = useRef<HTMLInputElement | null>(null);
+  const linesRef = useRef<HTMLDivElement | null>(null);
 
   // Materials with stock > 0
   const stockedMaterials = useMemo(
