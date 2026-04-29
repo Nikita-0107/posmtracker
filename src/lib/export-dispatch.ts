@@ -278,12 +278,21 @@ export async function exportDispatchReport() {
         received_from_HO: agg.received,
         dispatched_to_WD: agg.dispatched,
         lost: agg.lost,
+        // placeholders — overwritten for the latest row per key below
         available_at_wsp: closing,
         in_transit_to_wd: 0,
         total_stock: closing,
       });
       running = closing;
     }
+    // Patch the most recent row for this (wsp, material) with live in-transit
+    const lastRow = ledgerRows[ledgerRows.length - 1];
+    const transit = inTransitByWspMaterial.get(key) ?? 0;
+    const total = running;
+    const available = Math.max(0, total - transit);
+    lastRow.available_at_wsp = available;
+    lastRow.in_transit_to_wd = transit;
+    lastRow.total_stock = available + transit;
   }
 
   ledgerRows.sort((a, b) => {
