@@ -10,6 +10,7 @@ import {
   Loader2,
   Clock,
   RefreshCw,
+  ArrowLeft,
 } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { NotificationBell } from "@/components/NotificationBell";
@@ -109,6 +110,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !PUBLIC_PATHS.some((p) => location.pathname.startsWith(p)) &&
     (!hasPrimaryRole || !hasEntity);
 
+  const homePath = landingForRoles(roles);
+  const onPublicPath = PUBLIC_PATHS.some((p) => location.pathname.startsWith(p));
+  const showBackHome =
+    !!user &&
+    !authLoading &&
+    !rolesLoading &&
+    !onPublicPath &&
+    !showWaitingScreen &&
+    location.pathname !== homePath;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-card px-3 py-2 shadow-sm">
@@ -145,6 +156,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           )}
         </div>
       </header>
+
+      {showBackHome && (
+        <div className="sticky top-[52px] z-20 border-b bg-card/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <Link
+            to={homePath}
+            aria-label="Back to Home"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/10 active:scale-[0.98]"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} />
+            <span>Back to Home</span>
+          </Link>
+        </div>
+      )}
 
       <main className="flex-1 overflow-y-auto px-3 py-4 pb-20">
         {showLoadingOverlay ? (
