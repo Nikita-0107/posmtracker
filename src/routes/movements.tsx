@@ -55,7 +55,7 @@ type EditRow = {
 };
 
 const SIGNED_TTL = 60 * 60; // 1 hour
-const EDIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function formatDateTime(iso: string) {
   const d = new Date(iso);
