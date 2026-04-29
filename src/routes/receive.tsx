@@ -857,6 +857,9 @@ function ReceiveLineItemRow({
               </div>
             );
           })()}
+          {showQtyError && (
+            <span className="block text-[10px] font-semibold text-destructive">Enter a quantity greater than 0</span>
+          )}
         </div>
       </div>
 
