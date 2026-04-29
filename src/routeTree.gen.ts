@@ -21,8 +21,10 @@ import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as LossesRouteImport } from './routes/losses'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
 
 const WspIssuesRoute = WspIssuesRouteImport.update({
   id: '/wsp-issues',
@@ -84,6 +86,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConcernsRoute = ConcernsRouteImport.update({
+  id: '/concerns',
+  path: '/concerns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -94,9 +101,15 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminConcernsRoute = AdminConcernsRouteImport.update({
+  id: '/admin/concerns',
+  path: '/admin/concerns',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
@@ -109,10 +122,12 @@ export interface FileRoutesByFullPath {
   '/wd-issue-tl': typeof WdIssueTlRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
+  '/admin/concerns': typeof AdminConcernsRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
@@ -125,11 +140,13 @@ export interface FileRoutesByTo {
   '/wd-issue-tl': typeof WdIssueTlRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
+  '/admin/concerns': typeof AdminConcernsRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
@@ -142,12 +159,14 @@ export interface FileRoutesById {
   '/wd-issue-tl': typeof WdIssueTlRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
+  '/admin/concerns': typeof AdminConcernsRoute
   '/admin/users': typeof AdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/concerns'
     | '/login'
     | '/losses'
     | '/movements'
@@ -160,10 +179,12 @@ export interface FileRouteTypes {
     | '/wd-issue-tl'
     | '/wsp-in-transit'
     | '/wsp-issues'
+    | '/admin/concerns'
     | '/admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/concerns'
     | '/login'
     | '/losses'
     | '/movements'
@@ -176,10 +197,12 @@ export interface FileRouteTypes {
     | '/wd-issue-tl'
     | '/wsp-in-transit'
     | '/wsp-issues'
+    | '/admin/concerns'
     | '/admin/users'
   id:
     | '__root__'
     | '/'
+    | '/concerns'
     | '/login'
     | '/losses'
     | '/movements'
@@ -192,11 +215,13 @@ export interface FileRouteTypes {
     | '/wd-issue-tl'
     | '/wsp-in-transit'
     | '/wsp-issues'
+    | '/admin/concerns'
     | '/admin/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ConcernsRoute: typeof ConcernsRoute
   LoginRoute: typeof LoginRoute
   LossesRoute: typeof LossesRoute
   MovementsRoute: typeof MovementsRoute
@@ -209,6 +234,7 @@ export interface RootRouteChildren {
   WdIssueTlRoute: typeof WdIssueTlRoute
   WspInTransitRoute: typeof WspInTransitRoute
   WspIssuesRoute: typeof WspIssuesRoute
+  AdminConcernsRoute: typeof AdminConcernsRoute
   AdminUsersRoute: typeof AdminUsersRoute
 }
 
@@ -298,6 +324,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/concerns': {
+      id: '/concerns'
+      path: '/concerns'
+      fullPath: '/concerns'
+      preLoaderRoute: typeof ConcernsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -312,11 +345,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/concerns': {
+      id: '/admin/concerns'
+      path: '/admin/concerns'
+      fullPath: '/admin/concerns'
+      preLoaderRoute: typeof AdminConcernsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ConcernsRoute: ConcernsRoute,
   LoginRoute: LoginRoute,
   LossesRoute: LossesRoute,
   MovementsRoute: MovementsRoute,
@@ -329,6 +370,7 @@ const rootRouteChildren: RootRouteChildren = {
   WdIssueTlRoute: WdIssueTlRoute,
   WspInTransitRoute: WspInTransitRoute,
   WspIssuesRoute: WspIssuesRoute,
+  AdminConcernsRoute: AdminConcernsRoute,
   AdminUsersRoute: AdminUsersRoute,
 }
 export const routeTree = rootRouteImport

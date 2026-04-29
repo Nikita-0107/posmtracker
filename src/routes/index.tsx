@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send } from "lucide-react";
+import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send, MessageSquareWarning } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/")({
 type Tone = "neutral" | "warning" | "danger";
 
 const operations: Array<{
-  to: "/receive" | "/wd-issue" | "/wsp-in-transit" | "/stock" | "/movements" | "/wsp-issues" | "/losses";
+  to: "/receive" | "/wd-issue" | "/wsp-in-transit" | "/stock" | "/movements" | "/wsp-issues" | "/losses" | "/concerns";
   label: string;
   desc: string;
   icon: typeof Inbox;
@@ -80,6 +80,14 @@ const operations: Array<{
     icon: XOctagon,
     iconColor: "bg-destructive/10 text-destructive",
     tone: "neutral",
+  },
+  {
+    to: "/concerns",
+    label: "Concerns to HO",
+    desc: "Report stock issues",
+    icon: MessageSquareWarning,
+    iconColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+    tone: "warning",
   },
 ];
 
