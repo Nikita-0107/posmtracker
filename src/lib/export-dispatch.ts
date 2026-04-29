@@ -314,7 +314,9 @@ export async function exportDispatchReport() {
     .map(([code, qty]) => ({
       material_code: code,
       material_name: matMap.get(code) ?? "",
-      current_stock: qty,
+      available_at_wsp: qty,
+      in_transit_to_wd: 0,
+      total_stock: qty,
       total_lost: lostByMaterial.get(code) ?? 0,
     }))
     .sort((a, b) => a.material_code.localeCompare(b.material_code));
