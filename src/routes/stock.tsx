@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Search, Boxes, X, Loader2, Download } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Boxes, X, Loader2, Download, Truck, PackageCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock } from "@/hooks/use-stock";
 import { exportDispatchReport } from "@/lib/export-dispatch";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/stock")({
