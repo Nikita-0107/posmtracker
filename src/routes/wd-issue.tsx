@@ -299,20 +299,25 @@ function WdIssuePage() {
             </div>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold text-foreground">Date</span>
+              <span className="text-xs font-semibold text-foreground">
+                Date <span className="text-destructive">*</span>
+              </span>
               <div className="relative">
                 <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  ref={dateRef}
                   type="date"
                   value={date}
                   max={todayISO()}
                   onChange={(e) => setDate(e.target.value)}
-                  className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                  className={`${inputClass} pl-9 ${(futureDate || dateMissing) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                 />
               </div>
-              {futureDate && (
+              {futureDate ? (
                 <span className="text-[11px] font-semibold text-destructive">Date cannot be in the future</span>
-              )}
+              ) : dateMissing ? (
+                <span className="text-[11px] font-semibold text-destructive">Date is required</span>
+              ) : null}
             </label>
 
             <label className="block space-y-1">
