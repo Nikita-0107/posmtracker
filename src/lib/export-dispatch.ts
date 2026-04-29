@@ -247,6 +247,23 @@ export async function exportDispatchReport() {
     }
   }
 
+  // In Transit to WD — sum of dispatch qty where item_status = 'pending'
+  // (mirrors the WSP Stock UI logic exactly). Computed before ledger build
+  // so both the ledger and Current Stock sheets can use it.
+  const inTransitByMaterial = new Map<string, number>();
+  const inTransitByWspMaterial = new Map<string, number>();
+  for (const m of movements) {
+    if (m.movement !== "dispatch") continue;
+    if (!m.material_code || m.qty <= 0) continue;
+    if ((m.item_status ?? "").toLowerCase() !== "pending") continue;
+    inTransitByMaterial.set(
+      m.material_code,
+      (inTransitByMaterial.get(m.material_code) ?? 0) + m.qty,
+    );
+    const k = `${m.wsp}::${m.material_code}`;
+    inTransitByWspMaterial.set(k, (inTransitByWspMaterial.get(k) ?? 0) + m.qty);
+  }
+
   const ledgerRows: {
     date: string;
     material_code: string;
