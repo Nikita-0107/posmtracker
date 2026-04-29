@@ -511,7 +511,9 @@ export async function exportDispatchReport() {
     { wch: 13 },
     { wch: 10 },
     { wch: 10 },
-    { wch: 16 },
+    { wch: 18 }, // available_at_wsp
+    { wch: 18 }, // in_transit_to_wd
+    { wch: 14 }, // total_stock
     { wch: 14 },
     { wch: 14 },
   ];
