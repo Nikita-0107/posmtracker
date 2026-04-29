@@ -259,8 +259,9 @@ function ReceivePage() {
     setItems([newLine()]);
     setPoNumber("");
     setReceivedDate(todayISO());
-    if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
+    if (proof && proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
+    setSubmitted(false);
     void refresh();
   }
 
