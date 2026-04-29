@@ -157,6 +157,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
+      {showBackHome && (
+        <div className="sticky top-[52px] z-20 border-b bg-card/95 px-3 py-1.5 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          <Link
+            to={homePath}
+            aria-label="Back to Home"
+            className="inline-flex min-h-[40px] items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-primary transition hover:bg-primary/10 active:scale-[0.98]"
+          >
+            <ArrowLeft size={18} strokeWidth={2.5} />
+            <span>Back to Home</span>
+          </Link>
+        </div>
+      )}
+
       <main className="flex-1 overflow-y-auto px-3 py-4 pb-20">
         {showLoadingOverlay ? (
           <div className="flex items-center justify-center py-16 text-muted-foreground">
