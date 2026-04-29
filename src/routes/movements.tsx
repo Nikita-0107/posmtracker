@@ -54,7 +54,7 @@ type EditRow = {
   editor_name?: string | null;
 };
 
-const SIGNED_TTL = 60 * 60; // 1 hour
+const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days (refreshed on every page load)
 const EDIT_WINDOW_MS = 48 * 60 * 60 * 1000;
 
 function formatDateTime(iso: string) {
