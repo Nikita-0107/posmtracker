@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
 import { ShieldCheck, Loader2, CheckCircle2, XCircle, Clock, AlertTriangle, MessageSquareWarning, Image as ImageIcon } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -117,6 +118,7 @@ function AdminConcernsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl space-y-4">
+        <AdminTabs />
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <ShieldCheck size={20} className="text-primary" />
