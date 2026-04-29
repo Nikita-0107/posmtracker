@@ -94,6 +94,13 @@ function ReceivePage() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Refs for scroll-to-first-error
+  const poRef = useRef<HTMLInputElement | null>(null);
+  const dateRef = useRef<HTMLInputElement | null>(null);
+  const proofRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const [submitResult, setSubmitResult] = useState<{
     poNumber: string;
@@ -141,21 +148,51 @@ function ReceivePage() {
     itemValidations.length > 0 && itemValidations.every((v) => v.ok);
   const futureDate = receivedDate > todayISO();
 
-  const canSubmit =
-    poNumber.trim().length > 0 &&
-    !!receivedDate &&
-    !futureDate &&
-    !!proof &&
-    allItemsValid &&
-    !busy;
+  const poMissing = poNumber.trim().length === 0;
+  const dateMissing = !receivedDate;
+  const proofMissing = !proof;
+
+  function scrollToEl(el: HTMLElement | null) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Try to focus inputs for accessibility (skip for div containers)
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      setTimeout(() => el.focus({ preventScroll: true }), 250);
+    }
+  }
 
   async function handleSubmit() {
-    if (!proof) {
+    setSubmitted(true);
+    setError(null);
+
+    // Collect issues in order
+    const issues: { ref: HTMLElement | null; msg: string }[] = [];
+
+    if (poMissing) issues.push({ ref: poRef.current, msg: "PO Number is required" });
+    if (dateMissing) issues.push({ ref: dateRef.current, msg: "Received Date is required" });
+    if (futureDate) issues.push({ ref: dateRef.current, msg: "Date cannot be in the future" });
+    if (proofMissing) {
       setProofError("PO image is required");
+      issues.push({ ref: proofRef.current, msg: "PO image is required" });
+    } else {
+      setProofError(null);
+    }
+
+    // Per-item issues
+    itemValidations.forEach((v, idx) => {
+      if (!v.ok) {
+        const el = itemRefs.current[items[idx].id] ?? null;
+        issues.push({ ref: el, msg: `Item #${idx + 1} is incomplete` });
+      }
+    });
+
+    if (issues.length > 0) {
+      setError("Please fill all required fields");
+      scrollToEl(issues[0].ref);
       return;
     }
-    setProofError(null);
-    if (!canSubmit) return;
+
+    if (busy) return;
 
     const payload = items
       .filter((it) => itemValidations[items.indexOf(it)].ok)
@@ -177,9 +214,10 @@ function ReceivePage() {
 
     setBusy(true);
     setError(null);
+    const proofPath = proof!.path;
     const { error: rpcError } = await receiveMaterials(
       poNumber.trim(),
-      proof.path,
+      proofPath,
       payload,
       receivedDate,
     );
@@ -221,8 +259,9 @@ function ReceivePage() {
     setItems([newLine()]);
     setPoNumber("");
     setReceivedDate(todayISO());
-    if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
+    if (proof && proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
+    setSubmitted(false);
     void refresh();
   }
 
@@ -270,13 +309,18 @@ function ReceivePage() {
                 PO Number <span className="text-destructive">*</span>
               </span>
               <input
+                ref={poRef}
                 type="text"
                 placeholder="Enter PO number"
                 value={poNumber}
                 onChange={(e) => setPoNumber(e.target.value)}
-                className={inputClass}
+                className={`${inputClass} ${submitted && poMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                aria-invalid={submitted && poMissing}
                 required
               />
+              {submitted && poMissing && (
+                <span className="block text-[11px] font-semibold text-destructive">PO Number is required</span>
+              )}
             </label>
 
             <label className="block space-y-1">
@@ -286,31 +330,37 @@ function ReceivePage() {
               <div className="relative">
                 <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  ref={dateRef}
                   type="date"
                   value={receivedDate}
                   max={todayISO()}
                   onChange={(e) => setReceivedDate(e.target.value)}
-                  className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                  className={`${inputClass} pl-9 ${futureDate || (submitted && dateMissing) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                  aria-invalid={futureDate || (submitted && dateMissing)}
                   required
                 />
               </div>
-              {futureDate && (
+              {futureDate ? (
                 <span className="text-[11px] font-semibold text-destructive">Date cannot be in the future</span>
-              )}
+              ) : submitted && dateMissing ? (
+                <span className="text-[11px] font-semibold text-destructive">Received Date is required</span>
+              ) : null}
             </label>
 
             {wsp && user && (
-              <ProofImageUpload
-                wsp={wsp}
-                userId={user.id}
-                kind="receive"
-                value={proof}
-                onChange={(v) => {
-                  setProof(v);
-                  if (v) setProofError(null);
-                }}
-                error={proofError}
-              />
+              <div ref={proofRef}>
+                <ProofImageUpload
+                  wsp={wsp}
+                  userId={user.id}
+                  kind="receive"
+                  value={proof}
+                  onChange={(v) => {
+                    setProof(v);
+                    if (v) setProofError(null);
+                  }}
+                  error={proofError ?? (submitted && proofMissing ? "PO image is required" : null)}
+                />
+              </div>
             )}
           </section>
 
@@ -347,6 +397,9 @@ function ReceivePage() {
                       stockQty={stockQty}
                       stockLoading={stockLoading}
                       dup={v.dup}
+                      validation={v}
+                      submitted={submitted}
+                      rowRef={(el) => { itemRefs.current[it.id] = el; }}
                       onChange={(patch) => updateItem(it.id, patch)}
                       onRemove={() => removeItem(it.id)}
                       canRemove={items.length > 1}
@@ -386,8 +439,8 @@ function ReceivePage() {
 
             <button
               onClick={handleSubmit}
-              disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <PackagePlus size={16} />}
               {busy
@@ -480,6 +533,9 @@ type ReceiveLineItemRowProps = {
   stockQty: number;
   stockLoading: boolean;
   dup: boolean;
+  validation: { hasMaterial: boolean; qtyOk: boolean; dup: boolean; ok: boolean };
+  submitted: boolean;
+  rowRef: (el: HTMLDivElement | null) => void;
   canRemove: boolean;
   inputClass: string;
   onChange: (patch: Partial<LineItem>) => void;
@@ -493,6 +549,9 @@ function ReceiveLineItemRow({
   stockQty,
   stockLoading,
   dup,
+  validation,
+  submitted,
+  rowRef,
   canRemove,
   inputClass,
   onChange,
@@ -554,13 +613,18 @@ function ReceiveLineItemRow({
     });
   }
 
+  const showMaterialError = submitted && !validation.hasMaterial;
+  const showQtyError = submitted && validation.hasMaterial && !validation.qtyOk;
+  const rowInvalid = submitted && !validation.ok;
+
   return (
     <motion.div
+      ref={rowRef}
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0, marginTop: 0 }}
       transition={{ duration: 0.15 }}
-      className="space-y-2 rounded-xl border-2 border-border bg-card p-3"
+      className={`space-y-2 rounded-xl border-2 bg-card p-3 ${rowInvalid ? "border-destructive ring-2 ring-destructive/20" : "border-border"}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
@@ -589,7 +653,8 @@ function ReceiveLineItemRow({
             }
             onFocus={() => onChange({ open: true })}
             placeholder="Search material code or name"
-            className={`${inputClass} pl-9 pr-9`}
+            className={`${inputClass} pl-9 pr-9 ${showMaterialError ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+            aria-invalid={showMaterialError}
           />
           {item.query && (
             <button
@@ -657,6 +722,10 @@ function ReceiveLineItemRow({
         </div>
       )}
 
+      {showMaterialError && !item.isNew && !item.material && (
+        <p className="text-[11px] font-semibold text-destructive">Please select or add a material</p>
+      )}
+
       {/* Existing material chip */}
       {item.material && (
         <div className={`flex items-center justify-between gap-2 rounded-lg border bg-muted/50 px-2.5 py-2 ${dup ? "border-destructive ring-2 ring-destructive/20" : ""}`}>
@@ -701,8 +770,11 @@ function ReceiveLineItemRow({
               value={item.newCode}
               onChange={(e) => onChange({ newCode: e.target.value })}
               placeholder="e.g. M/27008019C9"
-              className={`${inputClass} py-2 font-mono text-xs`}
+              className={`${inputClass} py-2 font-mono text-xs ${submitted && item.isNew && item.newCode.trim().length === 0 ? "border-destructive ring-2 ring-destructive/20" : ""}`}
             />
+            {submitted && item.isNew && item.newCode.trim().length === 0 && (
+              <span className="block text-[10px] font-semibold text-destructive">Material code is required</span>
+            )}
           </label>
           <label className="block space-y-0.5">
             <span className="text-[10px] font-semibold text-foreground">
@@ -713,8 +785,11 @@ function ReceiveLineItemRow({
               value={item.newName}
               onChange={(e) => onChange({ newName: e.target.value })}
               placeholder="Material description"
-              className={`${inputClass} py-2 text-xs`}
+              className={`${inputClass} py-2 text-xs ${submitted && item.isNew && item.newName.trim().length === 0 ? "border-destructive ring-2 ring-destructive/20" : ""}`}
             />
+            {submitted && item.isNew && item.newName.trim().length === 0 && (
+              <span className="block text-[10px] font-semibold text-destructive">Description is required</span>
+            )}
           </label>
         </div>
       )}
@@ -767,7 +842,8 @@ function ReceiveLineItemRow({
                     onChange({ qty: v });
                   }}
                   disabled={disabled}
-                  className="h-9 w-full min-w-0 rounded-lg border bg-card px-2 text-center text-sm font-bold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-40"
+                  aria-invalid={showQtyError}
+                  className={`h-9 w-full min-w-0 rounded-lg border bg-card px-2 text-center text-sm font-bold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-40 ${showQtyError ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                 />
                 <button
                   type="button"
@@ -781,6 +857,9 @@ function ReceiveLineItemRow({
               </div>
             );
           })()}
+          {showQtyError && (
+            <span className="block text-[10px] font-semibold text-destructive">Enter a quantity greater than 0</span>
+          )}
         </div>
       </div>
 
