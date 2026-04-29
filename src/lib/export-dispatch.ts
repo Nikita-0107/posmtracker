@@ -247,6 +247,23 @@ export async function exportDispatchReport() {
     }
   }
 
+  // In Transit to WD — sum of dispatch qty where item_status = 'pending'
+  // (mirrors the WSP Stock UI logic exactly). Computed before ledger build
+  // so both the ledger and Current Stock sheets can use it.
+  const inTransitByMaterial = new Map<string, number>();
+  const inTransitByWspMaterial = new Map<string, number>();
+  for (const m of movements) {
+    if (m.movement !== "dispatch") continue;
+    if (!m.material_code || m.qty <= 0) continue;
+    if ((m.item_status ?? "").toLowerCase() !== "pending") continue;
+    inTransitByMaterial.set(
+      m.material_code,
+      (inTransitByMaterial.get(m.material_code) ?? 0) + m.qty,
+    );
+    const k = `${m.wsp}::${m.material_code}`;
+    inTransitByWspMaterial.set(k, (inTransitByWspMaterial.get(k) ?? 0) + m.qty);
+  }
+
   const ledgerRows: {
     date: string;
     material_code: string;
@@ -278,12 +295,21 @@ export async function exportDispatchReport() {
         received_from_HO: agg.received,
         dispatched_to_WD: agg.dispatched,
         lost: agg.lost,
+        // placeholders — overwritten for the latest row per key below
         available_at_wsp: closing,
         in_transit_to_wd: 0,
         total_stock: closing,
       });
       running = closing;
     }
+    // Patch the most recent row for this (wsp, material) with live in-transit
+    const lastRow = ledgerRows[ledgerRows.length - 1];
+    const transit = inTransitByWspMaterial.get(key) ?? 0;
+    const total = running;
+    const available = Math.max(0, total - transit);
+    lastRow.available_at_wsp = available;
+    lastRow.in_transit_to_wd = transit;
+    lastRow.total_stock = available + transit;
   }
 
   ledgerRows.sort((a, b) => {
@@ -291,8 +317,12 @@ export async function exportDispatchReport() {
     return a.material_code.localeCompare(b.material_code);
   });
 
+  // (in-transit maps already computed above, before ledger build)
   // -------------------------------------------------------------
   // Current Stock — add total_lost reference column
+  // total_stock here = on-hand running balance (already nets out dispatches),
+  // so Available at WSP = total_stock - in_transit, and the UI's "Total"
+  // chip = Available + In Transit = total_stock.
   // -------------------------------------------------------------
   const currentByMaterial = new Map<string, number>();
   const lostByMaterial = new Map<string, number>();
@@ -311,14 +341,18 @@ export async function exportDispatchReport() {
   }
 
   const currentStockRows = Array.from(currentByMaterial.entries())
-    .map(([code, qty]) => ({
-      material_code: code,
-      material_name: matMap.get(code) ?? "",
-      available_at_wsp: qty,
-      in_transit_to_wd: 0,
-      total_stock: qty,
-      total_lost: lostByMaterial.get(code) ?? 0,
-    }))
+    .map(([code, total]) => {
+      const transit = inTransitByMaterial.get(code) ?? 0;
+      const available = Math.max(0, total - transit);
+      return {
+        material_code: code,
+        material_name: matMap.get(code) ?? "",
+        available_at_wsp: available,
+        in_transit_to_wd: transit,
+        total_stock: available + transit,
+        total_lost: lostByMaterial.get(code) ?? 0,
+      };
+    })
     .sort((a, b) => a.material_code.localeCompare(b.material_code));
 
   // -------------------------------------------------------------
@@ -467,25 +501,40 @@ export async function exportDispatchReport() {
   ];
   const invoiceColIdx = receiveHeader.length - 2;
   const proofColIdxR = receiveHeader.length - 1;
+  // Mark the latest receive row per (wsp, material) so it shows live
+  // Available / In Transit / Total Stock that match the app UI exactly.
+  // receiveRows is sorted DESC by created_at, so the FIRST occurrence wins.
+  const latestReceiveIdx = new Map<string, number>();
+  receiveRows.forEach((r, i) => {
+    const k = `${r.wsp}::${r.material_code}`;
+    if (!latestReceiveIdx.has(k)) latestReceiveIdx.set(k, i);
+  });
   const receiveAoa: (string | number)[][] = [
     receiveHeader,
-    ...receiveRows.map((r) => [
-      r.date,
-      r.wsp,
-      r.material_code,
-      r.material_name,
-      r.invoice_number,
-      r.batch_type,
-      r.received_date,
-      r.current_date,
-      r.age_days,
-      r.quantity,
-      r.closing_quantity, // Available at WSP = Closing Qty
-      0, // In Transit to WD (initialized to 0)
-      r.closing_quantity, // Total Stock = Available + In Transit
-      r.invoice_url ? "View Invoice" : "",
-      r.proof_url ? "View Proof" : "",
-    ]),
+    ...receiveRows.map((r, i) => {
+      const k = `${r.wsp}::${r.material_code}`;
+      const isLatest = latestReceiveIdx.get(k) === i;
+      const transit = isLatest ? inTransitByWspMaterial.get(k) ?? 0 : 0;
+      const total = isLatest ? r.closing_quantity : r.closing_quantity;
+      const available = isLatest ? Math.max(0, total - transit) : r.closing_quantity;
+      return [
+        r.date,
+        r.wsp,
+        r.material_code,
+        r.material_name,
+        r.invoice_number,
+        r.batch_type,
+        r.received_date,
+        r.current_date,
+        r.age_days,
+        r.quantity,
+        available,
+        transit,
+        available + transit,
+        r.invoice_url ? "View Invoice" : "",
+        r.proof_url ? "View Proof" : "",
+      ];
+    }),
   ];
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
