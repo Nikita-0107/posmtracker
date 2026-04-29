@@ -453,7 +453,9 @@ export async function exportDispatchReport() {
     "current_date",
     "age_days",
     "quantity",
-    "closing_quantity",
+    "available_at_wsp",
+    "in_transit_to_wd",
+    "total_stock",
     "invoice_file",
     "proof",
   ];
@@ -472,7 +474,9 @@ export async function exportDispatchReport() {
       r.current_date,
       r.age_days,
       r.quantity,
-      r.closing_quantity,
+      r.closing_quantity, // Available at WSP = Closing Qty
+      0, // In Transit to WD (initialized to 0)
+      r.closing_quantity, // Total Stock = Available + In Transit
       r.invoice_url ? "View Invoice" : "",
       r.proof_url ? "View Proof" : "",
     ]),
