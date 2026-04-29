@@ -255,7 +255,9 @@ export async function exportDispatchReport() {
     received_from_HO: number;
     dispatched_to_WD: number;
     lost: number;
-    closing_quantity: number;
+    available_at_wsp: number;
+    in_transit_to_wd: number;
+    total_stock: number;
   }[] = [];
 
   const keys = Array.from(perKeyDay.keys()).sort();
