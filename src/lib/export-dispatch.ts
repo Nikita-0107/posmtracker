@@ -255,7 +255,9 @@ export async function exportDispatchReport() {
     received_from_HO: number;
     dispatched_to_WD: number;
     lost: number;
-    closing_quantity: number;
+    available_at_wsp: number;
+    in_transit_to_wd: number;
+    total_stock: number;
   }[] = [];
 
   const keys = Array.from(perKeyDay.keys()).sort();
@@ -276,7 +278,9 @@ export async function exportDispatchReport() {
         received_from_HO: agg.received,
         dispatched_to_WD: agg.dispatched,
         lost: agg.lost,
-        closing_quantity: closing,
+        available_at_wsp: closing,
+        in_transit_to_wd: 0,
+        total_stock: closing,
       });
       running = closing;
     }
@@ -310,7 +314,9 @@ export async function exportDispatchReport() {
     .map(([code, qty]) => ({
       material_code: code,
       material_name: matMap.get(code) ?? "",
-      current_stock: qty,
+      available_at_wsp: qty,
+      in_transit_to_wd: 0,
+      total_stock: qty,
       total_lost: lostByMaterial.get(code) ?? 0,
     }))
     .sort((a, b) => a.material_code.localeCompare(b.material_code));
@@ -453,7 +459,9 @@ export async function exportDispatchReport() {
     "current_date",
     "age_days",
     "quantity",
-    "closing_quantity",
+    "available_at_wsp",
+    "in_transit_to_wd",
+    "total_stock",
     "invoice_file",
     "proof",
   ];
@@ -472,7 +480,9 @@ export async function exportDispatchReport() {
       r.current_date,
       r.age_days,
       r.quantity,
-      r.closing_quantity,
+      r.closing_quantity, // Available at WSP = Closing Qty
+      0, // In Transit to WD (initialized to 0)
+      r.closing_quantity, // Total Stock = Available + In Transit
       r.invoice_url ? "View Invoice" : "",
       r.proof_url ? "View Proof" : "",
     ]),
@@ -507,7 +517,9 @@ export async function exportDispatchReport() {
     { wch: 13 },
     { wch: 10 },
     { wch: 10 },
-    { wch: 16 },
+    { wch: 18 }, // available_at_wsp
+    { wch: 18 }, // in_transit_to_wd
+    { wch: 14 }, // total_stock
     { wch: 14 },
     { wch: 14 },
   ];
@@ -523,7 +535,9 @@ export async function exportDispatchReport() {
       "received_from_HO",
       "dispatched_to_WD",
       "lost",
-      "closing_quantity",
+      "available_at_wsp",
+      "in_transit_to_wd",
+      "total_stock",
     ],
   });
   ws2["!cols"] = [
@@ -534,15 +548,31 @@ export async function exportDispatchReport() {
     { wch: 16 },
     { wch: 16 },
     { wch: 10 },
-    { wch: 16 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, ws2, "WSP Stock Ledger");
 
   // ----- Current Stock -----
   const ws3 = XLSX.utils.json_to_sheet(currentStockRows, {
-    header: ["material_code", "material_name", "current_stock", "total_lost"],
+    header: [
+      "material_code",
+      "material_name",
+      "available_at_wsp",
+      "in_transit_to_wd",
+      "total_stock",
+      "total_lost",
+    ],
   });
-  ws3["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 14 }, { wch: 12 }];
+  ws3["!cols"] = [
+    { wch: 14 },
+    { wch: 40 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 12 },
+  ];
   XLSX.utils.book_append_sheet(wb, ws3, "Current Stock");
 
   const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
