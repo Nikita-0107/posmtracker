@@ -73,6 +73,9 @@ function WdIssuePage() {
   const [wdOpen, setWdOpen] = useState(false);
   const [wdHighlight, setWdHighlight] = useState(0);
   const wdBoxRef = useRef<HTMLDivElement | null>(null);
+  const dateRef = useRef<HTMLInputElement | null>(null);
+  const proofRef = useRef<HTMLDivElement | null>(null);
+  const itemsSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Line items
   const [items, setItems] = useState<LineItem[]>([newLine()]);
@@ -81,6 +84,7 @@ function WdIssuePage() {
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     wd: string;
