@@ -613,13 +613,18 @@ function ReceiveLineItemRow({
     });
   }
 
+  const showMaterialError = submitted && !validation.hasMaterial;
+  const showQtyError = submitted && validation.hasMaterial && !validation.qtyOk;
+  const rowInvalid = submitted && !validation.ok;
+
   return (
     <motion.div
+      ref={rowRef}
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0, marginTop: 0 }}
       transition={{ duration: 0.15 }}
-      className="space-y-2 rounded-xl border-2 border-border bg-card p-3"
+      className={`space-y-2 rounded-xl border-2 bg-card p-3 ${rowInvalid ? "border-destructive ring-2 ring-destructive/20" : "border-border"}`}
     >
       <div className="flex items-center justify-between gap-2">
         <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
