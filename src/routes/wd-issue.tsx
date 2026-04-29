@@ -185,15 +185,41 @@ function WdIssuePage() {
   const canSubmit =
     !!wd && allItemsValid && !!proof && !busy && !!date && !futureDate;
 
+  const wdMissing = submitted && !wd;
+  const dateMissing = submitted && (!date || futureDate);
+  const proofMissing = submitted && !proof;
+  const itemsInvalid = submitted && !allItemsValid;
+
   async function handleDispatch() {
+    setSubmitted(true);
+    setError(null);
+
+    type Issue = { ref: HTMLElement | null; msg: string };
+    const issues: Issue[] = [];
+    if (!date || futureDate) {
+      issues.push({ ref: dateRef.current, msg: "Valid dispatch date is required" });
+    }
+    if (!wd) {
+      issues.push({ ref: wdBoxRef.current, msg: "Please select a distributor" });
+    }
+    if (!allItemsValid) {
+      issues.push({ ref: itemsSectionRef.current, msg: "Fix line item errors" });
+    }
     if (!proof) {
       setProofError("Proof image is required");
+      issues.push({ ref: proofRef.current, msg: "Proof image is required" });
+    } else {
+      setProofError(null);
+    }
+
+    if (issues.length > 0) {
+      setError("Please fill all required fields");
+      issues[0].ref?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    setProofError(null);
-    if (!canSubmit) return;
+
+    if (!canSubmit || !proof) return;
     setBusy(true);
-    setError(null);
 
     const payload = items
       .filter((it) => it.material && it.qty)
@@ -227,6 +253,7 @@ function WdIssuePage() {
     setWd("");
     setWdQuery("");
     setDate(todayISO());
+    setSubmitted(false);
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
     void refresh();
