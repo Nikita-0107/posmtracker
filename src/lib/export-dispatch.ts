@@ -501,25 +501,38 @@ export async function exportDispatchReport() {
   ];
   const invoiceColIdx = receiveHeader.length - 2;
   const proofColIdxR = receiveHeader.length - 1;
+  // Mark the latest receive row per (wsp, material) so it shows live
+  // Available / In Transit / Total Stock that match the app UI exactly.
+  const latestReceiveIdx = new Map<string, number>();
+  receiveRows.forEach((r, i) => {
+    latestReceiveIdx.set(`${r.wsp}::${r.material_code}`, i);
+  });
   const receiveAoa: (string | number)[][] = [
     receiveHeader,
-    ...receiveRows.map((r) => [
-      r.date,
-      r.wsp,
-      r.material_code,
-      r.material_name,
-      r.invoice_number,
-      r.batch_type,
-      r.received_date,
-      r.current_date,
-      r.age_days,
-      r.quantity,
-      r.closing_quantity, // Available at WSP = Closing Qty
-      0, // In Transit to WD (initialized to 0)
-      r.closing_quantity, // Total Stock = Available + In Transit
-      r.invoice_url ? "View Invoice" : "",
-      r.proof_url ? "View Proof" : "",
-    ]),
+    ...receiveRows.map((r, i) => {
+      const k = `${r.wsp}::${r.material_code}`;
+      const isLatest = latestReceiveIdx.get(k) === i;
+      const transit = isLatest ? inTransitByWspMaterial.get(k) ?? 0 : 0;
+      const total = isLatest ? r.closing_quantity : r.closing_quantity;
+      const available = isLatest ? Math.max(0, total - transit) : r.closing_quantity;
+      return [
+        r.date,
+        r.wsp,
+        r.material_code,
+        r.material_name,
+        r.invoice_number,
+        r.batch_type,
+        r.received_date,
+        r.current_date,
+        r.age_days,
+        r.quantity,
+        available,
+        transit,
+        available + transit,
+        r.invoice_url ? "View Invoice" : "",
+        r.proof_url ? "View Proof" : "",
+      ];
+    }),
   ];
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
