@@ -653,7 +653,8 @@ function ReceiveLineItemRow({
             }
             onFocus={() => onChange({ open: true })}
             placeholder="Search material code or name"
-            className={`${inputClass} pl-9 pr-9`}
+            className={`${inputClass} pl-9 pr-9 ${showMaterialError ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+            aria-invalid={showMaterialError}
           />
           {item.query && (
             <button
