@@ -503,9 +503,11 @@ export async function exportDispatchReport() {
   const proofColIdxR = receiveHeader.length - 1;
   // Mark the latest receive row per (wsp, material) so it shows live
   // Available / In Transit / Total Stock that match the app UI exactly.
+  // receiveRows is sorted DESC by created_at, so the FIRST occurrence wins.
   const latestReceiveIdx = new Map<string, number>();
   receiveRows.forEach((r, i) => {
-    latestReceiveIdx.set(`${r.wsp}::${r.material_code}`, i);
+    const k = `${r.wsp}::${r.material_code}`;
+    if (!latestReceiveIdx.has(k)) latestReceiveIdx.set(k, i);
   });
   const receiveAoa: (string | number)[][] = [
     receiveHeader,
