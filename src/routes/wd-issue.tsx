@@ -444,18 +444,20 @@ function WdIssuePage() {
             </div>
 
             {wsp && user && (
-              <ProofImageUpload
-                wsp={wsp}
-                userId={user.id}
-                kind="dispatch"
-                value={proof}
-                onChange={(val) => {
-                  setProof(val);
-                  if (val) setProofError(null);
-                }}
-                error={proofError}
-                label={wd === "WD_FLUSH" ? "Upload Approval Email / Proof" : undefined}
-              />
+              <div ref={proofRef}>
+                <ProofImageUpload
+                  wsp={wsp}
+                  userId={user.id}
+                  kind="dispatch"
+                  value={proof}
+                  onChange={(val) => {
+                    setProof(val);
+                    if (val) setProofError(null);
+                  }}
+                  error={proofError}
+                  label={wd === "WD_FLUSH" ? "Upload Approval Email / Proof *" : "Proof image *"}
+                />
+              </div>
             )}
 
             <div className="flex items-center justify-between rounded-xl border-2 border-accent/30 bg-accent/5 px-3 py-3">
@@ -476,8 +478,8 @@ function WdIssuePage() {
 
             <button
               onClick={handleDispatch}
-              disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
               {busy ? "Dispatching…" : `Dispatch ${itemCount > 0 ? `${itemCount} item${itemCount > 1 ? "s" : ""}` : ""} to WD`}
