@@ -425,8 +425,8 @@ function ReceivePage() {
 
             <button
               onClick={handleSubmit}
-              disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <PackagePlus size={16} />}
               {busy
