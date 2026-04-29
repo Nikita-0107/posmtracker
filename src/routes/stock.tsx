@@ -147,6 +147,24 @@ function StockPage() {
           </p>
         ) : (
           <div className="space-y-4">
+            {/* Top summary */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-xl border bg-success/5 p-3">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase text-success">
+                  <PackageCheck size={12} /> Available at WSP
+                </div>
+                <p className="mt-1 text-2xl font-bold leading-none text-foreground">{totalAvailable}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Confirmed usable stock</p>
+              </div>
+              <div className="rounded-xl border bg-warning/5 p-3">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase text-warning">
+                  <Truck size={12} /> In Transit to WD
+                </div>
+                <p className="mt-1 text-2xl font-bold leading-none text-foreground">{totalInTransit}</p>
+                <p className="mt-1 text-[10px] text-muted-foreground">Pending WD verification</p>
+              </div>
+            </div>
+
             <div className="relative">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -167,32 +185,62 @@ function StockPage() {
               )}
             </div>
 
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {items.length === 0 && (
                 <p className="py-8 text-center text-xs text-muted-foreground">No materials found</p>
               )}
-              {items.map((m) => {
-                const inStock = m.qty > 0;
-                return (
-                  <div
-                    key={m.code}
-                    className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5"
-                  >
+              {items.map((m) => (
+                <div
+                  key={m.code}
+                  className="rounded-xl border bg-card px-3 py-2.5"
+                >
+                  <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-mono text-xs font-bold text-foreground">{m.code}</p>
                       <p className="truncate text-[11px] text-muted-foreground">{m.name}</p>
                     </div>
+                    {m.total > 0 && (
+                      <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-semibold text-muted-foreground">
+                        Total {m.total}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2 grid grid-cols-2 gap-1.5">
                     <div
-                      className={`shrink-0 rounded-lg px-2.5 py-1 text-right ${
-                        inStock ? "bg-success/10 text-success" : "bg-muted text-muted-foreground"
+                      className={`rounded-lg px-2 py-1.5 ${
+                        m.available > 0 ? "bg-success/10" : "bg-muted"
                       }`}
                     >
-                      <p className="text-sm font-bold leading-tight">{m.qty}</p>
-                      <p className="text-[9px] font-semibold uppercase leading-tight">units</p>
+                      <p
+                        className={`text-[9px] font-semibold uppercase leading-tight ${
+                          m.available > 0 ? "text-success" : "text-muted-foreground"
+                        }`}
+                      >
+                        Available at WSP
+                      </p>
+                      <p className="mt-0.5 text-base font-bold leading-tight text-foreground">
+                        {m.available}
+                      </p>
+                    </div>
+                    <div
+                      className={`rounded-lg px-2 py-1.5 ${
+                        m.transit > 0 ? "bg-warning/10" : "bg-muted"
+                      }`}
+                    >
+                      <p
+                        className={`text-[9px] font-semibold uppercase leading-tight ${
+                          m.transit > 0 ? "text-warning" : "text-muted-foreground"
+                        }`}
+                      >
+                        In Transit to WD
+                      </p>
+                      <p className="mt-0.5 text-base font-bold leading-tight text-foreground">
+                        {m.transit}
+                      </p>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
