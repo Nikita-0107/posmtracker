@@ -199,7 +199,7 @@ export async function exportDispatchReport() {
     .map((m) => {
       const proofUrl = m.proof_image_path ? signedMap.get(m.proof_image_path) ?? "" : "";
       const invoiceUrl = m.invoice_file_path ? signedMap.get(m.invoice_file_path) ?? "" : "";
-      const rdate = m.received_date ?? dayKey(m.created_at);
+      const rdate = m.received_date ?? "";
       const id = `${m.created_at}|${m.wsp}|${m.material_code}|${m.qty}|${m.reference_number ?? ""}`;
       const closing = receiveClosingByMovement.get(id) ?? 0;
       return {
