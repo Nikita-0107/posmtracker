@@ -107,28 +107,43 @@ function WdIssueTlPage() {
     setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
   }
 
-  const canSubmit = useMemo(() => {
-    if (!tlId || !date || submitting) return false;
-    if (lines.length === 0) return false;
-    for (const l of lines) {
-      if (!l.material_code) return false;
+  const lineErrors = useMemo(() => {
+    return lines.map((l, idx) => {
+      const codes = lines.map((x) => x.material_code);
+      const dup = !!l.material_code && codes.filter((c) => c === l.material_code).length > 1;
+      const onHand = stockedMaterials.find((m) => m.code === l.material_code)?.qty ?? 0;
       const n = parseInt(l.qty, 10);
-      if (!Number.isFinite(n) || n <= 0) return false;
-    }
-    // No duplicate materials
-    const codes = lines.map((l) => l.material_code);
-    if (new Set(codes).size !== codes.length) return false;
-    // Each line within available stock
-    for (let i = 0; i < lines.length; i++) {
-      const n = parseInt(lines[i].qty, 10);
-      const onHand = stockedMaterials.find((m) => m.code === lines[i].material_code)?.qty ?? 0;
-      if (n > onHand) return false;
-    }
-    return true;
-  }, [tlId, date, lines, submitting, stockedMaterials]);
+      let materialError: string | null = null;
+      let qtyError: string | null = null;
+      if (!l.material_code) materialError = "Select a material";
+      else if (dup) materialError = "Duplicate material";
+      if (!l.qty || !Number.isFinite(n) || n <= 0) qtyError = "Enter quantity";
+      else if (l.material_code && n > onHand) qtyError = `Only ${onHand} in stock`;
+      return { materialError, qtyError, hasError: !!materialError || !!qtyError };
+    });
+  }, [lines, stockedMaterials]);
+
+  const allLinesValid = lineErrors.every((e) => !e.hasError);
+  const tlMissing = submitted && !tlId;
+  const dateMissing = submitted && !date;
+  const linesInvalid = submitted && !allLinesValid;
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    setSubmitted(true);
+    setFormError(null);
+
+    type Issue = { ref: HTMLElement | null; msg: string };
+    const issues: Issue[] = [];
+    if (!tlId) issues.push({ ref: tlRef.current, msg: "Team Leader is required" });
+    if (!date) issues.push({ ref: dateRef.current, msg: "Issue date is required" });
+    if (!allLinesValid) issues.push({ ref: linesRef.current, msg: "Fix line item errors" });
+
+    if (issues.length > 0) {
+      setFormError("Please fill all required fields");
+      issues[0].ref?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
     setSubmitting(true);
     const items = lines.map((l) => ({
       material_code: l.material_code,
@@ -143,6 +158,7 @@ function WdIssueTlPage() {
     toast.success(`Issued to TL · ref ${(issuanceId ?? "").slice(0, 8)}`);
     setLines([newLine()]);
     setTlId("");
+    setSubmitted(false);
     await Promise.all([refreshStock(), refreshHistory()]);
   }
 
