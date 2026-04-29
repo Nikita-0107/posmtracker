@@ -378,20 +378,30 @@ function WdIssuePage() {
                   </div>
                 )}
               </div>
+              {wdMissing && (
+                <span className="text-[11px] font-semibold text-destructive">Distributor is required</span>
+              )}
             </label>
           </section>
 
           {/* LINE ITEMS */}
-          <section className="space-y-2.5">
+          <section ref={itemsSectionRef} className="space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">2</span>
-                <h3 className="text-sm font-bold text-foreground">Line Items</h3>
+                <h3 className="text-sm font-bold text-foreground">
+                  Line Items <span className="text-destructive">*</span>
+                </h3>
               </div>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
                 {itemCount} {itemCount === 1 ? "item" : "items"}
               </span>
             </div>
+            {itemsInvalid && (
+              <p className="text-[11px] font-semibold text-destructive">
+                Each line needs a material and a valid quantity within stock
+              </p>
+            )}
 
             <div className="space-y-3">
               <AnimatePresence initial={false}>
