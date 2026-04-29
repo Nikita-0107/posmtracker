@@ -309,13 +309,18 @@ function ReceivePage() {
                 PO Number <span className="text-destructive">*</span>
               </span>
               <input
+                ref={poRef}
                 type="text"
                 placeholder="Enter PO number"
                 value={poNumber}
                 onChange={(e) => setPoNumber(e.target.value)}
-                className={inputClass}
+                className={`${inputClass} ${submitted && poMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                aria-invalid={submitted && poMissing}
                 required
               />
+              {submitted && poMissing && (
+                <span className="block text-[11px] font-semibold text-destructive">PO Number is required</span>
+              )}
             </label>
 
             <label className="block space-y-1">
@@ -325,31 +330,37 @@ function ReceivePage() {
               <div className="relative">
                 <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  ref={dateRef}
                   type="date"
                   value={receivedDate}
                   max={todayISO()}
                   onChange={(e) => setReceivedDate(e.target.value)}
-                  className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                  className={`${inputClass} pl-9 ${futureDate || (submitted && dateMissing) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                  aria-invalid={futureDate || (submitted && dateMissing)}
                   required
                 />
               </div>
-              {futureDate && (
+              {futureDate ? (
                 <span className="text-[11px] font-semibold text-destructive">Date cannot be in the future</span>
-              )}
+              ) : submitted && dateMissing ? (
+                <span className="text-[11px] font-semibold text-destructive">Received Date is required</span>
+              ) : null}
             </label>
 
             {wsp && user && (
-              <ProofImageUpload
-                wsp={wsp}
-                userId={user.id}
-                kind="receive"
-                value={proof}
-                onChange={(v) => {
-                  setProof(v);
-                  if (v) setProofError(null);
-                }}
-                error={proofError}
-              />
+              <div ref={proofRef}>
+                <ProofImageUpload
+                  wsp={wsp}
+                  userId={user.id}
+                  kind="receive"
+                  value={proof}
+                  onChange={(v) => {
+                    setProof(v);
+                    if (v) setProofError(null);
+                  }}
+                  error={proofError ?? (submitted && proofMissing ? "PO image is required" : null)}
+                />
+              </div>
             )}
           </section>
 
