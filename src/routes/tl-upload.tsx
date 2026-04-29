@@ -45,7 +45,13 @@ function TlUploadPage() {
   const [qty, setQty] = useState("1");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [result, setResult] = useState<{ code: string; remaining: number } | null>(null);
+
+  const itemRef = useRef<HTMLSelectElement | null>(null);
+  const qtyRef = useRef<HTMLInputElement | null>(null);
+  const proofRef = useRef<HTMLDivElement | null>(null);
 
   const selected = items.find((i) => i.id === itemId);
   const qtyNum = parseInt(qty, 10);
@@ -55,10 +61,27 @@ function TlUploadPage() {
     !!selected &&
     qtyNum <= selected.remaining;
 
-  const canSubmit = !!selected && qtyValid && !!proof && !submitting;
+  const itemMissing = submitted && !selected;
+  const qtyInvalid = submitted && !qtyValid;
+  const proofMissing = submitted && !proof;
 
   async function handleSubmit() {
-    if (!canSubmit || !selected || !proof) return;
+    setSubmitted(true);
+    setFormError(null);
+
+    type Issue = { ref: HTMLElement | null; msg: string };
+    const issues: Issue[] = [];
+    if (!selected) issues.push({ ref: itemRef.current, msg: "Select a material" });
+    if (!qtyValid) issues.push({ ref: qtyRef.current, msg: "Enter a valid quantity" });
+    if (!proof) issues.push({ ref: proofRef.current, msg: "Proof photo is required" });
+
+    if (issues.length > 0) {
+      setFormError("Please fill all required fields");
+      issues[0].ref?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!selected || !proof) return;
+
     setSubmitting(true);
     const { remaining, error } = await recordTlUpload(selected.id, qtyNum, proof.path);
     setSubmitting(false);
@@ -71,6 +94,7 @@ function TlUploadPage() {
     setItemId("");
     setQty("1");
     setProof(null);
+    setSubmitted(false);
     await refresh();
     setTimeout(() => setResult(null), 5000);
   }
