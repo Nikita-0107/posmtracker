@@ -770,8 +770,11 @@ function ReceiveLineItemRow({
               value={item.newCode}
               onChange={(e) => onChange({ newCode: e.target.value })}
               placeholder="e.g. M/27008019C9"
-              className={`${inputClass} py-2 font-mono text-xs`}
+              className={`${inputClass} py-2 font-mono text-xs ${submitted && item.isNew && item.newCode.trim().length === 0 ? "border-destructive ring-2 ring-destructive/20" : ""}`}
             />
+            {submitted && item.isNew && item.newCode.trim().length === 0 && (
+              <span className="block text-[10px] font-semibold text-destructive">Material code is required</span>
+            )}
           </label>
           <label className="block space-y-0.5">
             <span className="text-[10px] font-semibold text-foreground">
@@ -782,8 +785,11 @@ function ReceiveLineItemRow({
               value={item.newName}
               onChange={(e) => onChange({ newName: e.target.value })}
               placeholder="Material description"
-              className={`${inputClass} py-2 text-xs`}
+              className={`${inputClass} py-2 text-xs ${submitted && item.isNew && item.newName.trim().length === 0 ? "border-destructive ring-2 ring-destructive/20" : ""}`}
             />
+            {submitted && item.isNew && item.newName.trim().length === 0 && (
+              <span className="block text-[10px] font-semibold text-destructive">Description is required</span>
+            )}
           </label>
         </div>
       )}
