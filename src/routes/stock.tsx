@@ -26,6 +26,41 @@ function StockPage() {
   const { stock, loading: stockLoading } = useStock();
   const [query, setQuery] = useState("");
   const [exporting, setExporting] = useState(false);
+  const [inTransit, setInTransit] = useState<Record<string, number>>({});
+  const [transitLoading, setTransitLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    if (!wsp) {
+      setInTransit({});
+      setTransitLoading(false);
+      return;
+    }
+    setTransitLoading(true);
+    supabase
+      .from("stock_movements")
+      .select("material_code, qty")
+      .eq("wsp", wsp)
+      .eq("movement", "dispatch")
+      .eq("item_status", "pending")
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          console.error("Failed to load in-transit", error);
+          setInTransit({});
+        } else {
+          const map: Record<string, number> = {};
+          for (const row of (data ?? []) as { material_code: string; qty: number }[]) {
+            map[row.material_code] = (map[row.material_code] ?? 0) + row.qty;
+          }
+          setInTransit(map);
+        }
+        setTransitLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [wsp, stock]);
 
   async function handleExport() {
     setExporting(true);
@@ -51,15 +86,24 @@ function StockPage() {
           (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
         )
       : materials;
-    return list.map((m) => ({ ...m, qty: stock[m.code] ?? 0 }));
-  }, [query, wsp, materials, stock]);
+    return list.map((m) => {
+      const total = stock[m.code] ?? 0;
+      const transit = inTransit[m.code] ?? 0;
+      const available = Math.max(0, total - transit);
+      return { ...m, total, transit, available };
+    });
+  }, [query, wsp, materials, stock, inTransit]);
 
-  const totalUnits = useMemo(
-    () => Object.values(stock).reduce((a, b) => a + b, 0),
-    [stock],
+  const totalAvailable = useMemo(
+    () => items.reduce((a, m) => a + m.available, 0),
+    [items],
+  );
+  const totalInTransit = useMemo(
+    () => items.reduce((a, m) => a + m.transit, 0),
+    [items],
   );
 
-  const loading = matLoading || stockLoading;
+  const loading = matLoading || stockLoading || transitLoading;
 
   return (
     <AppShell>
