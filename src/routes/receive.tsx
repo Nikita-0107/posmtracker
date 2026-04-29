@@ -94,6 +94,13 @@ function ReceivePage() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+
+  // Refs for scroll-to-first-error
+  const poRef = useRef<HTMLInputElement | null>(null);
+  const dateRef = useRef<HTMLInputElement | null>(null);
+  const proofRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   const [submitResult, setSubmitResult] = useState<{
     poNumber: string;
