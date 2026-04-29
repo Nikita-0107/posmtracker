@@ -206,12 +206,15 @@ function WdIssueTlPage() {
 
         {/* TL select */}
         <label className="block space-y-1">
-          <span className="text-xs font-semibold text-foreground">Team Leader</span>
+          <span className="text-xs font-semibold text-foreground">
+            Team Leader <span className="text-destructive">*</span>
+          </span>
           <select
+            ref={tlRef}
             value={tlId}
             onChange={(e) => setTlId(e.target.value)}
             disabled={tlsLoading}
-            className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+            className={`w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 ${tlMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
           >
             <option value="">— Select TL —</option>
             {tls.map((t) => {
@@ -224,6 +227,9 @@ function WdIssueTlPage() {
               );
             })}
           </select>
+          {tlMissing && (
+            <p className="text-[11px] font-semibold text-destructive">Team Leader is required</p>
+          )}
           {!tlsLoading && tls.length === 0 && (
             <p className="text-[11px] text-muted-foreground">
               No TLs are linked to your WD yet. Ask an admin to assign.
@@ -233,20 +239,28 @@ function WdIssueTlPage() {
 
         {/* Date */}
         <label className="block space-y-1">
-          <span className="text-xs font-semibold text-foreground">Issue date</span>
+          <span className="text-xs font-semibold text-foreground">
+            Issue date <span className="text-destructive">*</span>
+          </span>
           <input
+            ref={dateRef}
             type="date"
             value={date}
             max={today}
             onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+            className={`w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 ${dateMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
           />
+          {dateMissing && (
+            <p className="text-[11px] font-semibold text-destructive">Issue date is required</p>
+          )}
         </label>
 
         {/* Lines */}
-        <div className="space-y-2">
+        <div ref={linesRef} className="space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground">Materials</span>
+            <span className="text-xs font-semibold text-foreground">
+              Materials <span className="text-destructive">*</span>
+            </span>
             <button
               type="button"
               onClick={addLine}
@@ -273,10 +287,12 @@ function WdIssueTlPage() {
               const overByStock = Number.isFinite(qtyNum) && qtyNum > onHand;
               const overByAlloc =
                 Number.isFinite(qtyNum) && !overByStock && qtyNum > avail;
+              const err = lineErrors[idx];
+              const showErr = submitted && err.hasError;
               return (
                 <div
                   key={l.key}
-                  className="space-y-1.5 rounded-xl border bg-card p-2.5"
+                  className={`space-y-1.5 rounded-xl border bg-card p-2.5 ${showErr ? "border-destructive" : ""}`}
                 >
                   <div className="flex items-center gap-2">
                     <select
@@ -284,7 +300,7 @@ function WdIssueTlPage() {
                       onChange={(e) =>
                         updateLine(idx, { material_code: e.target.value })
                       }
-                      className="min-w-0 flex-1 rounded-lg border bg-background px-2 py-2 text-xs font-medium text-foreground"
+                      className={`min-w-0 flex-1 rounded-lg border bg-background px-2 py-2 text-xs font-medium text-foreground ${showErr && err.materialError ? "border-destructive" : ""}`}
                     >
                       <option value="">— Material —</option>
                       {stockedMaterials.map((m) => (
@@ -301,7 +317,7 @@ function WdIssueTlPage() {
                       value={l.qty}
                       onChange={(e) => updateLine(idx, { qty: e.target.value })}
                       placeholder="Qty"
-                      className="w-20 rounded-lg border bg-background px-2 py-2 text-center text-sm font-bold text-foreground"
+                      className={`w-20 rounded-lg border bg-background px-2 py-2 text-center text-sm font-bold text-foreground ${showErr && err.qtyError ? "border-destructive" : ""}`}
                     />
                     <button
                       type="button"
@@ -313,7 +329,12 @@ function WdIssueTlPage() {
                       <Trash2 size={14} />
                     </button>
                   </div>
-                  {l.material_code && (
+                  {showErr && (err.materialError || err.qtyError) && (
+                    <p className="text-[10px] font-semibold text-destructive">
+                      {err.materialError ?? err.qtyError}
+                    </p>
+                  )}
+                  {l.material_code && !showErr && (
                     <p
                       className={`text-[10px] font-semibold ${
                         overByStock || overByAlloc
@@ -332,13 +353,24 @@ function WdIssueTlPage() {
               );
             })
           )}
+          {linesInvalid && (
+            <p className="text-[11px] font-semibold text-destructive">
+              Fix the line item errors above
+            </p>
+          )}
         </div>
+
+        {formError && (
+          <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
+            <AlertTriangle size={14} /> {formError}
+          </div>
+        )}
 
         <button
           type="button"
           onClick={handleSubmit}
-          disabled={!canSubmit}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+          disabled={submitting}
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
         >
           {submitting ? (
             <Loader2 size={16} className="animate-spin" />
