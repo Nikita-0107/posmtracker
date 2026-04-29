@@ -321,7 +321,9 @@ function WdIssuePage() {
             </label>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold text-foreground">Distributor (WD)</span>
+              <span className="text-xs font-semibold text-foreground">
+                Distributor (WD) <span className="text-destructive">*</span>
+              </span>
               <div ref={wdBoxRef} className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -335,7 +337,7 @@ function WdIssuePage() {
                   onFocus={() => setWdOpen(true)}
                   onKeyDown={handleWdKeyDown}
                   placeholder="Search by code or name"
-                  className={`${inputClass} pl-9 pr-9`}
+                  className={`${inputClass} pl-9 pr-9 ${wdMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                   role="combobox"
                   aria-expanded={wdOpen}
                   aria-autocomplete="list"
