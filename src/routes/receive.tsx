@@ -842,7 +842,8 @@ function ReceiveLineItemRow({
                     onChange({ qty: v });
                   }}
                   disabled={disabled}
-                  className="h-9 w-full min-w-0 rounded-lg border bg-card px-2 text-center text-sm font-bold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-40"
+                  aria-invalid={showQtyError}
+                  className={`h-9 w-full min-w-0 rounded-lg border bg-card px-2 text-center text-sm font-bold text-foreground shadow-sm transition focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 disabled:opacity-40 ${showQtyError ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                 />
                 <button
                   type="button"
