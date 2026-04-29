@@ -317,24 +317,7 @@ export async function exportDispatchReport() {
     return a.material_code.localeCompare(b.material_code);
   });
 
-  // -------------------------------------------------------------
-  // In Transit to WD — sum of dispatch qty where item_status = 'pending'
-  // (mirrors the WSP Stock UI logic exactly)
-  // -------------------------------------------------------------
-  const inTransitByMaterial = new Map<string, number>();
-  const inTransitByWspMaterial = new Map<string, number>();
-  for (const m of movements) {
-    if (m.movement !== "dispatch") continue;
-    if (!m.material_code || m.qty <= 0) continue;
-    if ((m.item_status ?? "").toLowerCase() !== "pending") continue;
-    inTransitByMaterial.set(
-      m.material_code,
-      (inTransitByMaterial.get(m.material_code) ?? 0) + m.qty,
-    );
-    const k = `${m.wsp}::${m.material_code}`;
-    inTransitByWspMaterial.set(k, (inTransitByWspMaterial.get(k) ?? 0) + m.qty);
-  }
-
+  // (in-transit maps already computed above, before ledger build)
   // -------------------------------------------------------------
   // Current Stock — add total_lost reference column
   // total_stock here = on-hand running balance (already nets out dispatches),
