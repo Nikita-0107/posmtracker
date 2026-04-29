@@ -533,7 +533,9 @@ export async function exportDispatchReport() {
       "received_from_HO",
       "dispatched_to_WD",
       "lost",
-      "closing_quantity",
+      "available_at_wsp",
+      "in_transit_to_wd",
+      "total_stock",
     ],
   });
   ws2["!cols"] = [
@@ -544,15 +546,31 @@ export async function exportDispatchReport() {
     { wch: 16 },
     { wch: 16 },
     { wch: 10 },
-    { wch: 16 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
   ];
   XLSX.utils.book_append_sheet(wb, ws2, "WSP Stock Ledger");
 
   // ----- Current Stock -----
   const ws3 = XLSX.utils.json_to_sheet(currentStockRows, {
-    header: ["material_code", "material_name", "current_stock", "total_lost"],
+    header: [
+      "material_code",
+      "material_name",
+      "available_at_wsp",
+      "in_transit_to_wd",
+      "total_stock",
+      "total_lost",
+    ],
   });
-  ws3["!cols"] = [{ wch: 14 }, { wch: 40 }, { wch: 14 }, { wch: 12 }];
+  ws3["!cols"] = [
+    { wch: 14 },
+    { wch: 40 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 12 },
+  ];
   XLSX.utils.book_append_sheet(wb, ws3, "Current Stock");
 
   const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
