@@ -292,7 +292,28 @@ export async function exportDispatchReport() {
   });
 
   // -------------------------------------------------------------
+  // In Transit to WD — sum of dispatch qty where item_status = 'pending'
+  // (mirrors the WSP Stock UI logic exactly)
+  // -------------------------------------------------------------
+  const inTransitByMaterial = new Map<string, number>();
+  const inTransitByWspMaterial = new Map<string, number>();
+  for (const m of movements) {
+    if (m.movement !== "dispatch") continue;
+    if (!m.material_code || m.qty <= 0) continue;
+    if ((m.item_status ?? "").toLowerCase() !== "pending") continue;
+    inTransitByMaterial.set(
+      m.material_code,
+      (inTransitByMaterial.get(m.material_code) ?? 0) + m.qty,
+    );
+    const k = `${m.wsp}::${m.material_code}`;
+    inTransitByWspMaterial.set(k, (inTransitByWspMaterial.get(k) ?? 0) + m.qty);
+  }
+
+  // -------------------------------------------------------------
   // Current Stock — add total_lost reference column
+  // total_stock here = on-hand running balance (already nets out dispatches),
+  // so Available at WSP = total_stock - in_transit, and the UI's "Total"
+  // chip = Available + In Transit = total_stock.
   // -------------------------------------------------------------
   const currentByMaterial = new Map<string, number>();
   const lostByMaterial = new Map<string, number>();
@@ -311,14 +332,18 @@ export async function exportDispatchReport() {
   }
 
   const currentStockRows = Array.from(currentByMaterial.entries())
-    .map(([code, qty]) => ({
-      material_code: code,
-      material_name: matMap.get(code) ?? "",
-      available_at_wsp: qty,
-      in_transit_to_wd: 0,
-      total_stock: qty,
-      total_lost: lostByMaterial.get(code) ?? 0,
-    }))
+    .map(([code, total]) => {
+      const transit = inTransitByMaterial.get(code) ?? 0;
+      const available = Math.max(0, total - transit);
+      return {
+        material_code: code,
+        material_name: matMap.get(code) ?? "",
+        available_at_wsp: available,
+        in_transit_to_wd: transit,
+        total_stock: available + transit,
+        total_lost: lostByMaterial.get(code) ?? 0,
+      };
+    })
     .sort((a, b) => a.material_code.localeCompare(b.material_code));
 
   // -------------------------------------------------------------
