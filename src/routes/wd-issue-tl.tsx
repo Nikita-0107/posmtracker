@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { Loader2, Plus, Send, Trash2, Users } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { AlertTriangle, Loader2, Plus, Send, Trash2, Users } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
