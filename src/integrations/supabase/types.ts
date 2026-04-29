@@ -560,19 +560,32 @@ export type Database = {
             }
             Returns: number
           }
-      receive_material_with_create: {
-        Args: {
-          _batch_type?: Database["public"]["Enums"]["batch_type"]
-          _invoice_file_path?: string
-          _material_code: string
-          _material_name: string
-          _proof_image_path: string
-          _qty: number
-          _received_date?: string
-          _reference_number: string
-        }
-        Returns: number
-      }
+      receive_material_with_create:
+        | {
+            Args: {
+              _batch_type?: Database["public"]["Enums"]["batch_type"]
+              _invoice_file_path?: string
+              _material_code: string
+              _material_name: string
+              _proof_image_path: string
+              _qty: number
+              _received_date?: string
+              _reference_number: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              _batch_type?: Database["public"]["Enums"]["batch_type"]
+              _material_code: string
+              _material_name: string
+              _proof_image_path: string
+              _qty: number
+              _received_date?: string
+              _reference_number: string
+            }
+            Returns: number
+          }
       receive_materials: {
         Args: {
           _batch_type?: Database["public"]["Enums"]["batch_type"]
