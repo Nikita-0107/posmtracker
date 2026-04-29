@@ -78,6 +78,8 @@
   --ring: oklch(0.50 0.18 260);
   --success: oklch(0.60 0.18 145);
   --success-foreground: oklch(0.99 0.005 145);
+  --warning: oklch(0.72 0.17 65);
+  --warning-foreground: oklch(0.20 0.04 65);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
