@@ -148,21 +148,51 @@ function ReceivePage() {
     itemValidations.length > 0 && itemValidations.every((v) => v.ok);
   const futureDate = receivedDate > todayISO();
 
-  const canSubmit =
-    poNumber.trim().length > 0 &&
-    !!receivedDate &&
-    !futureDate &&
-    !!proof &&
-    allItemsValid &&
-    !busy;
+  const poMissing = poNumber.trim().length === 0;
+  const dateMissing = !receivedDate;
+  const proofMissing = !proof;
+
+  function scrollToEl(el: HTMLElement | null) {
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Try to focus inputs for accessibility (skip for div containers)
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      setTimeout(() => el.focus({ preventScroll: true }), 250);
+    }
+  }
 
   async function handleSubmit() {
-    if (!proof) {
+    setSubmitted(true);
+    setError(null);
+
+    // Collect issues in order
+    const issues: { ref: HTMLElement | null; msg: string }[] = [];
+
+    if (poMissing) issues.push({ ref: poRef.current, msg: "PO Number is required" });
+    if (dateMissing) issues.push({ ref: dateRef.current, msg: "Received Date is required" });
+    if (futureDate) issues.push({ ref: dateRef.current, msg: "Date cannot be in the future" });
+    if (proofMissing) {
       setProofError("PO image is required");
+      issues.push({ ref: proofRef.current, msg: "PO image is required" });
+    } else {
+      setProofError(null);
+    }
+
+    // Per-item issues
+    itemValidations.forEach((v, idx) => {
+      if (!v.ok) {
+        const el = itemRefs.current[items[idx].id] ?? null;
+        issues.push({ ref: el, msg: `Item #${idx + 1} is incomplete` });
+      }
+    });
+
+    if (issues.length > 0) {
+      setError("Please fill all required fields");
+      scrollToEl(issues[0].ref);
       return;
     }
-    setProofError(null);
-    if (!canSubmit) return;
+
+    if (busy) return;
 
     const payload = items
       .filter((it) => itemValidations[items.indexOf(it)].ok)
