@@ -73,6 +73,9 @@ function WdIssuePage() {
   const [wdOpen, setWdOpen] = useState(false);
   const [wdHighlight, setWdHighlight] = useState(0);
   const wdBoxRef = useRef<HTMLDivElement | null>(null);
+  const dateRef = useRef<HTMLInputElement | null>(null);
+  const proofRef = useRef<HTMLDivElement | null>(null);
+  const itemsSectionRef = useRef<HTMLDivElement | null>(null);
 
   // Line items
   const [items, setItems] = useState<LineItem[]>([newLine()]);
@@ -81,6 +84,7 @@ function WdIssuePage() {
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{
     wd: string;
@@ -181,15 +185,41 @@ function WdIssuePage() {
   const canSubmit =
     !!wd && allItemsValid && !!proof && !busy && !!date && !futureDate;
 
+  const wdMissing = submitted && !wd;
+  const dateMissing = submitted && (!date || futureDate);
+  const proofMissing = submitted && !proof;
+  const itemsInvalid = submitted && !allItemsValid;
+
   async function handleDispatch() {
+    setSubmitted(true);
+    setError(null);
+
+    type Issue = { ref: HTMLElement | null; msg: string };
+    const issues: Issue[] = [];
+    if (!date || futureDate) {
+      issues.push({ ref: dateRef.current, msg: "Valid dispatch date is required" });
+    }
+    if (!wd) {
+      issues.push({ ref: wdBoxRef.current, msg: "Please select a distributor" });
+    }
+    if (!allItemsValid) {
+      issues.push({ ref: itemsSectionRef.current, msg: "Fix line item errors" });
+    }
     if (!proof) {
       setProofError("Proof image is required");
+      issues.push({ ref: proofRef.current, msg: "Proof image is required" });
+    } else {
+      setProofError(null);
+    }
+
+    if (issues.length > 0) {
+      setError("Please fill all required fields");
+      issues[0].ref?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
-    setProofError(null);
-    if (!canSubmit) return;
+
+    if (!canSubmit || !proof) return;
     setBusy(true);
-    setError(null);
 
     const payload = items
       .filter((it) => it.material && it.qty)
@@ -223,6 +253,7 @@ function WdIssuePage() {
     setWd("");
     setWdQuery("");
     setDate(todayISO());
+    setSubmitted(false);
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
     void refresh();
@@ -268,24 +299,31 @@ function WdIssuePage() {
             </div>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold text-foreground">Date</span>
+              <span className="text-xs font-semibold text-foreground">
+                Date <span className="text-destructive">*</span>
+              </span>
               <div className="relative">
                 <Calendar size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
+                  ref={dateRef}
                   type="date"
                   value={date}
                   max={todayISO()}
                   onChange={(e) => setDate(e.target.value)}
-                  className={`${inputClass} pl-9 ${futureDate ? "border-destructive ring-2 ring-destructive/20" : ""}`}
+                  className={`${inputClass} pl-9 ${(futureDate || dateMissing) ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                 />
               </div>
-              {futureDate && (
+              {futureDate ? (
                 <span className="text-[11px] font-semibold text-destructive">Date cannot be in the future</span>
-              )}
+              ) : dateMissing ? (
+                <span className="text-[11px] font-semibold text-destructive">Date is required</span>
+              ) : null}
             </label>
 
             <label className="block space-y-1">
-              <span className="text-xs font-semibold text-foreground">Distributor (WD)</span>
+              <span className="text-xs font-semibold text-foreground">
+                Distributor (WD) <span className="text-destructive">*</span>
+              </span>
               <div ref={wdBoxRef} className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input
@@ -299,7 +337,7 @@ function WdIssuePage() {
                   onFocus={() => setWdOpen(true)}
                   onKeyDown={handleWdKeyDown}
                   placeholder="Search by code or name"
-                  className={`${inputClass} pl-9 pr-9`}
+                  className={`${inputClass} pl-9 pr-9 ${wdMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
                   role="combobox"
                   aria-expanded={wdOpen}
                   aria-autocomplete="list"
@@ -340,20 +378,30 @@ function WdIssuePage() {
                   </div>
                 )}
               </div>
+              {wdMissing && (
+                <span className="text-[11px] font-semibold text-destructive">Distributor is required</span>
+              )}
             </label>
           </section>
 
           {/* LINE ITEMS */}
-          <section className="space-y-2.5">
+          <section ref={itemsSectionRef} className="space-y-2.5">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">2</span>
-                <h3 className="text-sm font-bold text-foreground">Line Items</h3>
+                <h3 className="text-sm font-bold text-foreground">
+                  Line Items <span className="text-destructive">*</span>
+                </h3>
               </div>
               <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground">
                 {itemCount} {itemCount === 1 ? "item" : "items"}
               </span>
             </div>
+            {itemsInvalid && (
+              <p className="text-[11px] font-semibold text-destructive">
+                Each line needs a material and a valid quantity within stock
+              </p>
+            )}
 
             <div className="space-y-3">
               <AnimatePresence initial={false}>
@@ -396,18 +444,20 @@ function WdIssuePage() {
             </div>
 
             {wsp && user && (
-              <ProofImageUpload
-                wsp={wsp}
-                userId={user.id}
-                kind="dispatch"
-                value={proof}
-                onChange={(val) => {
-                  setProof(val);
-                  if (val) setProofError(null);
-                }}
-                error={proofError}
-                label={wd === "WD_FLUSH" ? "Upload Approval Email / Proof" : undefined}
-              />
+              <div ref={proofRef}>
+                <ProofImageUpload
+                  wsp={wsp}
+                  userId={user.id}
+                  kind="dispatch"
+                  value={proof}
+                  onChange={(val) => {
+                    setProof(val);
+                    if (val) setProofError(null);
+                  }}
+                  error={proofError}
+                  label={wd === "WD_FLUSH" ? "Upload Approval Email / Proof *" : "Proof image *"}
+                />
+              </div>
             )}
 
             <div className="flex items-center justify-between rounded-xl border-2 border-accent/30 bg-accent/5 px-3 py-3">
@@ -428,8 +478,8 @@ function WdIssuePage() {
 
             <button
               onClick={handleDispatch}
-              disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+              disabled={busy}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent py-3.5 text-sm font-bold text-accent-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
             >
               {busy ? <Loader2 size={16} className="animate-spin" /> : <Package size={16} />}
               {busy ? "Dispatching…" : `Dispatch ${itemCount > 0 ? `${itemCount} item${itemCount > 1 ? "s" : ""}` : ""} to WD`}

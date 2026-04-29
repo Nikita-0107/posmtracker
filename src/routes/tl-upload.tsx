@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
+  AlertTriangle,
   Camera,
   CheckCircle2,
   Loader2,
@@ -44,7 +45,13 @@ function TlUploadPage() {
   const [qty, setQty] = useState("1");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [result, setResult] = useState<{ code: string; remaining: number } | null>(null);
+
+  const itemRef = useRef<HTMLSelectElement | null>(null);
+  const qtyRef = useRef<HTMLInputElement | null>(null);
+  const proofRef = useRef<HTMLDivElement | null>(null);
 
   const selected = items.find((i) => i.id === itemId);
   const qtyNum = parseInt(qty, 10);
@@ -54,10 +61,27 @@ function TlUploadPage() {
     !!selected &&
     qtyNum <= selected.remaining;
 
-  const canSubmit = !!selected && qtyValid && !!proof && !submitting;
+  const itemMissing = submitted && !selected;
+  const qtyInvalid = submitted && !qtyValid;
+  const proofMissing = submitted && !proof;
 
   async function handleSubmit() {
-    if (!canSubmit || !selected || !proof) return;
+    setSubmitted(true);
+    setFormError(null);
+
+    type Issue = { ref: HTMLElement | null; msg: string };
+    const issues: Issue[] = [];
+    if (!selected) issues.push({ ref: itemRef.current, msg: "Select a material" });
+    if (!qtyValid) issues.push({ ref: qtyRef.current, msg: "Enter a valid quantity" });
+    if (!proof) issues.push({ ref: proofRef.current, msg: "Proof photo is required" });
+
+    if (issues.length > 0) {
+      setFormError("Please fill all required fields");
+      issues[0].ref?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    if (!selected || !proof) return;
+
     setSubmitting(true);
     const { remaining, error } = await recordTlUpload(selected.id, qtyNum, proof.path);
     setSubmitting(false);
@@ -70,6 +94,7 @@ function TlUploadPage() {
     setItemId("");
     setQty("1");
     setProof(null);
+    setSubmitted(false);
     await refresh();
     setTimeout(() => setResult(null), 5000);
   }
@@ -114,15 +139,16 @@ function TlUploadPage() {
             {/* Material from issued stock */}
             <label className="block space-y-1">
               <span className="text-xs font-semibold text-foreground">
-                POSM Material (issued to you)
+                POSM Material (issued to you) <span className="text-destructive">*</span>
               </span>
               <select
+                ref={itemRef}
                 value={itemId}
                 onChange={(e) => {
                   setItemId(e.target.value);
                   setQty("1");
                 }}
-                className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30"
+                className={`w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 ${itemMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
               >
                 <option value="">— Select issued material —</option>
                 {items
@@ -134,6 +160,9 @@ function TlUploadPage() {
                     </option>
                   ))}
               </select>
+              {itemMissing && (
+                <p className="text-[11px] font-semibold text-destructive">Please select a material</p>
+              )}
             </label>
 
             {selected && (
@@ -151,9 +180,10 @@ function TlUploadPage() {
             {/* Quantity */}
             <label className="block space-y-1">
               <span className="text-xs font-semibold text-foreground">
-                Quantity placed
+                Quantity placed <span className="text-destructive">*</span>
               </span>
               <input
+                ref={qtyRef}
                 type="number"
                 inputMode="numeric"
                 min={1}
@@ -161,32 +191,45 @@ function TlUploadPage() {
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
                 disabled={!selected}
-                className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-bold text-foreground disabled:opacity-50"
+                className={`w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-bold text-foreground disabled:opacity-50 ${qtyInvalid ? "border-destructive ring-2 ring-destructive/20" : ""}`}
               />
-              {selected && Number.isFinite(qtyNum) && qtyNum > selected.remaining && (
+              {selected && Number.isFinite(qtyNum) && qtyNum > selected.remaining ? (
                 <p className="text-[11px] font-semibold text-destructive">
                   Cannot exceed remaining quantity ({selected.remaining})
                 </p>
-              )}
+              ) : qtyInvalid ? (
+                <p className="text-[11px] font-semibold text-destructive">
+                  Enter a valid quantity (1 or more, within remaining)
+                </p>
+              ) : null}
             </label>
 
             {/* Photo */}
             {profile && user && (
-              <ProofImageUpload
-                wsp={profile.wsp ?? "tl"}
-                userId={user.id}
-                kind="dispatch"
-                value={proof}
-                onChange={setProof}
-                label="Placement Photo"
-              />
+              <div ref={proofRef}>
+                <ProofImageUpload
+                  wsp={profile.wsp ?? "tl"}
+                  userId={user.id}
+                  kind="dispatch"
+                  value={proof}
+                  onChange={setProof}
+                  label="Placement Photo *"
+                  error={proofMissing ? "Photo is required" : null}
+                />
+              </div>
+            )}
+
+            {formError && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
+                <AlertTriangle size={14} /> {formError}
+              </div>
             )}
 
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!canSubmit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-40"
+              disabled={submitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
             >
               {submitting ? (
                 <Loader2 size={16} className="animate-spin" />
