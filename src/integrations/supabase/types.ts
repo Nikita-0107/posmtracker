@@ -133,6 +133,60 @@ export type Database = {
           },
         ]
       }
+      stock_concerns: {
+        Row: {
+          actual_qty: number
+          created_at: string
+          created_by: string
+          difference: number
+          id: string
+          material_code: string
+          note: string | null
+          proof_image_path: string | null
+          reason: Database["public"]["Enums"]["concern_reason"]
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: Database["public"]["Enums"]["concern_status"]
+          system_qty: number
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          actual_qty: number
+          created_at?: string
+          created_by: string
+          difference: number
+          id?: string
+          material_code: string
+          note?: string | null
+          proof_image_path?: string | null
+          reason: Database["public"]["Enums"]["concern_reason"]
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["concern_status"]
+          system_qty: number
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          actual_qty?: number
+          created_at?: string
+          created_by?: string
+          difference?: number
+          id?: string
+          material_code?: string
+          note?: string | null
+          proof_image_path?: string | null
+          reason?: Database["public"]["Enums"]["concern_reason"]
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: Database["public"]["Enums"]["concern_status"]
+          system_qty?: number
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: []
+      }
       stock_movement_edits: {
         Row: {
           edit_reason: string
@@ -617,10 +671,30 @@ export type Database = {
         }
         Returns: Database["public"]["Enums"]["dispatch_item_status"]
       }
+      resolve_stock_concern: {
+        Args: {
+          _action: string
+          _concern_id: string
+          _resolution_note?: string
+        }
+        Returns: Database["public"]["Enums"]["concern_status"]
+      }
+      submit_stock_concern: {
+        Args: {
+          _actual_qty: number
+          _material_code: string
+          _note?: string
+          _proof_image_path?: string
+          _reason: Database["public"]["Enums"]["concern_reason"]
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "wsp" | "wd" | "tl"
       batch_type: "Launch" | "Cyclical" | "SOV" | "Others"
+      concern_reason: "shortage" | "damage" | "other"
+      concern_status: "pending" | "approved" | "rejected"
       dispatch_item_status:
         | "pending"
         | "received"
@@ -758,6 +832,8 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "wsp", "wd", "tl"],
       batch_type: ["Launch", "Cyclical", "SOV", "Others"],
+      concern_reason: ["shortage", "damage", "other"],
+      concern_status: ["pending", "approved", "rejected"],
       dispatch_item_status: [
         "pending",
         "received",
