@@ -533,6 +533,9 @@ type ReceiveLineItemRowProps = {
   stockQty: number;
   stockLoading: boolean;
   dup: boolean;
+  validation: { hasMaterial: boolean; qtyOk: boolean; dup: boolean; ok: boolean };
+  submitted: boolean;
+  rowRef: (el: HTMLDivElement | null) => void;
   canRemove: boolean;
   inputClass: string;
   onChange: (patch: Partial<LineItem>) => void;
@@ -546,6 +549,9 @@ function ReceiveLineItemRow({
   stockQty,
   stockLoading,
   dup,
+  validation,
+  submitted,
+  rowRef,
   canRemove,
   inputClass,
   onChange,
