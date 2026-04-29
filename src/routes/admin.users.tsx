@@ -4,6 +4,7 @@ import { ShieldCheck, Users, AlertTriangle, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
+import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
 import { toast } from "sonner";
 
@@ -316,6 +317,7 @@ function AdminUsersPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
+        <AdminTabs />
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-primary" size={20} />
           <h1 className="font-heading text-lg font-bold text-foreground">User Management</h1>
