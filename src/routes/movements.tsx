@@ -481,6 +481,10 @@ function EditEntryDialog({
   const [refNumber, setRefNumber] = useState<string>(movement.reference_number ?? "");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [keepProof, setKeepProof] = useState<boolean>(true);
+  const [distributor, setDistributor] = useState<string>(movement.distributor ?? "");
+  const [dispatchDate, setDispatchDate] = useState<string>(
+    movement.dispatch_date ?? new Date().toISOString().slice(0, 10),
+  );
 
   const materialMatches = useMemo(() => {
     const q = materialQuery.trim().toLowerCase();
