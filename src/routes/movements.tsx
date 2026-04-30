@@ -361,7 +361,7 @@ function MovementsPage() {
                       )}
                     </div>
 
-                    {/* Action row: Request Correction */}
+                    {/* Action row: Edit Entry */}
                     {profile?.wsp === r.wsp && (
                       <div className="flex items-center justify-between gap-2 pt-1">
                         {editState.canEdit ? (
@@ -369,7 +369,7 @@ function MovementsPage() {
                             onClick={() => setEditTarget(r)}
                             className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted"
                           >
-                            <Pencil size={10} /> Request Correction
+                            <Pencil size={10} /> Edit Entry
                           </button>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">
