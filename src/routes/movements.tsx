@@ -385,21 +385,36 @@ function MovementsPage() {
                         <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
                           <History size={10} /> Edit history
                         </div>
-                        {rowEdits.map((e) => (
-                          <div
-                            key={e.id}
-                            className="text-[10px] leading-snug text-muted-foreground"
-                          >
-                            Edited from{" "}
-                            <span className="font-bold text-foreground">{e.old_quantity}</span> →{" "}
-                            <span className="font-bold text-foreground">{e.new_quantity}</span> by{" "}
-                            <span className="font-semibold text-foreground">
-                              {e.editor_name}
-                            </span>{" "}
-                            at {formatDateTime(e.edited_at)}
-                            <div className="italic">Reason: {e.edit_reason}</div>
-                          </div>
-                        ))}
+                        {rowEdits.map((e) => {
+                          const changes: string[] = [];
+                          if (e.old_quantity !== e.new_quantity)
+                            changes.push(`Qty ${e.old_quantity} → ${e.new_quantity}`);
+                          if (e.old_material_code && e.new_material_code && e.old_material_code !== e.new_material_code)
+                            changes.push(`Material ${e.old_material_code} → ${e.new_material_code}`);
+                          if (e.old_received_date !== e.new_received_date && (e.old_received_date || e.new_received_date))
+                            changes.push(`Recd ${e.old_received_date ?? "—"} → ${e.new_received_date ?? "—"}`);
+                          if ((e.old_batch_type ?? "") !== (e.new_batch_type ?? "") && (e.old_batch_type || e.new_batch_type))
+                            changes.push(`Batch ${e.old_batch_type ?? "—"} → ${e.new_batch_type ?? "—"}`);
+                          if ((e.old_reference_number ?? "") !== (e.new_reference_number ?? "") && (e.old_reference_number || e.new_reference_number))
+                            changes.push(`PO ${e.old_reference_number ?? "—"} → ${e.new_reference_number ?? "—"}`);
+                          if ((e.old_proof_image_path ?? "") !== (e.new_proof_image_path ?? "") && (e.old_proof_image_path || e.new_proof_image_path))
+                            changes.push(`Proof image updated`);
+                          return (
+                            <div key={e.id} className="text-[10px] leading-snug text-muted-foreground">
+                              <div className="text-foreground">
+                                {changes.length > 0 ? changes.join(" · ") : `Qty ${e.old_quantity} → ${e.new_quantity}`}
+                              </div>
+                              <div>
+                                by{" "}
+                                <span className="font-semibold text-foreground">
+                                  {e.editor_name}
+                                </span>{" "}
+                                at {formatDateTime(e.edited_at)}
+                              </div>
+                              <div className="italic">Reason: {e.edit_reason}</div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
