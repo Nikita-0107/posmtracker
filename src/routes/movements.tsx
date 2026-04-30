@@ -47,6 +47,22 @@ type Movement = {
   item_status: "pending" | "received" | "issue" | string | null;
 };
 
+type Movement = {
+  id: string;
+  created_at: string;
+  movement: "receive" | "dispatch";
+  material_code: string;
+  qty: number;
+  distributor: string | null;
+  reference_number: string | null;
+  proof_image_path: string | null;
+  wsp: string;
+  item_status: "pending" | "received" | "issue" | string | null;
+  received_date: string | null;
+  batch_type: BatchType | null;
+  corrected_at: string | null;
+};
+
 type EditRow = {
   id: string;
   movement_id: string;
@@ -56,6 +72,15 @@ type EditRow = {
   edited_at: string;
   edit_reason: string;
   editor_name?: string | null;
+  old_material_code?: string | null;
+  new_material_code?: string | null;
+  old_received_date?: string | null;
+  new_received_date?: string | null;
+  old_batch_type?: string | null;
+  new_batch_type?: string | null;
+  old_reference_number?: string | null;
+  new_reference_number?: string | null;
+  new_movement_id?: string | null;
 };
 
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days (refreshed on every page load)
