@@ -69,6 +69,10 @@ type EditRow = {
   new_reference_number?: string | null;
   old_proof_image_path?: string | null;
   new_proof_image_path?: string | null;
+  old_distributor?: string | null;
+  new_distributor?: string | null;
+  old_dispatch_date?: string | null;
+  new_dispatch_date?: string | null;
   new_movement_id?: string | null;
 };
 
