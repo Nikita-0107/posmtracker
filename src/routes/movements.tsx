@@ -550,24 +550,45 @@ function EditEntryDialog({
       toast.success("Entry edited. Original marked as corrected.");
       onSaved();
     } else {
-      // Dispatch entries: only quantity edit (legacy correction)
+      // Dispatch entries: full edit (qty, distributor, dispatch date, proof)
       const parsed = Number(newQty);
       if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-        toast.error("Enter a valid positive whole number");
+        toast.error("Enter a valid positive whole number for quantity");
         return;
       }
+      if (!distributor.trim()) {
+        toast.error("Distributor is required");
+        return;
+      }
+      if (!dispatchDate) {
+        toast.error("Dispatch date is required");
+        return;
+      }
+      if (dispatchDate > new Date().toISOString().slice(0, 10)) {
+        toast.error("Dispatch date cannot be in the future");
+        return;
+      }
+      const proofPath = keepProof ? movement.proof_image_path : proof?.path ?? null;
+      if (!proofPath) {
+        toast.error("Proof image is required");
+        return;
+      }
+
       setSubmitting(true);
-      const { error } = await supabase.rpc("request_movement_correction", {
+      const { error } = await supabase.rpc("edit_dispatch_entry", {
         _movement_id: movement.id,
         _new_qty: parsed,
+        _new_distributor: distributor.trim(),
+        _new_dispatch_date: dispatchDate,
+        _new_proof_image_path: proofPath,
         _reason: reason.trim(),
       });
       setSubmitting(false);
       if (error) {
-        toast.error("Could not save correction", { description: error.message });
+        toast.error("Could not save edit", { description: error.message });
         return;
       }
-      toast.success("Quantity corrected");
+      toast.success("Dispatch edited. Original marked as corrected.");
       onSaved();
     }
   }
