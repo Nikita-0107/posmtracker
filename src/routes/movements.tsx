@@ -780,6 +780,59 @@ function EditEntryDialog({
                 </>
               )}
 
+              {!isReceive && (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Distributor
+                    </span>
+                    <input
+                      type="text"
+                      value={distributor}
+                      onChange={(e) => setDistributor(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Dispatch Date
+                    </span>
+                    <input
+                      type="date"
+                      value={dispatchDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setDispatchDate(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-semibold text-muted-foreground">
+                      Proof Image
+                    </span>
+                    <label className="flex items-center gap-2 text-[11px] text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={keepProof}
+                        onChange={(e) => setKeepProof(e.target.checked)}
+                      />
+                      Keep existing proof image
+                    </label>
+                    {!keepProof && profile?.wsp && profile?.id && (
+                      <ProofImageUpload
+                        wsp={profile.wsp}
+                        userId={profile.id}
+                        kind="dispatch"
+                        value={proof}
+                        onChange={setProof}
+                        label="Upload new proof"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
               <label className="block">
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
                   Reason for change <span className="text-destructive">*</span>
