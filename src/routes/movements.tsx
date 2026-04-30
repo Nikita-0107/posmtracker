@@ -311,7 +311,7 @@ function MovementsPage() {
                           isReceive
                             ? "bg-success/15 text-success"
                             : "bg-primary/15 text-primary"
-                        }`}
+                        } ${r.corrected_at ? "line-through opacity-60" : ""}`}
                       >
                         {isReceive ? (
                           <ArrowDownToLine size={10} />
@@ -320,7 +320,12 @@ function MovementsPage() {
                         )}
                         {r.movement}
                       </span>
-                      <span className="text-[10px] font-semibold text-muted-foreground">
+                      {r.corrected_at && (
+                        <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                          Corrected
+                        </span>
+                      )}
+                      <span className="ml-auto text-[10px] font-semibold text-muted-foreground">
                         {formatDateTime(r.created_at)}
                       </span>
                     </div>
