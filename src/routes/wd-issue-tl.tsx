@@ -762,7 +762,7 @@ function CloseWeekForm({
           kind="dispatch"
           value={proof}
           onChange={setProof}
-          label="Photo of remaining stock"
+          label="Verification photo of remaining stock"
         />
       </div>
 
@@ -781,8 +781,8 @@ function CloseWeekForm({
 
       {!valid && (
         <div className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-2 text-[11px] font-semibold text-amber-800">
-          <AlertTriangle size={14} /> Photo of remaining stock and valid quantities are
-          required.
+          <AlertTriangle size={14} /> Verification photo and valid remaining quantities
+          are required.
         </div>
       )}
 
