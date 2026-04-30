@@ -129,7 +129,7 @@ function MovementsPage() {
       const { data: editsData } = await supabase
         .from("stock_movement_edits")
         .select(
-          "id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason, old_material_code, new_material_code, old_received_date, new_received_date, old_batch_type, new_batch_type, old_reference_number, new_reference_number, new_movement_id",
+          "id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason, old_material_code, new_material_code, old_received_date, new_received_date, old_batch_type, new_batch_type, old_reference_number, new_reference_number, old_distributor, new_distributor, old_dispatch_date, new_dispatch_date, new_movement_id",
         )
         .in("movement_id", ids)
         .order("edited_at", { ascending: false });
