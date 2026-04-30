@@ -194,8 +194,19 @@ export type Database = {
           edited_by: string
           id: string
           movement_id: string
+          new_batch_type: Database["public"]["Enums"]["batch_type"] | null
+          new_material_code: string | null
+          new_movement_id: string | null
+          new_proof_image_path: string | null
           new_quantity: number
+          new_received_date: string | null
+          new_reference_number: string | null
+          old_batch_type: Database["public"]["Enums"]["batch_type"] | null
+          old_material_code: string | null
+          old_proof_image_path: string | null
           old_quantity: number
+          old_received_date: string | null
+          old_reference_number: string | null
         }
         Insert: {
           edit_reason: string
@@ -203,8 +214,19 @@ export type Database = {
           edited_by: string
           id?: string
           movement_id: string
+          new_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          new_material_code?: string | null
+          new_movement_id?: string | null
+          new_proof_image_path?: string | null
           new_quantity: number
+          new_received_date?: string | null
+          new_reference_number?: string | null
+          old_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          old_material_code?: string | null
+          old_proof_image_path?: string | null
           old_quantity: number
+          old_received_date?: string | null
+          old_reference_number?: string | null
         }
         Update: {
           edit_reason?: string
@@ -212,16 +234,38 @@ export type Database = {
           edited_by?: string
           id?: string
           movement_id?: string
+          new_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          new_material_code?: string | null
+          new_movement_id?: string | null
+          new_proof_image_path?: string | null
           new_quantity?: number
+          new_received_date?: string | null
+          new_reference_number?: string | null
+          old_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          old_material_code?: string | null
+          old_proof_image_path?: string | null
           old_quantity?: number
+          old_received_date?: string | null
+          old_reference_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "stock_movement_edits_new_movement_id_fkey"
+            columns: ["new_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stock_movements: {
         Row: {
           batch_type: Database["public"]["Enums"]["batch_type"] | null
           confirmed_at: string | null
           confirmed_by: string | null
+          corrected_at: string | null
+          corrected_by: string | null
+          corrected_by_movement_id: string | null
           created_at: string
           dispatch_date: string | null
           dispatch_id: string | null
@@ -249,6 +293,9 @@ export type Database = {
           batch_type?: Database["public"]["Enums"]["batch_type"] | null
           confirmed_at?: string | null
           confirmed_by?: string | null
+          corrected_at?: string | null
+          corrected_by?: string | null
+          corrected_by_movement_id?: string | null
           created_at?: string
           dispatch_date?: string | null
           dispatch_id?: string | null
@@ -276,6 +323,9 @@ export type Database = {
           batch_type?: Database["public"]["Enums"]["batch_type"] | null
           confirmed_at?: string | null
           confirmed_by?: string | null
+          corrected_at?: string | null
+          corrected_by?: string | null
+          corrected_by_movement_id?: string | null
           created_at?: string
           dispatch_date?: string | null
           dispatch_id?: string | null
@@ -300,6 +350,13 @@ export type Database = {
           wsp?: Database["public"]["Enums"]["wsp_code"]
         }
         Relationships: [
+          {
+            foreignKeyName: "stock_movements_corrected_by_movement_id_fkey"
+            columns: ["corrected_by_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "stock_movements_material_code_fkey"
             columns: ["material_code"]
@@ -575,6 +632,19 @@ export type Database = {
           _distributor: string
           _items: Json
           _proof_image_path: string
+        }
+        Returns: string
+      }
+      edit_receive_entry: {
+        Args: {
+          _movement_id: string
+          _new_batch_type: Database["public"]["Enums"]["batch_type"]
+          _new_material_code: string
+          _new_proof_image_path: string
+          _new_qty: number
+          _new_received_date: string
+          _new_reference_number: string
+          _reason: string
         }
         Returns: string
       }

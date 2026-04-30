@@ -12,10 +12,14 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+
+type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
+const BATCH_TYPES: BatchType[] = ["Launch", "Cyclical", "SOV", "Others"];
 
 export const Route = createFileRoute("/movements")({
   component: MovementsPage,
@@ -41,6 +45,9 @@ type Movement = {
   proof_image_path: string | null;
   wsp: string;
   item_status: "pending" | "received" | "issue" | string | null;
+  received_date: string | null;
+  batch_type: BatchType | null;
+  corrected_at: string | null;
 };
 
 type EditRow = {
@@ -52,6 +59,17 @@ type EditRow = {
   edited_at: string;
   edit_reason: string;
   editor_name?: string | null;
+  old_material_code?: string | null;
+  new_material_code?: string | null;
+  old_received_date?: string | null;
+  new_received_date?: string | null;
+  old_batch_type?: string | null;
+  new_batch_type?: string | null;
+  old_reference_number?: string | null;
+  new_reference_number?: string | null;
+  old_proof_image_path?: string | null;
+  new_proof_image_path?: string | null;
+  new_movement_id?: string | null;
 };
 
 const SIGNED_TTL = 60 * 60 * 24 * 7; // 7 days (refreshed on every page load)
@@ -87,7 +105,7 @@ function MovementsPage() {
     const { data, error } = await supabase
       .from("stock_movements")
       .select(
-        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status",
+        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status, received_date, batch_type, corrected_at",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -106,7 +124,9 @@ function MovementsPage() {
     if (ids.length > 0) {
       const { data: editsData } = await supabase
         .from("stock_movement_edits")
-        .select("id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason")
+        .select(
+          "id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason, old_material_code, new_material_code, old_received_date, new_received_date, old_batch_type, new_batch_type, old_reference_number, new_reference_number, new_movement_id",
+        )
         .in("movement_id", ids)
         .order("edited_at", { ascending: false });
 
@@ -177,6 +197,9 @@ function MovementsPage() {
     if (!profile?.wsp || profile.wsp !== r.wsp) {
       return { canEdit: false };
     }
+    if (r.corrected_at) {
+      return { canEdit: false, reason: "Already corrected." };
+    }
     const ageMs = Date.now() - new Date(r.created_at).getTime();
     if (ageMs > EDIT_WINDOW_MS) {
       return { canEdit: false, reason: "Editing locked. Contact admin." };
@@ -185,7 +208,6 @@ function MovementsPage() {
       return { canEdit: false, reason: "Already verified by WD." };
     }
     if (r.movement === "receive") {
-      // Client-side hint: lock if any later dispatch of the same material exists.
       const laterDispatch = rows.some(
         (other) =>
           other.movement === "dispatch" &&
@@ -291,7 +313,7 @@ function MovementsPage() {
                           isReceive
                             ? "bg-success/15 text-success"
                             : "bg-primary/15 text-primary"
-                        }`}
+                        } ${r.corrected_at ? "line-through opacity-60" : ""}`}
                       >
                         {isReceive ? (
                           <ArrowDownToLine size={10} />
@@ -300,7 +322,12 @@ function MovementsPage() {
                         )}
                         {r.movement}
                       </span>
-                      <span className="text-[10px] font-semibold text-muted-foreground">
+                      {r.corrected_at && (
+                        <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-300">
+                          Corrected
+                        </span>
+                      )}
+                      <span className="ml-auto text-[10px] font-semibold text-muted-foreground">
                         {formatDateTime(r.created_at)}
                       </span>
                     </div>
@@ -336,7 +363,7 @@ function MovementsPage() {
                       )}
                     </div>
 
-                    {/* Action row: Request Correction */}
+                    {/* Action row: Edit Entry */}
                     {profile?.wsp === r.wsp && (
                       <div className="flex items-center justify-between gap-2 pt-1">
                         {editState.canEdit ? (
@@ -344,7 +371,7 @@ function MovementsPage() {
                             onClick={() => setEditTarget(r)}
                             className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2 py-1 text-[10px] font-semibold text-foreground hover:bg-muted"
                           >
-                            <Pencil size={10} /> Request Correction
+                            <Pencil size={10} /> Edit Entry
                           </button>
                         ) : (
                           <span className="inline-flex items-center gap-1 rounded-md bg-muted px-2 py-1 text-[10px] font-semibold text-muted-foreground">
@@ -360,21 +387,36 @@ function MovementsPage() {
                         <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground">
                           <History size={10} /> Edit history
                         </div>
-                        {rowEdits.map((e) => (
-                          <div
-                            key={e.id}
-                            className="text-[10px] leading-snug text-muted-foreground"
-                          >
-                            Edited from{" "}
-                            <span className="font-bold text-foreground">{e.old_quantity}</span> →{" "}
-                            <span className="font-bold text-foreground">{e.new_quantity}</span> by{" "}
-                            <span className="font-semibold text-foreground">
-                              {e.editor_name}
-                            </span>{" "}
-                            at {formatDateTime(e.edited_at)}
-                            <div className="italic">Reason: {e.edit_reason}</div>
-                          </div>
-                        ))}
+                        {rowEdits.map((e) => {
+                          const changes: string[] = [];
+                          if (e.old_quantity !== e.new_quantity)
+                            changes.push(`Qty ${e.old_quantity} → ${e.new_quantity}`);
+                          if (e.old_material_code && e.new_material_code && e.old_material_code !== e.new_material_code)
+                            changes.push(`Material ${e.old_material_code} → ${e.new_material_code}`);
+                          if (e.old_received_date !== e.new_received_date && (e.old_received_date || e.new_received_date))
+                            changes.push(`Recd ${e.old_received_date ?? "—"} → ${e.new_received_date ?? "—"}`);
+                          if ((e.old_batch_type ?? "") !== (e.new_batch_type ?? "") && (e.old_batch_type || e.new_batch_type))
+                            changes.push(`Batch ${e.old_batch_type ?? "—"} → ${e.new_batch_type ?? "—"}`);
+                          if ((e.old_reference_number ?? "") !== (e.new_reference_number ?? "") && (e.old_reference_number || e.new_reference_number))
+                            changes.push(`PO ${e.old_reference_number ?? "—"} → ${e.new_reference_number ?? "—"}`);
+                          if ((e.old_proof_image_path ?? "") !== (e.new_proof_image_path ?? "") && (e.old_proof_image_path || e.new_proof_image_path))
+                            changes.push(`Proof image updated`);
+                          return (
+                            <div key={e.id} className="text-[10px] leading-snug text-muted-foreground">
+                              <div className="text-foreground">
+                                {changes.length > 0 ? changes.join(" · ") : `Qty ${e.old_quantity} → ${e.new_quantity}`}
+                              </div>
+                              <div>
+                                by{" "}
+                                <span className="font-semibold text-foreground">
+                                  {e.editor_name}
+                                </span>{" "}
+                                at {formatDateTime(e.edited_at)}
+                              </div>
+                              <div className="italic">Reason: {e.edit_reason}</div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -386,7 +428,7 @@ function MovementsPage() {
       </div>
 
       {editTarget && (
-        <CorrectionDialog
+        <EditEntryDialog
           movement={editTarget}
           materialName={matMap.get(editTarget.material_code) ?? ""}
           onClose={() => setEditTarget(null)}
@@ -400,7 +442,7 @@ function MovementsPage() {
   );
 }
 
-function CorrectionDialog({
+function EditEntryDialog({
   movement,
   materialName,
   onClose,
@@ -411,41 +453,117 @@ function CorrectionDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { profile } = useAuth();
+  const { materials } = useMaterials();
+  const isReceive = movement.movement === "receive";
+
   const [step, setStep] = useState<"confirm" | "form">("confirm");
-  const [newQty, setNewQty] = useState<string>(String(movement.qty));
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Editable fields
+  const [newQty, setNewQty] = useState<string>(String(movement.qty));
+  const [materialCode, setMaterialCode] = useState<string>(movement.material_code);
+  const [materialQuery, setMaterialQuery] = useState<string>("");
+  const [receivedDate, setReceivedDate] = useState<string>(
+    movement.received_date ?? new Date().toISOString().slice(0, 10),
+  );
+  const [batchType, setBatchType] = useState<BatchType | "">(movement.batch_type ?? "");
+  const [refNumber, setRefNumber] = useState<string>(movement.reference_number ?? "");
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [keepProof, setKeepProof] = useState<boolean>(true);
+
+  const materialMatches = useMemo(() => {
+    const q = materialQuery.trim().toLowerCase();
+    if (!q) return [] as { code: string; name: string }[];
+    return materials
+      .filter(
+        (m) =>
+          m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [materialQuery, materials]);
+
   async function submit() {
-    const parsed = Number(newQty);
-    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-      toast.error("Enter a valid positive whole number");
-      return;
-    }
     if (reason.trim().length === 0) {
-      toast.error("Reason is required");
+      toast.error("Reason for change is required");
       return;
     }
-    setSubmitting(true);
-    const { error } = await supabase.rpc("request_movement_correction", {
-      _movement_id: movement.id,
-      _new_qty: parsed,
-      _reason: reason.trim(),
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error("Could not save correction", { description: error.message });
-      return;
+
+    if (isReceive) {
+      const parsedQty = Number(newQty);
+      if (!Number.isFinite(parsedQty) || parsedQty <= 0 || !Number.isInteger(parsedQty)) {
+        toast.error("Enter a valid positive whole number for quantity");
+        return;
+      }
+      if (!materialCode.trim()) {
+        toast.error("Material is required");
+        return;
+      }
+      if (!receivedDate) {
+        toast.error("Received date is required");
+        return;
+      }
+      if (receivedDate > new Date().toISOString().slice(0, 10)) {
+        toast.error("Received date cannot be in the future");
+        return;
+      }
+      if (!refNumber.trim()) {
+        toast.error("PO/Reference number is required");
+        return;
+      }
+      const proofPath = keepProof ? movement.proof_image_path : proof?.path ?? null;
+      if (!proofPath) {
+        toast.error("Proof image is required");
+        return;
+      }
+
+      setSubmitting(true);
+      const { error } = await supabase.rpc("edit_receive_entry", {
+        _movement_id: movement.id,
+        _new_qty: parsedQty,
+        _new_material_code: materialCode.trim(),
+        _new_received_date: receivedDate,
+        _new_batch_type: (batchType || null) as BatchType,
+        _new_reference_number: refNumber.trim(),
+        _new_proof_image_path: proofPath,
+        _reason: reason.trim(),
+      });
+      setSubmitting(false);
+      if (error) {
+        toast.error("Could not save edit", { description: error.message });
+        return;
+      }
+      toast.success("Entry edited. Original marked as corrected.");
+      onSaved();
+    } else {
+      // Dispatch entries: only quantity edit (legacy correction)
+      const parsed = Number(newQty);
+      if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+        toast.error("Enter a valid positive whole number");
+        return;
+      }
+      setSubmitting(true);
+      const { error } = await supabase.rpc("request_movement_correction", {
+        _movement_id: movement.id,
+        _new_qty: parsed,
+        _reason: reason.trim(),
+      });
+      setSubmitting(false);
+      if (error) {
+        toast.error("Could not save correction", { description: error.message });
+        return;
+      }
+      toast.success("Quantity corrected");
+      onSaved();
     }
-    toast.success("Correction saved");
-    onSaved();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-card shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 p-3 sm:items-center">
+      <div className="my-3 w-full max-w-sm overflow-hidden rounded-2xl bg-card shadow-xl">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="font-heading text-sm font-bold">Request Correction</h3>
+          <h3 className="font-heading text-sm font-bold">Edit Entry</h3>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
@@ -456,18 +574,30 @@ function CorrectionDialog({
         </div>
 
         <div className="space-y-3 p-4">
-          <div className="rounded-lg bg-muted/40 p-2 text-[11px]">
+          {/* Read-only current entry details */}
+          <div className="space-y-1 rounded-lg bg-muted/40 p-2 text-[11px]">
+            <div className="text-[10px] font-bold uppercase text-muted-foreground">
+              Current entry
+            </div>
             <div className="font-mono font-bold text-foreground">{movement.material_code}</div>
             <div className="text-muted-foreground">{materialName}</div>
-            <div className="mt-1 text-muted-foreground">
-              Current qty: <span className="font-bold text-foreground">{movement.qty}</span>
+            <div className="grid grid-cols-2 gap-1 pt-1 text-muted-foreground">
+              <div>Qty: <span className="font-bold text-foreground">{movement.qty}</span></div>
+              {isReceive && (
+                <>
+                  <div>Recd: <span className="font-bold text-foreground">{movement.received_date ?? "—"}</span></div>
+                  <div>Batch: <span className="font-bold text-foreground">{movement.batch_type ?? "—"}</span></div>
+                  <div>PO: <span className="font-bold text-foreground">{movement.reference_number ?? "—"}</span></div>
+                </>
+              )}
             </div>
           </div>
 
           {step === "confirm" ? (
             <>
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                This will modify stock records. Are you sure?
+                This will mark the original as <b>corrected</b> and create a new
+                entry with your updated values. Stock will adjust automatically.
               </div>
               <div className="flex gap-2">
                 <button
@@ -486,9 +616,49 @@ function CorrectionDialog({
             </>
           ) : (
             <>
+              <div className="text-[10px] font-bold uppercase text-muted-foreground">
+                Updated values
+              </div>
+
+              {isReceive && (
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    Material
+                  </span>
+                  <input
+                    type="text"
+                    value={materialCode}
+                    onChange={(e) => {
+                      setMaterialCode(e.target.value);
+                      setMaterialQuery(e.target.value);
+                    }}
+                    placeholder="Search code or name"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                  {materialMatches.length > 0 && materialQuery && materialCode !== materialQuery && (
+                    <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-border bg-popover">
+                      {materialMatches.map((m) => (
+                        <button
+                          key={m.code}
+                          type="button"
+                          onClick={() => {
+                            setMaterialCode(m.code);
+                            setMaterialQuery("");
+                          }}
+                          className="block w-full truncate px-3 py-1.5 text-left text-[11px] hover:bg-muted"
+                        >
+                          <span className="font-mono font-bold">{m.code}</span>{" "}
+                          <span className="text-muted-foreground">· {m.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </label>
+              )}
+
               <label className="block">
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                  New quantity
+                  Quantity
                 </span>
                 <input
                   type="number"
@@ -499,6 +669,78 @@ function CorrectionDialog({
                   className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
               </label>
+
+              {isReceive && (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Received Date
+                    </span>
+                    <input
+                      type="date"
+                      value={receivedDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setReceivedDate(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Batch Type
+                    </span>
+                    <select
+                      value={batchType}
+                      onChange={(e) => setBatchType(e.target.value as BatchType | "")}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    >
+                      <option value="">— None —</option>
+                      {BATCH_TYPES.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      PO Number
+                    </span>
+                    <input
+                      type="text"
+                      value={refNumber}
+                      onChange={(e) => setRefNumber(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-semibold text-muted-foreground">
+                      Proof Image
+                    </span>
+                    <label className="flex items-center gap-2 text-[11px] text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={keepProof}
+                        onChange={(e) => setKeepProof(e.target.checked)}
+                      />
+                      Keep existing proof image
+                    </label>
+                    {!keepProof && profile?.wsp && profile?.id && (
+                      <ProofImageUpload
+                        wsp={profile.wsp}
+                        userId={profile.id}
+                        kind="receive"
+                        value={proof}
+                        onChange={setProof}
+                        label="Upload new proof"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
               <label className="block">
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
                   Reason for change <span className="text-destructive">*</span>
@@ -508,10 +750,11 @@ function CorrectionDialog({
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
                   maxLength={300}
-                  placeholder="Explain why this quantity needs to change"
+                  placeholder="Explain why this entry needs to change"
                   className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
               </label>
+
               <div className="flex gap-2">
                 <button
                   onClick={onClose}
