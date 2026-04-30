@@ -485,15 +485,20 @@ function CreateAllocationForm({
     }, 0);
   }
 
-  const valid =
-    lines.length > 0 &&
-    lines.every((l) => {
-      const n = parseInt(l.qty, 10);
-      if (!l.material_code || !Number.isFinite(n) || n <= 0) return false;
-      const onHand = stocked.find((s) => s.code === l.material_code)?.qty ?? 0;
-      const left = onHand - allocatedExcept(0, l.material_code);
-      return n <= left;
-    });
+  // A line is valid if either: empty (will be skipped) OR a positive qty within stock.
+  // Allow submitting even when all lines are empty — backend will use carry-forward only,
+  // or reject if there's nothing to allocate.
+  const linesOk = lines.every((l) => {
+    if (!l.material_code && !l.qty) return true;
+    if (!l.material_code) return false;
+    const n = parseInt(l.qty, 10);
+    if (!Number.isFinite(n) || n < 0) return false;
+    if (n === 0) return true;
+    const onHand = stocked.find((s) => s.code === l.material_code)?.qty ?? 0;
+    const left = onHand - allocatedExcept(0, l.material_code);
+    return n <= left;
+  });
+  const valid = linesOk;
 
   async function submit() {
     if (!valid) {
@@ -501,10 +506,12 @@ function CreateAllocationForm({
       return;
     }
     setSubmitting(true);
-    const items = lines.map((l) => ({
-      material_code: l.material_code,
-      qty: parseInt(l.qty, 10),
-    }));
+    const items = lines
+      .filter((l) => l.material_code && parseInt(l.qty, 10) > 0)
+      .map((l) => ({
+        material_code: l.material_code,
+        qty: parseInt(l.qty, 10),
+      }));
     const { error } = await supabase.rpc(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "create_weekly_tl_allocation" as any,
