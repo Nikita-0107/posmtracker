@@ -67,6 +67,8 @@ type EditRow = {
   new_batch_type?: string | null;
   old_reference_number?: string | null;
   new_reference_number?: string | null;
+  old_proof_image_path?: string | null;
+  new_proof_image_path?: string | null;
   new_movement_id?: string | null;
 };
 
