@@ -45,19 +45,6 @@ type Movement = {
   proof_image_path: string | null;
   wsp: string;
   item_status: "pending" | "received" | "issue" | string | null;
-};
-
-type Movement = {
-  id: string;
-  created_at: string;
-  movement: "receive" | "dispatch";
-  material_code: string;
-  qty: number;
-  distributor: string | null;
-  reference_number: string | null;
-  proof_image_path: string | null;
-  wsp: string;
-  item_status: "pending" | "received" | "issue" | string | null;
   received_date: string | null;
   batch_type: BatchType | null;
   corrected_at: string | null;
