@@ -106,7 +106,7 @@ function useWeeklyAllocations() {
       setLoading(false);
       return;
     }
-    const headRows = (heads ?? []) as AllocationRow[];
+    const headRows = (heads ?? []) as unknown as AllocationRow[];
     setRows(headRows);
     if (headRows.length === 0) {
       setItems([]);
@@ -119,7 +119,7 @@ function useWeeklyAllocations() {
       .from("tl_weekly_allocation_items" as any)
       .select("id, allocation_id, material_code, qty_allocated, qty_remaining, qty_used")
       .in("allocation_id", ids);
-    setItems((lines ?? []) as AllocationItemRow[]);
+    setItems((lines ?? []) as unknown as AllocationItemRow[]);
     setLoading(false);
   }, []);
 
