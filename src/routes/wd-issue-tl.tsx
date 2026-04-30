@@ -197,10 +197,10 @@ function WeeklyAllocationPage() {
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] leading-relaxed text-foreground">
           <p className="mb-1 font-bold text-primary">How it works</p>
           <ol className="list-decimal space-y-0.5 pl-4 text-muted-foreground">
-            <li>Allocate POSM to a TL once per week (deducts from your WD stock).</li>
+            <li>Allocate POSM to a TL once per week (deducts new qty from your WD stock).</li>
             <li>TL uses POSM in market — no system entry needed during the week.</li>
-            <li>At week end, TL returns leftover stock. You verify physically and close the week.</li>
-            <li>Next week's allocation can only start after the current one is closed.</li>
+            <li>At week end, you physically <strong>verify</strong> remaining stock and close the week. Used = Allocated − Remaining.</li>
+            <li>Remaining stock stays with the TL and carries forward as next week's opening stock.</li>
           </ol>
         </div>
 
@@ -283,7 +283,7 @@ function TlAllocationCard({
             </p>
           ) : (
             <p className="text-[10px] font-semibold text-muted-foreground">
-              No active week
+              No allocation for this week
             </p>
           )}
         </div>
@@ -419,7 +419,7 @@ function PastWeekRow({
         </div>
       </div>
       {items.length > 0 && (
-        <ul className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+        <ul className="mt-1 space-y-0.5 text-[10px]">
           {items.map((it) => (
             <li
               key={it.id}
@@ -429,7 +429,7 @@ function PastWeekRow({
                 {it.material_code}
               </span>
               <span className="font-mono text-muted-foreground">
-                {it.qty_used ?? 0}/{it.qty_allocated}
+                A {it.qty_allocated} · U {it.qty_used ?? 0} · R {it.qty_remaining ?? 0}
               </span>
             </li>
           ))}
@@ -485,15 +485,20 @@ function CreateAllocationForm({
     }, 0);
   }
 
-  const valid =
-    lines.length > 0 &&
-    lines.every((l) => {
-      const n = parseInt(l.qty, 10);
-      if (!l.material_code || !Number.isFinite(n) || n <= 0) return false;
-      const onHand = stocked.find((s) => s.code === l.material_code)?.qty ?? 0;
-      const left = onHand - allocatedExcept(0, l.material_code);
-      return n <= left;
-    });
+  // A line is valid if either: empty (will be skipped) OR a positive qty within stock.
+  // Allow submitting even when all lines are empty — backend will use carry-forward only,
+  // or reject if there's nothing to allocate.
+  const linesOk = lines.every((l) => {
+    if (!l.material_code && !l.qty) return true;
+    if (!l.material_code) return false;
+    const n = parseInt(l.qty, 10);
+    if (!Number.isFinite(n) || n < 0) return false;
+    if (n === 0) return true;
+    const onHand = stocked.find((s) => s.code === l.material_code)?.qty ?? 0;
+    const left = onHand - allocatedExcept(0, l.material_code);
+    return n <= left;
+  });
+  const valid = linesOk;
 
   async function submit() {
     if (!valid) {
@@ -501,10 +506,12 @@ function CreateAllocationForm({
       return;
     }
     setSubmitting(true);
-    const items = lines.map((l) => ({
-      material_code: l.material_code,
-      qty: parseInt(l.qty, 10),
-    }));
+    const items = lines
+      .filter((l) => l.material_code && parseInt(l.qty, 10) > 0)
+      .map((l) => ({
+        material_code: l.material_code,
+        qty: parseInt(l.qty, 10),
+      }));
     const { error } = await supabase.rpc(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       "create_weekly_tl_allocation" as any,
@@ -525,6 +532,10 @@ function CreateAllocationForm({
       <p className="text-[11px] font-bold text-foreground">
         New allocation for {tl.tl_name}
       </p>
+      <p className="text-[10px] text-muted-foreground">
+        Any stock left over from this TL's last closed week will be carried forward
+        automatically. Add new materials here to issue on top of that.
+      </p>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
@@ -532,7 +543,8 @@ function CreateAllocationForm({
         </div>
       ) : stocked.length === 0 ? (
         <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
-          You have no WD stock to allocate.
+          You have no WD stock to issue. You can still create the week if there's
+          carry-forward from the last closed week.
         </p>
       ) : (
         <div className="space-y-1.5">
@@ -682,7 +694,7 @@ function CloseWeekForm({
       toast.error(error.message);
       return;
     }
-    toast.success("Week closed. Remaining stock returned to WD.");
+    toast.success("Week closed. Remaining stock carried forward to next week.");
     await onDone();
   }
 
@@ -691,11 +703,12 @@ function CloseWeekForm({
   return (
     <div className="space-y-3 border-t bg-amber-50/40 p-3">
       <p className="text-[11px] font-bold text-foreground">
-        Close week {fmtRange(allocation.week_start, allocation.week_end)}
+        Verify & close week {fmtRange(allocation.week_start, allocation.week_end)}
       </p>
       <p className="text-[10px] text-muted-foreground">
-        Enter the physically returned (remaining) quantity per material. Used = Allocated −
-        Remaining. Remaining stock will be added back to your WD stock.
+        Physically verify the remaining stock with the TL (or at WD). Enter the verified
+        remaining quantity per material. Used = Allocated − Remaining. Remaining stays
+        with the TL and carries forward as next week's opening stock.
       </p>
 
       <div className="space-y-1.5">
@@ -744,7 +757,7 @@ function CloseWeekForm({
                   <span className="font-semibold text-destructive">{errors[i]}</span>
                 ) : (
                   <span className="text-muted-foreground">
-                    Remaining returns to stock
+                    Carries forward to next week
                   </span>
                 )}
                 <span className="font-mono font-bold text-success">Used: {used}</span>
@@ -761,7 +774,7 @@ function CloseWeekForm({
           kind="dispatch"
           value={proof}
           onChange={setProof}
-          label="Photo of remaining stock"
+          label="Verification photo of remaining stock"
         />
       </div>
 
@@ -780,8 +793,8 @@ function CloseWeekForm({
 
       {!valid && (
         <div className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-2 text-[11px] font-semibold text-amber-800">
-          <AlertTriangle size={14} /> Photo of remaining stock and valid quantities are
-          required.
+          <AlertTriangle size={14} /> Verification photo and valid remaining quantities
+          are required.
         </div>
       )}
 

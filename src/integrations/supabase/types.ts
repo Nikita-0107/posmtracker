@@ -887,6 +887,13 @@ export type Database = {
         }
         Returns: string
       }
+      tl_carry_forward: {
+        Args: { _wd_tl_id: string }
+        Returns: {
+          material_code: string
+          qty: number
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "wsp" | "wd" | "tl"
