@@ -525,6 +525,10 @@ function CreateAllocationForm({
       <p className="text-[11px] font-bold text-foreground">
         New allocation for {tl.tl_name}
       </p>
+      <p className="text-[10px] text-muted-foreground">
+        Any stock left over from this TL's last closed week will be carried forward
+        automatically. Add new materials here to issue on top of that.
+      </p>
 
       {loading ? (
         <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
@@ -532,7 +536,8 @@ function CreateAllocationForm({
         </div>
       ) : stocked.length === 0 ? (
         <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
-          You have no WD stock to allocate.
+          You have no WD stock to issue. You can still create the week if there's
+          carry-forward from the last closed week.
         </p>
       ) : (
         <div className="space-y-1.5">
