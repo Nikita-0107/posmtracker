@@ -682,7 +682,7 @@ function CloseWeekForm({
       toast.error(error.message);
       return;
     }
-    toast.success("Week closed. Remaining stock returned to WD.");
+    toast.success("Week closed. Remaining stock carried forward to next week.");
     await onDone();
   }
 
@@ -691,11 +691,12 @@ function CloseWeekForm({
   return (
     <div className="space-y-3 border-t bg-amber-50/40 p-3">
       <p className="text-[11px] font-bold text-foreground">
-        Close week {fmtRange(allocation.week_start, allocation.week_end)}
+        Verify & close week {fmtRange(allocation.week_start, allocation.week_end)}
       </p>
       <p className="text-[10px] text-muted-foreground">
-        Enter the physically returned (remaining) quantity per material. Used = Allocated −
-        Remaining. Remaining stock will be added back to your WD stock.
+        Physically verify the remaining stock with the TL (or at WD). Enter the verified
+        remaining quantity per material. Used = Allocated − Remaining. Remaining stays
+        with the TL and carries forward as next week's opening stock.
       </p>
 
       <div className="space-y-1.5">
