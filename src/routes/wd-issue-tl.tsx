@@ -197,10 +197,10 @@ function WeeklyAllocationPage() {
         <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] leading-relaxed text-foreground">
           <p className="mb-1 font-bold text-primary">How it works</p>
           <ol className="list-decimal space-y-0.5 pl-4 text-muted-foreground">
-            <li>Allocate POSM to a TL once per week (deducts from your WD stock).</li>
+            <li>Allocate POSM to a TL once per week (deducts new qty from your WD stock).</li>
             <li>TL uses POSM in market — no system entry needed during the week.</li>
-            <li>At week end, TL returns leftover stock. You verify physically and close the week.</li>
-            <li>Next week's allocation can only start after the current one is closed.</li>
+            <li>At week end, you physically <strong>verify</strong> remaining stock and close the week. Used = Allocated − Remaining.</li>
+            <li>Remaining stock stays with the TL and carries forward as next week's opening stock.</li>
           </ol>
         </div>
 
