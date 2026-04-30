@@ -47,6 +47,7 @@ type Movement = {
   item_status: "pending" | "received" | "issue" | string | null;
   received_date: string | null;
   batch_type: BatchType | null;
+  dispatch_date: string | null;
   corrected_at: string | null;
 };
 
