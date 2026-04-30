@@ -1,468 +1,236 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Plus, Send, Trash2, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CalendarRange,
+  CheckCircle2,
+  ClipboardList,
+  Loader2,
+  Lock,
+  Plus,
+  Save,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
 import { useWdStock } from "@/hooks/use-wd";
-import {
-  useTlsForMyWd,
-  issueToTl,
-  useWdIssuanceHistory,
-} from "@/hooks/use-tl-issuances";
+import { useTlsForMyWd, type TlOption } from "@/hooks/use-tl-issuances";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-issue-tl")({
-  component: WdIssueTlPage,
+  component: WeeklyAllocationPage,
   head: () => ({
     meta: [
-      { title: "Issue to TL — POSM Tracker" },
+      { title: "Weekly TL Allocation — POSM Tracker" },
       {
         name: "description",
-        content: "Hand WD stock to a Team Leader for field placement.",
+        content:
+          "WD weekly POSM allocation to Team Leaders with weekly closure based on physical stock.",
       },
     ],
   }),
 });
 
-type LineDraft = {
-  key: string;
-  material_code: string;
-  qty: string;
-};
+// ───────────────────────── helpers ─────────────────────────
 
-function newLine(): LineDraft {
-  return {
-    key: Math.random().toString(36).slice(2),
-    material_code: "",
-    qty: "",
-  };
+function isoMondayOf(d = new Date()): string {
+  const x = new Date(d);
+  const day = x.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  return x.toISOString().slice(0, 10);
 }
 
-function WdIssueTlPage() {
+function addDaysISO(iso: string, days: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function fmtRange(start: string, end: string) {
+  const fmt = (s: string) =>
+    new Date(s + "T00:00:00").toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+    });
+  return `${fmt(start)} – ${fmt(end)}`;
+}
+
+// ───────────────────────── data hooks ─────────────────────────
+
+type AllocationRow = {
+  id: string;
+  wd_code: string;
+  wd_tl_id: string;
+  week_start: string;
+  week_end: string;
+  status: "open" | "closed";
+  created_at: string;
+  closed_at: string | null;
+  closure_proof_image_path: string | null;
+  closure_note: string | null;
+};
+
+type AllocationItemRow = {
+  id: string;
+  allocation_id: string;
+  material_code: string;
+  qty_allocated: number;
+  qty_remaining: number | null;
+  qty_used: number | null;
+};
+
+function useWeeklyAllocations() {
+  const [rows, setRows] = useState<AllocationRow[]>([]);
+  const [items, setItems] = useState<AllocationItemRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    const { data: heads, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_weekly_allocations" as any)
+      .select(
+        "id, wd_code, wd_tl_id, week_start, week_end, status, created_at, closed_at, closure_proof_image_path, closure_note",
+      )
+      .order("week_start", { ascending: false })
+      .limit(50);
+    if (error) {
+      console.error(error);
+      setRows([]);
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const headRows = (heads ?? []) as unknown as AllocationRow[];
+    setRows(headRows);
+    if (headRows.length === 0) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
+    const ids = headRows.map((r) => r.id);
+    const { data: lines } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_weekly_allocation_items" as any)
+      .select("id, allocation_id, material_code, qty_allocated, qty_remaining, qty_used")
+      .in("allocation_id", ids);
+    setItems((lines ?? []) as unknown as AllocationItemRow[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  return { rows, items, loading, refresh };
+}
+
+// ───────────────────────── page ─────────────────────────
+
+function WeeklyAllocationPage() {
   const { user } = useAuth();
   const { tls, loading: tlsLoading } = useTlsForMyWd();
-  const { stock, loading: stockLoading, refresh: refreshStock } = useWdStock();
-  const {
-    items: history,
-    loading: historyLoading,
-    refresh: refreshHistory,
-  } = useWdIssuanceHistory();
-  const { materials } = useMaterials();
-  const matName = useMemo(
-    () => new Map(materials.map((m) => [m.code, m.name])),
-    [materials],
-  );
+  const { rows, items, loading: allocLoading, refresh } = useWeeklyAllocations();
+  const { refresh: refreshWdStock } = useWdStock();
 
-  const today = new Date().toISOString().slice(0, 10);
-  const [tlId, setTlId] = useState("");
-  const [date, setDate] = useState(today);
-  const [lines, setLines] = useState<LineDraft[]>([newLine()]);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const tlRef = useRef<HTMLSelectElement | null>(null);
-  const dateRef = useRef<HTMLInputElement | null>(null);
-  const linesRef = useRef<HTMLDivElement | null>(null);
+  const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t])), [tls]);
 
-  // Materials with stock > 0
-  const stockedMaterials = useMemo(
-    () =>
-      stock
-        .filter((r) => r.qty > 0)
-        .map((r) => ({
-          code: r.material_code,
-          qty: r.qty,
-          name: matName.get(r.material_code) ?? "",
-        }))
-        .sort((a, b) => a.code.localeCompare(b.code)),
-    [stock, matName],
-  );
-
-  // Already-allocated qty per material code in the form (excluding current line)
-  function allocatedExcept(idx: number, code: string): number {
-    return lines.reduce((sum, l, i) => {
-      if (i === idx) return sum;
-      if (l.material_code !== code) return sum;
-      const n = parseInt(l.qty, 10);
-      return sum + (Number.isFinite(n) && n > 0 ? n : 0);
-    }, 0);
-  }
-
-  function availableFor(idx: number, code: string): number {
-    if (!code) return 0;
-    const onHand = stockedMaterials.find((m) => m.code === code)?.qty ?? 0;
-    return Math.max(0, onHand - allocatedExcept(idx, code));
-  }
-
-  function updateLine(idx: number, patch: Partial<LineDraft>) {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-  }
-
-  function addLine() {
-    setLines((prev) => [...prev, newLine()]);
-  }
-
-  function removeLine(idx: number) {
-    setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== idx)));
-  }
-
-  const lineErrors = useMemo(() => {
-    return lines.map((l, idx) => {
-      const codes = lines.map((x) => x.material_code);
-      const dup = !!l.material_code && codes.filter((c) => c === l.material_code).length > 1;
-      const onHand = stockedMaterials.find((m) => m.code === l.material_code)?.qty ?? 0;
-      const n = parseInt(l.qty, 10);
-      let materialError: string | null = null;
-      let qtyError: string | null = null;
-      if (!l.material_code) materialError = "Select a material";
-      else if (dup) materialError = "Duplicate material";
-      if (!l.qty || !Number.isFinite(n) || n <= 0) qtyError = "Enter quantity";
-      else if (l.material_code && n > onHand) qtyError = `Only ${onHand} in stock`;
-      return { materialError, qtyError, hasError: !!materialError || !!qtyError };
-    });
-  }, [lines, stockedMaterials]);
-
-  const allLinesValid = lineErrors.every((e) => !e.hasError);
-  const tlMissing = submitted && !tlId;
-  const dateMissing = submitted && !date;
-  const linesInvalid = submitted && !allLinesValid;
-
-  async function handleSubmit() {
-    setSubmitted(true);
-    setFormError(null);
-
-    type Issue = { ref: HTMLElement | null; msg: string };
-    const issues: Issue[] = [];
-    if (!tlId) issues.push({ ref: tlRef.current, msg: "Team Leader is required" });
-    if (!date) issues.push({ ref: dateRef.current, msg: "Issue date is required" });
-    if (!allLinesValid) issues.push({ ref: linesRef.current, msg: "Fix line item errors" });
-
-    if (issues.length > 0) {
-      setFormError("Please fill all required fields");
-      issues[0].ref?.scrollIntoView({ behavior: "smooth", block: "center" });
-      return;
-    }
-
-    setSubmitting(true);
-    const items = lines.map((l) => ({
-      material_code: l.material_code,
-      qty: parseInt(l.qty, 10),
-    }));
-    const { issuanceId, error } = await issueToTl(tlId, date, items);
-    setSubmitting(false);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success(`Issued to TL · ref ${(issuanceId ?? "").slice(0, 8)}`);
-    setLines([newLine()]);
-    setTlId("");
-    setSubmitted(false);
-    await Promise.all([refreshStock(), refreshHistory()]);
-  }
-
-  // TL-wise totals from history
-  const tlTotals = useMemo(() => {
-    const map = new Map<
+  // Group by TL
+  const byTl = useMemo(() => {
+    const m = new Map<
       string,
-      { tl_name: string; tl_type: string | null; total: number }
+      { tl: TlOption | undefined; open: AllocationRow | null; history: AllocationRow[] }
     >();
-    for (const h of history) {
-      const key = h.wd_tl_id ?? h.tl_name;
-      const existing = map.get(key);
-      if (existing) {
-        existing.total += h.qty_issued;
-      } else {
-        map.set(key, {
-          tl_name: h.tl_name,
-          tl_type: h.tl_type,
-          total: h.qty_issued,
-        });
-      }
+    for (const t of tls) m.set(t.id, { tl: t, open: null, history: [] });
+    for (const r of rows) {
+      const existing = m.get(r.wd_tl_id) ?? {
+        tl: tlMap.get(r.wd_tl_id),
+        open: null,
+        history: [],
+      };
+      if (r.status === "open") existing.open = r;
+      else existing.history.push(r);
+      m.set(r.wd_tl_id, existing);
     }
-    return Array.from(map.values()).sort((a, b) => b.total - a.total);
-  }, [history]);
+    return Array.from(m.values()).sort((a, b) =>
+      (a.tl?.tl_name ?? "").localeCompare(b.tl?.tl_name ?? ""),
+    );
+  }, [rows, tls, tlMap]);
 
-  // Recent issues (latest 8 line items)
-  const recent = useMemo(() => history.slice(0, 8), [history]);
+  const itemsByAlloc = useMemo(() => {
+    const m = new Map<string, AllocationItemRow[]>();
+    for (const it of items) {
+      const list = m.get(it.allocation_id) ?? [];
+      list.push(it);
+      m.set(it.allocation_id, list);
+    }
+    return m;
+  }, [items]);
 
   if (!user) return null;
+
+  const weekStart = isoMondayOf();
+  const weekEnd = addDaysISO(weekStart, 6);
 
   return (
     <AppShell>
       <div className="mx-auto max-w-md space-y-4">
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-            <Users size={20} className="text-accent" />
+            <CalendarRange size={20} className="text-accent" />
           </div>
-          <div>
-            <h2 className="font-heading text-lg font-bold leading-tight">Issue to TL</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Hand WD stock to a Team Leader for placement
+          <div className="min-w-0">
+            <h2 className="font-heading text-lg font-bold leading-tight">
+              Weekly TL Allocation
+            </h2>
+            <p className="truncate text-[11px] text-muted-foreground">
+              Current week: {fmtRange(weekStart, weekEnd)}
             </p>
           </div>
         </div>
 
-        {/* TL select */}
-        <label className="block space-y-1">
-          <span className="text-xs font-semibold text-foreground">
-            Team Leader <span className="text-destructive">*</span>
-          </span>
-          <select
-            ref={tlRef}
-            value={tlId}
-            onChange={(e) => setTlId(e.target.value)}
-            disabled={tlsLoading}
-            className={`w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 ${tlMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-          >
-            <option value="">— Select TL —</option>
-            {tls.map((t) => {
-              const suffix = t.tl_type ? ` (${t.tl_type})` : "";
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-[11px] leading-relaxed text-foreground">
+          <p className="mb-1 font-bold text-primary">How it works</p>
+          <ol className="list-decimal space-y-0.5 pl-4 text-muted-foreground">
+            <li>Allocate POSM to a TL once per week (deducts from your WD stock).</li>
+            <li>TL uses POSM in market — no system entry needed during the week.</li>
+            <li>At week end, TL returns leftover stock. You verify physically and close the week.</li>
+            <li>Next week's allocation can only start after the current one is closed.</li>
+          </ol>
+        </div>
+
+        {tlsLoading || allocLoading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
+            <Loader2 size={14} className="animate-spin" /> Loading…
+          </div>
+        ) : tls.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-5 text-center text-xs text-muted-foreground">
+            No TLs are linked to your WD yet. Ask an admin to assign.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {byTl.map(({ tl, open, history }) => {
+              if (!tl) return null;
               return (
-                <option key={t.id} value={t.id}>
-                  {t.tl_name}
-                  {suffix}
-                </option>
+                <TlAllocationCard
+                  key={tl.id}
+                  tl={tl}
+                  open={open}
+                  history={history}
+                  itemsByAlloc={itemsByAlloc}
+                  onChanged={async () => {
+                    await Promise.all([refresh(), refreshWdStock()]);
+                  }}
+                />
               );
             })}
-          </select>
-          {tlMissing && (
-            <p className="text-[11px] font-semibold text-destructive">Team Leader is required</p>
-          )}
-          {!tlsLoading && tls.length === 0 && (
-            <p className="text-[11px] text-muted-foreground">
-              No TLs are linked to your WD yet. Ask an admin to assign.
-            </p>
-          )}
-        </label>
-
-        {/* Date */}
-        <label className="block space-y-1">
-          <span className="text-xs font-semibold text-foreground">
-            Issue date <span className="text-destructive">*</span>
-          </span>
-          <input
-            ref={dateRef}
-            type="date"
-            value={date}
-            max={today}
-            onChange={(e) => setDate(e.target.value)}
-            className={`w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/30 ${dateMissing ? "border-destructive ring-2 ring-destructive/20" : ""}`}
-          />
-          {dateMissing && (
-            <p className="text-[11px] font-semibold text-destructive">Issue date is required</p>
-          )}
-        </label>
-
-        {/* Lines */}
-        <div ref={linesRef} className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-foreground">
-              Materials <span className="text-destructive">*</span>
-            </span>
-            <button
-              type="button"
-              onClick={addLine}
-              className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px] font-bold text-primary hover:bg-primary/10"
-            >
-              <Plus size={12} /> Add line
-            </button>
-          </div>
-
-          {stockLoading ? (
-            <div className="flex items-center justify-center gap-2 py-4 text-xs text-muted-foreground">
-              <Loader2 size={14} className="animate-spin" /> Loading WD stock…
-            </div>
-          ) : stockedMaterials.length === 0 ? (
-            <p className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-              You have no WD stock to issue.
-            </p>
-          ) : (
-            lines.map((l, idx) => {
-              const onHand =
-                stockedMaterials.find((m) => m.code === l.material_code)?.qty ?? 0;
-              const avail = availableFor(idx, l.material_code);
-              const qtyNum = parseInt(l.qty, 10);
-              const overByStock = Number.isFinite(qtyNum) && qtyNum > onHand;
-              const overByAlloc =
-                Number.isFinite(qtyNum) && !overByStock && qtyNum > avail;
-              const err = lineErrors[idx];
-              const showErr = submitted && err.hasError;
-              return (
-                <div
-                  key={l.key}
-                  className={`space-y-1.5 rounded-xl border bg-card p-2.5 ${showErr ? "border-destructive" : ""}`}
-                >
-                  <div className="flex items-center gap-2">
-                    <select
-                      value={l.material_code}
-                      onChange={(e) =>
-                        updateLine(idx, { material_code: e.target.value })
-                      }
-                      className={`min-w-0 flex-1 rounded-lg border bg-background px-2 py-2 text-xs font-medium text-foreground ${showErr && err.materialError ? "border-destructive" : ""}`}
-                    >
-                      <option value="">— Material —</option>
-                      {stockedMaterials.map((m) => (
-                        <option key={m.code} value={m.code}>
-                          {m.code} ({m.qty}) · {m.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      inputMode="numeric"
-                      min={1}
-                      max={onHand || undefined}
-                      value={l.qty}
-                      onChange={(e) => updateLine(idx, { qty: e.target.value })}
-                      placeholder="Qty"
-                      className={`w-20 rounded-lg border bg-background px-2 py-2 text-center text-sm font-bold text-foreground ${showErr && err.qtyError ? "border-destructive" : ""}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeLine(idx)}
-                      disabled={lines.length === 1}
-                      className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                      aria-label="Remove line"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  {showErr && (err.materialError || err.qtyError) && (
-                    <p className="text-[10px] font-semibold text-destructive">
-                      {err.materialError ?? err.qtyError}
-                    </p>
-                  )}
-                  {l.material_code && !showErr && (
-                    <p
-                      className={`text-[10px] font-semibold ${
-                        overByStock || overByAlloc
-                          ? "text-destructive"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {overByStock
-                        ? `Only ${onHand} in WD stock`
-                        : overByAlloc
-                          ? `Only ${avail} left after other lines`
-                          : `Available: ${avail} of ${onHand}`}
-                    </p>
-                  )}
-                </div>
-              );
-            })
-          )}
-          {linesInvalid && (
-            <p className="text-[11px] font-semibold text-destructive">
-              Fix the line item errors above
-            </p>
-          )}
-        </div>
-
-        {formError && (
-          <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-2 text-[11px] font-semibold text-destructive">
-            <AlertTriangle size={14} /> {formError}
           </div>
         )}
-
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98] disabled:opacity-60"
-        >
-          {submitting ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <Send size={16} />
-          )}
-          Issue to TL
-        </button>
-
-        {/* TL-wise summary */}
-        <div className="space-y-2 rounded-xl border bg-card p-3">
-          <div className="flex items-center justify-between">
-            <h3 className="font-heading text-sm font-bold text-foreground">
-              TL-wise summary
-            </h3>
-            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
-              total units issued
-            </span>
-          </div>
-          {historyLoading ? (
-            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
-              <Loader2 size={14} className="animate-spin" /> Loading…
-            </div>
-          ) : tlTotals.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
-              No issuances yet.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-lg border bg-background">
-              {tlTotals.map((t, i) => (
-                <li
-                  key={i}
-                  className="flex items-center justify-between gap-2 px-3 py-2"
-                >
-                  <span className="min-w-0 truncate text-xs font-bold text-foreground">
-                    {t.tl_name}
-                    {t.tl_type ? (
-                      <span className="ml-1 font-normal text-muted-foreground">
-                        ({t.tl_type})
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
-                    {t.total}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* Recent activity */}
-        <div className="space-y-2 rounded-xl border bg-card p-3">
-          <h3 className="font-heading text-sm font-bold text-foreground">
-            Recent activity
-          </h3>
-          {historyLoading ? (
-            <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
-              <Loader2 size={14} className="animate-spin" /> Loading…
-            </div>
-          ) : recent.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
-              No recent issuances.
-            </p>
-          ) : (
-            <ul className="divide-y rounded-lg border bg-background">
-              {recent.map((r, i) => (
-                <li
-                  key={`${r.issuance_id}-${r.material_code}-${i}`}
-                  className="flex items-center justify-between gap-2 px-3 py-2"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-bold text-foreground">
-                      {r.tl_name}
-                      {r.tl_type ? (
-                        <span className="ml-1 font-normal text-muted-foreground">
-                          ({r.tl_type})
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="truncate font-mono text-[10px] text-muted-foreground">
-                      {r.material_code} · {r.issue_date}
-                    </p>
-                  </div>
-                  <span className="shrink-0 rounded-md bg-muted px-2 py-0.5 font-mono text-xs font-bold text-foreground">
-                    {r.qty_issued}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
 
         <div className="pt-2 text-center">
           <Link
@@ -474,5 +242,565 @@ function WdIssueTlPage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+// ───────────────────────── per-TL card ─────────────────────────
+
+function TlAllocationCard({
+  tl,
+  open,
+  history,
+  itemsByAlloc,
+  onChanged,
+}: {
+  tl: TlOption;
+  open: AllocationRow | null;
+  history: AllocationRow[];
+  itemsByAlloc: Map<string, AllocationItemRow[]>;
+  onChanged: () => Promise<void> | void;
+}) {
+  const [mode, setMode] = useState<"closed" | "create" | "close">("closed");
+
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+      <div className="flex items-start gap-3 px-3 py-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Users size={16} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-foreground">
+            {tl.tl_name}
+            {tl.tl_type && (
+              <span className="ml-1 font-normal text-muted-foreground">
+                ({tl.tl_type})
+              </span>
+            )}
+          </p>
+          {open ? (
+            <p className="text-[10px] font-bold text-amber-700">
+              Week open · {fmtRange(open.week_start, open.week_end)}
+            </p>
+          ) : (
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              No active week
+            </p>
+          )}
+        </div>
+        <div className="shrink-0">
+          {open ? (
+            <button
+              onClick={() => setMode(mode === "close" ? "closed" : "close")}
+              className="rounded-md bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground"
+            >
+              {mode === "close" ? "Cancel" : "Close week"}
+            </button>
+          ) : (
+            <button
+              onClick={() => setMode(mode === "create" ? "closed" : "create")}
+              className="rounded-md bg-accent px-2.5 py-1.5 text-[11px] font-bold text-accent-foreground"
+            >
+              {mode === "create" ? "Cancel" : "+ Allocate"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {open && mode !== "create" && (
+        <OpenWeekSummary
+          allocation={open}
+          items={itemsByAlloc.get(open.id) ?? []}
+        />
+      )}
+
+      {open && mode === "close" && (
+        <CloseWeekForm
+          allocation={open}
+          items={itemsByAlloc.get(open.id) ?? []}
+          onDone={async () => {
+            setMode("closed");
+            await onChanged();
+          }}
+        />
+      )}
+
+      {!open && mode === "create" && (
+        <CreateAllocationForm
+          tl={tl}
+          onDone={async () => {
+            setMode("closed");
+            await onChanged();
+          }}
+        />
+      )}
+
+      {history.length > 0 && (
+        <details className="border-t bg-muted/20 px-3 py-2">
+          <summary className="cursor-pointer text-[11px] font-bold text-muted-foreground">
+            Past weeks ({history.length})
+          </summary>
+          <div className="mt-2 space-y-2">
+            {history.map((h) => (
+              <PastWeekRow
+                key={h.id}
+                allocation={h}
+                items={itemsByAlloc.get(h.id) ?? []}
+              />
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
+function OpenWeekSummary({
+  allocation,
+  items,
+}: {
+  allocation: AllocationRow;
+  items: AllocationItemRow[];
+}) {
+  return (
+    <div className="border-t bg-muted/10 px-3 py-2">
+      <p className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">
+        Allocated this week
+      </p>
+      {items.length === 0 ? (
+        <p className="text-[11px] text-muted-foreground">No items.</p>
+      ) : (
+        <ul className="divide-y rounded-lg border bg-card">
+          {items.map((it) => (
+            <li
+              key={it.id}
+              className="flex items-center justify-between px-2.5 py-1.5"
+            >
+              <span className="truncate font-mono text-[11px] font-bold text-foreground">
+                {it.material_code}
+              </span>
+              <span className="rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs font-bold text-primary">
+                {it.qty_allocated}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-1 text-[10px] text-muted-foreground">
+        Created {new Date(allocation.created_at).toLocaleDateString("en-IN")}
+      </p>
+    </div>
+  );
+}
+
+function PastWeekRow({
+  allocation,
+  items,
+}: {
+  allocation: AllocationRow;
+  items: AllocationItemRow[];
+}) {
+  const totalAlloc = items.reduce((s, i) => s + i.qty_allocated, 0);
+  const totalUsed = items.reduce((s, i) => s + (i.qty_used ?? 0), 0);
+  return (
+    <div className="rounded-lg border bg-card p-2">
+      <div className="flex items-center justify-between">
+        <div className="min-w-0">
+          <p className="text-[11px] font-bold text-foreground">
+            {fmtRange(allocation.week_start, allocation.week_end)}
+          </p>
+          <p className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Lock size={10} /> Closed
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="font-mono text-[11px] font-bold text-foreground">
+            Used {totalUsed} / {totalAlloc}
+          </p>
+        </div>
+      </div>
+      {items.length > 0 && (
+        <ul className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+          {items.map((it) => (
+            <li
+              key={it.id}
+              className="flex items-center justify-between border-b border-dashed border-muted py-0.5"
+            >
+              <span className="truncate font-mono text-foreground">
+                {it.material_code}
+              </span>
+              <span className="font-mono text-muted-foreground">
+                {it.qty_used ?? 0}/{it.qty_allocated}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────── create allocation ─────────────────────────
+
+type LineDraft = { key: string; material_code: string; qty: string };
+
+function newLine(): LineDraft {
+  return { key: Math.random().toString(36).slice(2), material_code: "", qty: "" };
+}
+
+function CreateAllocationForm({
+  tl,
+  onDone,
+}: {
+  tl: TlOption;
+  onDone: () => Promise<void> | void;
+}) {
+  const { stock, loading } = useWdStock();
+  const { materials } = useMaterials();
+  const matName = useMemo(
+    () => new Map(materials.map((m) => [m.code, m.name])),
+    [materials],
+  );
+
+  const stocked = useMemo(
+    () =>
+      stock
+        .filter((r) => r.qty > 0)
+        .map((r) => ({ code: r.material_code, qty: r.qty }))
+        .sort((a, b) => a.code.localeCompare(b.code)),
+    [stock],
+  );
+
+  const [lines, setLines] = useState<LineDraft[]>([newLine()]);
+  const [submitting, setSubmitting] = useState(false);
+
+  function update(idx: number, patch: Partial<LineDraft>) {
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  }
+
+  function allocatedExcept(idx: number, code: string): number {
+    return lines.reduce((s, l, i) => {
+      if (i === idx || l.material_code !== code) return s;
+      const n = parseInt(l.qty, 10);
+      return s + (Number.isFinite(n) && n > 0 ? n : 0);
+    }, 0);
+  }
+
+  const valid =
+    lines.length > 0 &&
+    lines.every((l) => {
+      const n = parseInt(l.qty, 10);
+      if (!l.material_code || !Number.isFinite(n) || n <= 0) return false;
+      const onHand = stocked.find((s) => s.code === l.material_code)?.qty ?? 0;
+      const left = onHand - allocatedExcept(0, l.material_code);
+      return n <= left;
+    });
+
+  async function submit() {
+    if (!valid) {
+      toast.error("Fix line items first");
+      return;
+    }
+    setSubmitting(true);
+    const items = lines.map((l) => ({
+      material_code: l.material_code,
+      qty: parseInt(l.qty, 10),
+    }));
+    const { error } = await supabase.rpc(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "create_weekly_tl_allocation" as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      { _wd_tl_id: tl.id, _items: items } as any,
+    );
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Weekly allocation created");
+    await onDone();
+  }
+
+  return (
+    <div className="space-y-2 border-t bg-muted/10 p-3">
+      <p className="text-[11px] font-bold text-foreground">
+        New allocation for {tl.tl_name}
+      </p>
+
+      {loading ? (
+        <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+          <Loader2 size={14} className="animate-spin" /> Loading WD stock…
+        </div>
+      ) : stocked.length === 0 ? (
+        <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
+          You have no WD stock to allocate.
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {lines.map((l, idx) => {
+            const onHand = stocked.find((s) => s.code === l.material_code)?.qty ?? 0;
+            const left = onHand - allocatedExcept(idx, l.material_code);
+            return (
+              <div key={l.key} className="space-y-1 rounded-lg border bg-card p-2">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={l.material_code}
+                    onChange={(e) => update(idx, { material_code: e.target.value })}
+                    className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-xs font-medium"
+                  >
+                    <option value="">— Material —</option>
+                    {stocked.map((m) => (
+                      <option key={m.code} value={m.code}>
+                        {m.code} ({m.qty}) · {matName.get(m.code) ?? ""}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={left || undefined}
+                    value={l.qty}
+                    onChange={(e) => update(idx, { qty: e.target.value })}
+                    placeholder="Qty"
+                    className="w-20 rounded-md border bg-background px-2 py-1.5 text-center text-sm font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setLines((p) => (p.length === 1 ? p : p.filter((_, i) => i !== idx)))
+                    }
+                    disabled={lines.length === 1}
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                    aria-label="Remove line"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+                {l.material_code && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Available: {Math.max(0, left)} of {onHand}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => setLines((p) => [...p, newLine()])}
+            className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-[11px] font-bold text-primary"
+          >
+            <Plus size={12} /> Add line
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={submitting || !valid}
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+      >
+        {submitting ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <ClipboardList size={16} />
+        )}
+        Create weekly allocation
+      </button>
+    </div>
+  );
+}
+
+// ───────────────────────── close week ─────────────────────────
+
+function CloseWeekForm({
+  allocation,
+  items,
+  onDone,
+}: {
+  allocation: AllocationRow;
+  items: AllocationItemRow[];
+  onDone: () => Promise<void> | void;
+}) {
+  const { user, profile } = useAuth();
+  const wd = profile?.wd_code ?? "wd";
+  const { materials } = useMaterials();
+  const matName = useMemo(
+    () => new Map(materials.map((m) => [m.code, m.name])),
+    [materials],
+  );
+
+  const initial = useMemo(
+    () =>
+      Object.fromEntries(items.map((it) => [it.material_code, "0"])) as Record<
+        string,
+        string
+      >,
+    [items],
+  );
+  const [remaining, setRemaining] = useState<Record<string, string>>(initial);
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const proofRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => setRemaining(initial), [initial]);
+
+  const errors = items.map((it) => {
+    const n = parseInt(remaining[it.material_code] ?? "0", 10);
+    if (!Number.isFinite(n) || n < 0) return "Enter a valid quantity";
+    if (n > it.qty_allocated) return `Cannot exceed allocated ${it.qty_allocated}`;
+    return null;
+  });
+  const linesValid = errors.every((e) => !e);
+  const valid = linesValid && !!proof?.path;
+
+  async function submit() {
+    if (!valid) {
+      toast.error(!proof?.path ? "Proof photo is required" : "Fix remaining quantities");
+      proofRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+    setSubmitting(true);
+    const payload = items.map((it) => ({
+      material_code: it.material_code,
+      qty_remaining: parseInt(remaining[it.material_code] ?? "0", 10),
+    }));
+    const { error } = await supabase.rpc(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      "close_weekly_tl_allocation" as any,
+      {
+        _allocation_id: allocation.id,
+        _remaining: payload,
+        _proof_image_path: proof!.path,
+        _note: note || null,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any,
+    );
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Week closed. Remaining stock returned to WD.");
+    await onDone();
+  }
+
+  if (!user) return null;
+
+  return (
+    <div className="space-y-3 border-t bg-amber-50/40 p-3">
+      <p className="text-[11px] font-bold text-foreground">
+        Close week {fmtRange(allocation.week_start, allocation.week_end)}
+      </p>
+      <p className="text-[10px] text-muted-foreground">
+        Enter the physically returned (remaining) quantity per material. Used = Allocated −
+        Remaining. Remaining stock will be added back to your WD stock.
+      </p>
+
+      <div className="space-y-1.5">
+        {items.map((it, i) => {
+          const n = parseInt(remaining[it.material_code] ?? "0", 10);
+          const used =
+            Number.isFinite(n) && n >= 0 && n <= it.qty_allocated
+              ? it.qty_allocated - n
+              : 0;
+          return (
+            <div key={it.id} className="rounded-lg border bg-card p-2">
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-[11px] font-bold text-foreground">
+                    {it.material_code}
+                  </p>
+                  <p className="truncate text-[10px] text-muted-foreground">
+                    {matName.get(it.material_code) ?? ""}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-bold uppercase text-muted-foreground">
+                    Allocated
+                  </p>
+                  <p className="font-mono text-sm font-bold">{it.qty_allocated}</p>
+                </div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  max={it.qty_allocated}
+                  value={remaining[it.material_code] ?? "0"}
+                  onChange={(e) =>
+                    setRemaining((p) => ({
+                      ...p,
+                      [it.material_code]: e.target.value,
+                    }))
+                  }
+                  className={`w-20 rounded-md border bg-background px-2 py-1.5 text-center text-sm font-bold ${
+                    errors[i] ? "border-destructive" : ""
+                  }`}
+                />
+              </div>
+              <div className="mt-1 flex items-center justify-between text-[10px]">
+                {errors[i] ? (
+                  <span className="font-semibold text-destructive">{errors[i]}</span>
+                ) : (
+                  <span className="text-muted-foreground">
+                    Remaining returns to stock
+                  </span>
+                )}
+                <span className="font-mono font-bold text-success">Used: {used}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div ref={proofRef}>
+        <ProofImageUpload
+          wsp={wd}
+          userId={user.id}
+          kind="dispatch"
+          value={proof}
+          onChange={setProof}
+          label="Photo of remaining stock"
+        />
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-semibold text-foreground">
+          Note (optional)
+        </span>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+          placeholder="Any remarks…"
+        />
+      </label>
+
+      {!valid && (
+        <div className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-2.5 py-2 text-[11px] font-semibold text-amber-800">
+          <AlertTriangle size={14} /> Photo of remaining stock and valid quantities are
+          required.
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={submit}
+        disabled={submitting}
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-60"
+      >
+        {submitting ? (
+          <Loader2 size={16} className="animate-spin" />
+        ) : (
+          <CheckCircle2 size={16} />
+        )}
+        Confirm & close week
+      </button>
+      <p className="flex items-center justify-center gap-1 text-[10px] text-muted-foreground">
+        <Save size={10} /> Once closed, this week is locked and cannot be edited.
+      </p>
+    </div>
   );
 }

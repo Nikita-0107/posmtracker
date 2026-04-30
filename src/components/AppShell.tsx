@@ -30,7 +30,6 @@ const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
   { prefix: "/wd-issue-tl", roles: ["wd", "admin"] },
   { prefix: "/wd-issue", roles: ["wsp", "admin"] },
   { prefix: "/wd", roles: ["wd", "admin"] },
-  { prefix: "/tl-upload", roles: ["tl", "admin"] },
   { prefix: "/tl", roles: ["tl", "admin"] },
   { prefix: "/receive", roles: ["wsp", "admin"] },
   { prefix: "/wsp-issues", roles: ["wsp", "admin"] },
