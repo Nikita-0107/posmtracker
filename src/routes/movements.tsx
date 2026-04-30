@@ -428,7 +428,7 @@ function MovementsPage() {
       </div>
 
       {editTarget && (
-        <CorrectionDialog
+        <EditEntryDialog
           movement={editTarget}
           materialName={matMap.get(editTarget.material_code) ?? ""}
           onClose={() => setEditTarget(null)}
@@ -442,7 +442,7 @@ function MovementsPage() {
   );
 }
 
-function CorrectionDialog({
+function EditEntryDialog({
   movement,
   materialName,
   onClose,
@@ -453,41 +453,117 @@ function CorrectionDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { profile } = useAuth();
+  const { materials } = useMaterials();
+  const isReceive = movement.movement === "receive";
+
   const [step, setStep] = useState<"confirm" | "form">("confirm");
-  const [newQty, setNewQty] = useState<string>(String(movement.qty));
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Editable fields
+  const [newQty, setNewQty] = useState<string>(String(movement.qty));
+  const [materialCode, setMaterialCode] = useState<string>(movement.material_code);
+  const [materialQuery, setMaterialQuery] = useState<string>("");
+  const [receivedDate, setReceivedDate] = useState<string>(
+    movement.received_date ?? new Date().toISOString().slice(0, 10),
+  );
+  const [batchType, setBatchType] = useState<BatchType | "">(movement.batch_type ?? "");
+  const [refNumber, setRefNumber] = useState<string>(movement.reference_number ?? "");
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [keepProof, setKeepProof] = useState<boolean>(true);
+
+  const materialMatches = useMemo(() => {
+    const q = materialQuery.trim().toLowerCase();
+    if (!q) return [] as { code: string; name: string }[];
+    return materials
+      .filter(
+        (m) =>
+          m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [materialQuery, materials]);
+
   async function submit() {
-    const parsed = Number(newQty);
-    if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-      toast.error("Enter a valid positive whole number");
-      return;
-    }
     if (reason.trim().length === 0) {
-      toast.error("Reason is required");
+      toast.error("Reason for change is required");
       return;
     }
-    setSubmitting(true);
-    const { error } = await supabase.rpc("request_movement_correction", {
-      _movement_id: movement.id,
-      _new_qty: parsed,
-      _reason: reason.trim(),
-    });
-    setSubmitting(false);
-    if (error) {
-      toast.error("Could not save correction", { description: error.message });
-      return;
+
+    if (isReceive) {
+      const parsedQty = Number(newQty);
+      if (!Number.isFinite(parsedQty) || parsedQty <= 0 || !Number.isInteger(parsedQty)) {
+        toast.error("Enter a valid positive whole number for quantity");
+        return;
+      }
+      if (!materialCode.trim()) {
+        toast.error("Material is required");
+        return;
+      }
+      if (!receivedDate) {
+        toast.error("Received date is required");
+        return;
+      }
+      if (receivedDate > new Date().toISOString().slice(0, 10)) {
+        toast.error("Received date cannot be in the future");
+        return;
+      }
+      if (!refNumber.trim()) {
+        toast.error("PO/Reference number is required");
+        return;
+      }
+      const proofPath = keepProof ? movement.proof_image_path : proof?.path ?? null;
+      if (!proofPath) {
+        toast.error("Proof image is required");
+        return;
+      }
+
+      setSubmitting(true);
+      const { error } = await supabase.rpc("edit_receive_entry", {
+        _movement_id: movement.id,
+        _new_qty: parsedQty,
+        _new_material_code: materialCode.trim(),
+        _new_received_date: receivedDate,
+        _new_batch_type: batchType || null,
+        _new_reference_number: refNumber.trim(),
+        _new_proof_image_path: proofPath,
+        _reason: reason.trim(),
+      });
+      setSubmitting(false);
+      if (error) {
+        toast.error("Could not save edit", { description: error.message });
+        return;
+      }
+      toast.success("Entry edited. Original marked as corrected.");
+      onSaved();
+    } else {
+      // Dispatch entries: only quantity edit (legacy correction)
+      const parsed = Number(newQty);
+      if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
+        toast.error("Enter a valid positive whole number");
+        return;
+      }
+      setSubmitting(true);
+      const { error } = await supabase.rpc("request_movement_correction", {
+        _movement_id: movement.id,
+        _new_qty: parsed,
+        _reason: reason.trim(),
+      });
+      setSubmitting(false);
+      if (error) {
+        toast.error("Could not save correction", { description: error.message });
+        return;
+      }
+      toast.success("Quantity corrected");
+      onSaved();
     }
-    toast.success("Correction saved");
-    onSaved();
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-card shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-end justify-center overflow-y-auto bg-black/50 p-3 sm:items-center">
+      <div className="my-3 w-full max-w-sm overflow-hidden rounded-2xl bg-card shadow-xl">
         <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="font-heading text-sm font-bold">Request Correction</h3>
+          <h3 className="font-heading text-sm font-bold">Edit Entry</h3>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-muted-foreground hover:bg-muted"
@@ -498,18 +574,30 @@ function CorrectionDialog({
         </div>
 
         <div className="space-y-3 p-4">
-          <div className="rounded-lg bg-muted/40 p-2 text-[11px]">
+          {/* Read-only current entry details */}
+          <div className="space-y-1 rounded-lg bg-muted/40 p-2 text-[11px]">
+            <div className="text-[10px] font-bold uppercase text-muted-foreground">
+              Current entry
+            </div>
             <div className="font-mono font-bold text-foreground">{movement.material_code}</div>
             <div className="text-muted-foreground">{materialName}</div>
-            <div className="mt-1 text-muted-foreground">
-              Current qty: <span className="font-bold text-foreground">{movement.qty}</span>
+            <div className="grid grid-cols-2 gap-1 pt-1 text-muted-foreground">
+              <div>Qty: <span className="font-bold text-foreground">{movement.qty}</span></div>
+              {isReceive && (
+                <>
+                  <div>Recd: <span className="font-bold text-foreground">{movement.received_date ?? "—"}</span></div>
+                  <div>Batch: <span className="font-bold text-foreground">{movement.batch_type ?? "—"}</span></div>
+                  <div>PO: <span className="font-bold text-foreground">{movement.reference_number ?? "—"}</span></div>
+                </>
+              )}
             </div>
           </div>
 
           {step === "confirm" ? (
             <>
               <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200">
-                This will modify stock records. Are you sure?
+                This will mark the original as <b>corrected</b> and create a new
+                entry with your updated values. Stock will adjust automatically.
               </div>
               <div className="flex gap-2">
                 <button
@@ -528,9 +616,49 @@ function CorrectionDialog({
             </>
           ) : (
             <>
+              <div className="text-[10px] font-bold uppercase text-muted-foreground">
+                Updated values
+              </div>
+
+              {isReceive && (
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                    Material
+                  </span>
+                  <input
+                    type="text"
+                    value={materialCode}
+                    onChange={(e) => {
+                      setMaterialCode(e.target.value);
+                      setMaterialQuery(e.target.value);
+                    }}
+                    placeholder="Search code or name"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                  />
+                  {materialMatches.length > 0 && materialQuery && materialCode !== materialQuery && (
+                    <div className="mt-1 max-h-32 overflow-y-auto rounded-lg border border-border bg-popover">
+                      {materialMatches.map((m) => (
+                        <button
+                          key={m.code}
+                          type="button"
+                          onClick={() => {
+                            setMaterialCode(m.code);
+                            setMaterialQuery("");
+                          }}
+                          className="block w-full truncate px-3 py-1.5 text-left text-[11px] hover:bg-muted"
+                        >
+                          <span className="font-mono font-bold">{m.code}</span>{" "}
+                          <span className="text-muted-foreground">· {m.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </label>
+              )}
+
               <label className="block">
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
-                  New quantity
+                  Quantity
                 </span>
                 <input
                   type="number"
@@ -541,6 +669,78 @@ function CorrectionDialog({
                   className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
               </label>
+
+              {isReceive && (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Received Date
+                    </span>
+                    <input
+                      type="date"
+                      value={receivedDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setReceivedDate(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Batch Type
+                    </span>
+                    <select
+                      value={batchType}
+                      onChange={(e) => setBatchType(e.target.value as BatchType | "")}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    >
+                      <option value="">— None —</option>
+                      {BATCH_TYPES.map((b) => (
+                        <option key={b} value={b}>
+                          {b}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      PO Number
+                    </span>
+                    <input
+                      type="text"
+                      value={refNumber}
+                      onChange={(e) => setRefNumber(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-semibold text-muted-foreground">
+                      Proof Image
+                    </span>
+                    <label className="flex items-center gap-2 text-[11px] text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={keepProof}
+                        onChange={(e) => setKeepProof(e.target.checked)}
+                      />
+                      Keep existing proof image
+                    </label>
+                    {!keepProof && profile?.wsp && profile?.id && (
+                      <ProofImageUpload
+                        wsp={profile.wsp}
+                        userId={profile.id}
+                        kind="receive"
+                        value={proof}
+                        onChange={setProof}
+                        label="Upload new proof"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
               <label className="block">
                 <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
                   Reason for change <span className="text-destructive">*</span>
@@ -550,10 +750,11 @@ function CorrectionDialog({
                   onChange={(e) => setReason(e.target.value)}
                   rows={3}
                   maxLength={300}
-                  placeholder="Explain why this quantity needs to change"
+                  placeholder="Explain why this entry needs to change"
                   className="w-full resize-none rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
                 />
               </label>
+
               <div className="flex gap-2">
                 <button
                   onClick={onClose}
