@@ -617,11 +617,16 @@ function EditEntryDialog({
             <div className="text-muted-foreground">{materialName}</div>
             <div className="grid grid-cols-2 gap-1 pt-1 text-muted-foreground">
               <div>Qty: <span className="font-bold text-foreground">{movement.qty}</span></div>
-              {isReceive && (
+              {isReceive ? (
                 <>
                   <div>Recd: <span className="font-bold text-foreground">{movement.received_date ?? "—"}</span></div>
                   <div>Batch: <span className="font-bold text-foreground">{movement.batch_type ?? "—"}</span></div>
                   <div>PO: <span className="font-bold text-foreground">{movement.reference_number ?? "—"}</span></div>
+                </>
+              ) : (
+                <>
+                  <div>Disp date: <span className="font-bold text-foreground">{movement.dispatch_date ?? "—"}</span></div>
+                  <div>Distributor: <span className="font-bold text-foreground">{movement.distributor ?? "—"}</span></div>
                 </>
               )}
             </div>
