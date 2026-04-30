@@ -103,7 +103,7 @@ function MovementsPage() {
     const { data, error } = await supabase
       .from("stock_movements")
       .select(
-        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status",
+        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status, received_date, batch_type, corrected_at",
       )
       .order("created_at", { ascending: false })
       .limit(200);
