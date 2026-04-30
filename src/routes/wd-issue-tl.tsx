@@ -419,7 +419,7 @@ function PastWeekRow({
         </div>
       </div>
       {items.length > 0 && (
-        <ul className="mt-1 grid grid-cols-2 gap-x-2 gap-y-0.5 text-[10px]">
+        <ul className="mt-1 space-y-0.5 text-[10px]">
           {items.map((it) => (
             <li
               key={it.id}
@@ -429,7 +429,7 @@ function PastWeekRow({
                 {it.material_code}
               </span>
               <span className="font-mono text-muted-foreground">
-                {it.qty_used ?? 0}/{it.qty_allocated}
+                A {it.qty_allocated} · U {it.qty_used ?? 0} · R {it.qty_remaining ?? 0}
               </span>
             </li>
           ))}
