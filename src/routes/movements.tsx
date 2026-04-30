@@ -12,10 +12,14 @@ import {
   X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
+
+type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
+const BATCH_TYPES: BatchType[] = ["Launch", "Cyclical", "SOV", "Others"];
 
 export const Route = createFileRoute("/movements")({
   component: MovementsPage,
