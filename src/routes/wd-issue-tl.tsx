@@ -283,7 +283,7 @@ function TlAllocationCard({
             </p>
           ) : (
             <p className="text-[10px] font-semibold text-muted-foreground">
-              No active week
+              No allocation for this week
             </p>
           )}
         </div>
