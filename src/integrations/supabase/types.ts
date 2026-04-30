@@ -493,6 +493,97 @@ export type Database = {
           },
         ]
       }
+      tl_weekly_allocation_items: {
+        Row: {
+          allocation_id: string
+          created_at: string
+          id: string
+          material_code: string
+          qty_allocated: number
+          qty_remaining: number | null
+          qty_used: number | null
+        }
+        Insert: {
+          allocation_id: string
+          created_at?: string
+          id?: string
+          material_code: string
+          qty_allocated: number
+          qty_remaining?: number | null
+          qty_used?: number | null
+        }
+        Update: {
+          allocation_id?: string
+          created_at?: string
+          id?: string
+          material_code?: string
+          qty_allocated?: number
+          qty_remaining?: number | null
+          qty_used?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tl_weekly_allocation_items_allocation_id_fkey"
+            columns: ["allocation_id"]
+            isOneToOne: false
+            referencedRelation: "tl_weekly_allocations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tl_weekly_allocations: {
+        Row: {
+          closed_at: string | null
+          closed_by: string | null
+          closure_note: string | null
+          closure_proof_image_path: string | null
+          created_at: string
+          created_by: string
+          id: string
+          status: Database["public"]["Enums"]["tl_alloc_status"]
+          wd_code: string
+          wd_tl_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closure_note?: string | null
+          closure_proof_image_path?: string | null
+          created_at?: string
+          created_by: string
+          id?: string
+          status?: Database["public"]["Enums"]["tl_alloc_status"]
+          wd_code: string
+          wd_tl_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          closed_at?: string | null
+          closed_by?: string | null
+          closure_note?: string | null
+          closure_proof_image_path?: string | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          status?: Database["public"]["Enums"]["tl_alloc_status"]
+          wd_code?: string
+          wd_tl_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tl_weekly_allocations_wd_tl_id_fkey"
+            columns: ["wd_tl_id"]
+            isOneToOne: false
+            referencedRelation: "wd_tls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -615,6 +706,15 @@ export type Database = {
       }
     }
     Functions: {
+      close_weekly_tl_allocation: {
+        Args: {
+          _allocation_id: string
+          _note?: string
+          _proof_image_path: string
+          _remaining: Json
+        }
+        Returns: string
+      }
       confirm_dispatch_item: {
         Args: {
           _action: string
@@ -623,6 +723,10 @@ export type Database = {
           _received_qty?: number
         }
         Returns: Database["public"]["Enums"]["dispatch_item_status"]
+      }
+      create_weekly_tl_allocation: {
+        Args: { _items: Json; _wd_tl_id: string }
+        Returns: string
       }
       current_user_wd: { Args: never; Returns: string }
       current_user_wsp: {
@@ -678,6 +782,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      iso_week_monday: { Args: { _d: string }; Returns: string }
       issue_to_tl: {
         Args: { _issue_date: string; _items: Json; _tl_user_id: string }
         Returns: string
@@ -795,6 +900,7 @@ export type Database = {
         | "closed_loss"
         | "resolved"
       movement_type: "receive" | "dispatch" | "tl_issue"
+      tl_alloc_status: "open" | "closed"
       wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
     CompositeTypes: {
@@ -935,6 +1041,7 @@ export const Constants = {
         "resolved",
       ],
       movement_type: ["receive", "dispatch", "tl_issue"],
+      tl_alloc_status: ["open", "closed"],
       wsp_code: ["CEVL", "CEVJ", "CEVY"],
     },
   },
