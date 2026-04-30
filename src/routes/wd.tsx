@@ -79,7 +79,7 @@ function WdHomePage() {
             className="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] font-bold text-muted-foreground transition hover:bg-muted"
           >
             <Send size={16} />
-            Issue to TL
+            Weekly TL
           </Link>
           <SectionBtn label="Assignments" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
         </div>

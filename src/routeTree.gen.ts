@@ -14,7 +14,6 @@ import { Route as WspInTransitRouteImport } from './routes/wsp-in-transit'
 import { Route as WdIssueTlRouteImport } from './routes/wd-issue-tl'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as WdRouteImport } from './routes/wd'
-import { Route as TlUploadRouteImport } from './routes/tl-upload'
 import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
@@ -49,11 +48,6 @@ const WdIssueRoute = WdIssueRouteImport.update({
 const WdRoute = WdRouteImport.update({
   id: '/wd',
   path: '/wd',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TlUploadRoute = TlUploadRouteImport.update({
-  id: '/tl-upload',
-  path: '/tl-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TlRoute = TlRouteImport.update({
@@ -116,7 +110,6 @@ export interface FileRoutesByFullPath {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
-  '/tl-upload': typeof TlUploadRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -134,7 +127,6 @@ export interface FileRoutesByTo {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
-  '/tl-upload': typeof TlUploadRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -153,7 +145,6 @@ export interface FileRoutesById {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
-  '/tl-upload': typeof TlUploadRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -173,7 +164,6 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
-    | '/tl-upload'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -191,7 +181,6 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
-    | '/tl-upload'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -209,7 +198,6 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
-    | '/tl-upload'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -228,7 +216,6 @@ export interface RootRouteChildren {
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
-  TlUploadRoute: typeof TlUploadRoute
   WdRoute: typeof WdRoute
   WdIssueRoute: typeof WdIssueRoute
   WdIssueTlRoute: typeof WdIssueTlRoute
@@ -273,13 +260,6 @@ declare module '@tanstack/react-router' {
       path: '/wd'
       fullPath: '/wd'
       preLoaderRoute: typeof WdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/tl-upload': {
-      id: '/tl-upload'
-      path: '/tl-upload'
-      fullPath: '/tl-upload'
-      preLoaderRoute: typeof TlUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tl': {
@@ -364,7 +344,6 @@ const rootRouteChildren: RootRouteChildren = {
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
-  TlUploadRoute: TlUploadRoute,
   WdRoute: WdRoute,
   WdIssueRoute: WdIssueRoute,
   WdIssueTlRoute: WdIssueTlRoute,
