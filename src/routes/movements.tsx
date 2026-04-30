@@ -403,6 +403,10 @@ function MovementsPage() {
                             changes.push(`Batch ${e.old_batch_type ?? "—"} → ${e.new_batch_type ?? "—"}`);
                           if ((e.old_reference_number ?? "") !== (e.new_reference_number ?? "") && (e.old_reference_number || e.new_reference_number))
                             changes.push(`PO ${e.old_reference_number ?? "—"} → ${e.new_reference_number ?? "—"}`);
+                          if ((e.old_distributor ?? "") !== (e.new_distributor ?? "") && (e.old_distributor || e.new_distributor))
+                            changes.push(`Distributor ${e.old_distributor ?? "—"} → ${e.new_distributor ?? "—"}`);
+                          if ((e.old_dispatch_date ?? "") !== (e.new_dispatch_date ?? "") && (e.old_dispatch_date || e.new_dispatch_date))
+                            changes.push(`Disp ${e.old_dispatch_date ?? "—"} → ${e.new_dispatch_date ?? "—"}`);
                           if ((e.old_proof_image_path ?? "") !== (e.new_proof_image_path ?? "") && (e.old_proof_image_path || e.new_proof_image_path))
                             changes.push(`Proof image updated`);
                           return (
