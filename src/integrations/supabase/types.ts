@@ -195,6 +195,8 @@ export type Database = {
           id: string
           movement_id: string
           new_batch_type: Database["public"]["Enums"]["batch_type"] | null
+          new_dispatch_date: string | null
+          new_distributor: string | null
           new_material_code: string | null
           new_movement_id: string | null
           new_proof_image_path: string | null
@@ -202,6 +204,8 @@ export type Database = {
           new_received_date: string | null
           new_reference_number: string | null
           old_batch_type: Database["public"]["Enums"]["batch_type"] | null
+          old_dispatch_date: string | null
+          old_distributor: string | null
           old_material_code: string | null
           old_proof_image_path: string | null
           old_quantity: number
@@ -215,6 +219,8 @@ export type Database = {
           id?: string
           movement_id: string
           new_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          new_dispatch_date?: string | null
+          new_distributor?: string | null
           new_material_code?: string | null
           new_movement_id?: string | null
           new_proof_image_path?: string | null
@@ -222,6 +228,8 @@ export type Database = {
           new_received_date?: string | null
           new_reference_number?: string | null
           old_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          old_dispatch_date?: string | null
+          old_distributor?: string | null
           old_material_code?: string | null
           old_proof_image_path?: string | null
           old_quantity: number
@@ -235,6 +243,8 @@ export type Database = {
           id?: string
           movement_id?: string
           new_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          new_dispatch_date?: string | null
+          new_distributor?: string | null
           new_material_code?: string | null
           new_movement_id?: string | null
           new_proof_image_path?: string | null
@@ -242,6 +252,8 @@ export type Database = {
           new_received_date?: string | null
           new_reference_number?: string | null
           old_batch_type?: Database["public"]["Enums"]["batch_type"] | null
+          old_dispatch_date?: string | null
+          old_distributor?: string | null
           old_material_code?: string | null
           old_proof_image_path?: string | null
           old_quantity?: number
@@ -632,6 +644,17 @@ export type Database = {
           _distributor: string
           _items: Json
           _proof_image_path: string
+        }
+        Returns: string
+      }
+      edit_dispatch_entry: {
+        Args: {
+          _movement_id: string
+          _new_dispatch_date: string
+          _new_distributor: string
+          _new_proof_image_path: string
+          _new_qty: number
+          _reason: string
         }
         Returns: string
       }

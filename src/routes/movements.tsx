@@ -47,6 +47,7 @@ type Movement = {
   item_status: "pending" | "received" | "issue" | string | null;
   received_date: string | null;
   batch_type: BatchType | null;
+  dispatch_date: string | null;
   corrected_at: string | null;
 };
 
@@ -69,6 +70,10 @@ type EditRow = {
   new_reference_number?: string | null;
   old_proof_image_path?: string | null;
   new_proof_image_path?: string | null;
+  old_distributor?: string | null;
+  new_distributor?: string | null;
+  old_dispatch_date?: string | null;
+  new_dispatch_date?: string | null;
   new_movement_id?: string | null;
 };
 
@@ -105,7 +110,7 @@ function MovementsPage() {
     const { data, error } = await supabase
       .from("stock_movements")
       .select(
-        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status, received_date, batch_type, corrected_at",
+        "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status, received_date, batch_type, dispatch_date, corrected_at",
       )
       .order("created_at", { ascending: false })
       .limit(200);
@@ -125,7 +130,7 @@ function MovementsPage() {
       const { data: editsData } = await supabase
         .from("stock_movement_edits")
         .select(
-          "id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason, old_material_code, new_material_code, old_received_date, new_received_date, old_batch_type, new_batch_type, old_reference_number, new_reference_number, new_movement_id",
+          "id, movement_id, old_quantity, new_quantity, edited_by, edited_at, edit_reason, old_material_code, new_material_code, old_received_date, new_received_date, old_batch_type, new_batch_type, old_reference_number, new_reference_number, old_distributor, new_distributor, old_dispatch_date, new_dispatch_date, new_movement_id",
         )
         .in("movement_id", ids)
         .order("edited_at", { ascending: false });
@@ -399,6 +404,10 @@ function MovementsPage() {
                             changes.push(`Batch ${e.old_batch_type ?? "—"} → ${e.new_batch_type ?? "—"}`);
                           if ((e.old_reference_number ?? "") !== (e.new_reference_number ?? "") && (e.old_reference_number || e.new_reference_number))
                             changes.push(`PO ${e.old_reference_number ?? "—"} → ${e.new_reference_number ?? "—"}`);
+                          if ((e.old_distributor ?? "") !== (e.new_distributor ?? "") && (e.old_distributor || e.new_distributor))
+                            changes.push(`Distributor ${e.old_distributor ?? "—"} → ${e.new_distributor ?? "—"}`);
+                          if ((e.old_dispatch_date ?? "") !== (e.new_dispatch_date ?? "") && (e.old_dispatch_date || e.new_dispatch_date))
+                            changes.push(`Disp ${e.old_dispatch_date ?? "—"} → ${e.new_dispatch_date ?? "—"}`);
                           if ((e.old_proof_image_path ?? "") !== (e.new_proof_image_path ?? "") && (e.old_proof_image_path || e.new_proof_image_path))
                             changes.push(`Proof image updated`);
                           return (
@@ -472,6 +481,10 @@ function EditEntryDialog({
   const [refNumber, setRefNumber] = useState<string>(movement.reference_number ?? "");
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [keepProof, setKeepProof] = useState<boolean>(true);
+  const [distributor, setDistributor] = useState<string>(movement.distributor ?? "");
+  const [dispatchDate, setDispatchDate] = useState<string>(
+    movement.dispatch_date ?? new Date().toISOString().slice(0, 10),
+  );
 
   const materialMatches = useMemo(() => {
     const q = materialQuery.trim().toLowerCase();
@@ -537,24 +550,45 @@ function EditEntryDialog({
       toast.success("Entry edited. Original marked as corrected.");
       onSaved();
     } else {
-      // Dispatch entries: only quantity edit (legacy correction)
+      // Dispatch entries: full edit (qty, distributor, dispatch date, proof)
       const parsed = Number(newQty);
       if (!Number.isFinite(parsed) || parsed <= 0 || !Number.isInteger(parsed)) {
-        toast.error("Enter a valid positive whole number");
+        toast.error("Enter a valid positive whole number for quantity");
         return;
       }
+      if (!distributor.trim()) {
+        toast.error("Distributor is required");
+        return;
+      }
+      if (!dispatchDate) {
+        toast.error("Dispatch date is required");
+        return;
+      }
+      if (dispatchDate > new Date().toISOString().slice(0, 10)) {
+        toast.error("Dispatch date cannot be in the future");
+        return;
+      }
+      const proofPath = keepProof ? movement.proof_image_path : proof?.path ?? null;
+      if (!proofPath) {
+        toast.error("Proof image is required");
+        return;
+      }
+
       setSubmitting(true);
-      const { error } = await supabase.rpc("request_movement_correction", {
+      const { error } = await supabase.rpc("edit_dispatch_entry", {
         _movement_id: movement.id,
         _new_qty: parsed,
+        _new_distributor: distributor.trim(),
+        _new_dispatch_date: dispatchDate,
+        _new_proof_image_path: proofPath,
         _reason: reason.trim(),
       });
       setSubmitting(false);
       if (error) {
-        toast.error("Could not save correction", { description: error.message });
+        toast.error("Could not save edit", { description: error.message });
         return;
       }
-      toast.success("Quantity corrected");
+      toast.success("Dispatch edited. Original marked as corrected.");
       onSaved();
     }
   }
@@ -583,11 +617,16 @@ function EditEntryDialog({
             <div className="text-muted-foreground">{materialName}</div>
             <div className="grid grid-cols-2 gap-1 pt-1 text-muted-foreground">
               <div>Qty: <span className="font-bold text-foreground">{movement.qty}</span></div>
-              {isReceive && (
+              {isReceive ? (
                 <>
                   <div>Recd: <span className="font-bold text-foreground">{movement.received_date ?? "—"}</span></div>
                   <div>Batch: <span className="font-bold text-foreground">{movement.batch_type ?? "—"}</span></div>
                   <div>PO: <span className="font-bold text-foreground">{movement.reference_number ?? "—"}</span></div>
+                </>
+              ) : (
+                <>
+                  <div>Disp date: <span className="font-bold text-foreground">{movement.dispatch_date ?? "—"}</span></div>
+                  <div>Distributor: <span className="font-bold text-foreground">{movement.distributor ?? "—"}</span></div>
                 </>
               )}
             </div>
@@ -732,6 +771,59 @@ function EditEntryDialog({
                         wsp={profile.wsp}
                         userId={profile.id}
                         kind="receive"
+                        value={proof}
+                        onChange={setProof}
+                        label="Upload new proof"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
+
+              {!isReceive && (
+                <>
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Distributor
+                    </span>
+                    <input
+                      type="text"
+                      value={distributor}
+                      onChange={(e) => setDistributor(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <span className="mb-1 block text-[11px] font-semibold text-muted-foreground">
+                      Dispatch Date
+                    </span>
+                    <input
+                      type="date"
+                      value={dispatchDate}
+                      max={new Date().toISOString().slice(0, 10)}
+                      onChange={(e) => setDispatchDate(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+                    />
+                  </label>
+
+                  <div className="space-y-1">
+                    <span className="block text-[11px] font-semibold text-muted-foreground">
+                      Proof Image
+                    </span>
+                    <label className="flex items-center gap-2 text-[11px] text-foreground">
+                      <input
+                        type="checkbox"
+                        checked={keepProof}
+                        onChange={(e) => setKeepProof(e.target.checked)}
+                      />
+                      Keep existing proof image
+                    </label>
+                    {!keepProof && profile?.wsp && profile?.id && (
+                      <ProofImageUpload
+                        wsp={profile.wsp}
+                        userId={profile.id}
+                        kind="dispatch"
                         value={proof}
                         onChange={setProof}
                         label="Upload new proof"
