@@ -195,6 +195,9 @@ function MovementsPage() {
     if (!profile?.wsp || profile.wsp !== r.wsp) {
       return { canEdit: false };
     }
+    if (r.corrected_at) {
+      return { canEdit: false, reason: "Already corrected." };
+    }
     const ageMs = Date.now() - new Date(r.created_at).getTime();
     if (ageMs > EDIT_WINDOW_MS) {
       return { canEdit: false, reason: "Editing locked. Contact admin." };
@@ -203,7 +206,6 @@ function MovementsPage() {
       return { canEdit: false, reason: "Already verified by WD." };
     }
     if (r.movement === "receive") {
-      // Client-side hint: lock if any later dispatch of the same material exists.
       const laterDispatch = rows.some(
         (other) =>
           other.movement === "dispatch" &&
