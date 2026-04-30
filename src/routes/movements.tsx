@@ -524,7 +524,7 @@ function EditEntryDialog({
         _new_qty: parsedQty,
         _new_material_code: materialCode.trim(),
         _new_received_date: receivedDate,
-        _new_batch_type: batchType || null,
+        _new_batch_type: (batchType || null) as BatchType,
         _new_reference_number: refNumber.trim(),
         _new_proof_image_path: proofPath,
         _reason: reason.trim(),
