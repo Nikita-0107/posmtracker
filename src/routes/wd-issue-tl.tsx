@@ -745,7 +745,7 @@ function CloseWeekForm({
                   <span className="font-semibold text-destructive">{errors[i]}</span>
                 ) : (
                   <span className="text-muted-foreground">
-                    Remaining returns to stock
+                    Carries forward to next week
                   </span>
                 )}
                 <span className="font-mono font-bold text-success">Used: {used}</span>
