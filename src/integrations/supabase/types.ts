@@ -736,6 +736,86 @@ export type Database = {
         }
         Relationships: []
       }
+      wd_transfer_items: {
+        Row: {
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          id: string
+          issue_note: string | null
+          item_status: Database["public"]["Enums"]["wd_transfer_item_status"]
+          material_code: string
+          qty_confirmed: number | null
+          qty_requested: number
+          transfer_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          issue_note?: string | null
+          item_status?: Database["public"]["Enums"]["wd_transfer_item_status"]
+          material_code: string
+          qty_confirmed?: number | null
+          qty_requested: number
+          transfer_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          id?: string
+          issue_note?: string | null
+          item_status?: Database["public"]["Enums"]["wd_transfer_item_status"]
+          material_code?: string
+          qty_confirmed?: number | null
+          qty_requested?: number
+          transfer_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wd_transfer_items_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "wd_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wd_transfers: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          created_by: string
+          from_wd_code: string
+          id: string
+          note: string | null
+          status: Database["public"]["Enums"]["wd_transfer_status"]
+          to_wd_code: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          created_by: string
+          from_wd_code: string
+          id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["wd_transfer_status"]
+          to_wd_code: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string
+          from_wd_code?: string
+          id?: string
+          note?: string | null
+          status?: Database["public"]["Enums"]["wd_transfer_status"]
+          to_wd_code?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       dispatch_status_v: {
@@ -768,6 +848,19 @@ export type Database = {
           _received_qty?: number
         }
         Returns: Database["public"]["Enums"]["dispatch_item_status"]
+      }
+      confirm_wd_transfer_item: {
+        Args: {
+          _action: string
+          _confirmed_qty?: number
+          _item_id: string
+          _note?: string
+        }
+        Returns: Database["public"]["Enums"]["wd_transfer_item_status"]
+      }
+      create_wd_transfer: {
+        Args: { _items: Json; _note?: string; _to_wd_code: string }
+        Returns: string
       }
       create_weekly_tl_allocation: {
         Args: { _items: Json; _wd_tl_id: string }
@@ -962,6 +1055,8 @@ export type Database = {
         | "resolved"
       movement_type: "receive" | "dispatch" | "tl_issue"
       tl_alloc_status: "open" | "closed"
+      wd_transfer_item_status: "pending" | "received" | "partial" | "issue"
+      wd_transfer_status: "pending" | "completed" | "cancelled"
       wsp_code: "CEVL" | "CEVJ" | "CEVY"
     }
     CompositeTypes: {
@@ -1103,6 +1198,8 @@ export const Constants = {
       ],
       movement_type: ["receive", "dispatch", "tl_issue"],
       tl_alloc_status: ["open", "closed"],
+      wd_transfer_item_status: ["pending", "received", "partial", "issue"],
+      wd_transfer_status: ["pending", "completed", "cancelled"],
       wsp_code: ["CEVL", "CEVJ", "CEVY"],
     },
   },

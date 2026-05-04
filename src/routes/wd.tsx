@@ -14,6 +14,7 @@ import {
   ChevronUp,
   Send,
   ChevronRight,
+  ArrowLeftRight,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
@@ -100,6 +101,19 @@ function WdHomePage() {
             <div className="min-w-0">
               <p className="text-xs font-bold leading-tight">Stock Tracking</p>
               <p className="text-[10px] text-muted-foreground">WD-level pilot</p>
+            </div>
+            <ChevronRight size={14} className="ml-auto text-muted-foreground" />
+          </Link>
+          <Link
+            to="/wd-transfer"
+            className="col-span-2 flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <ArrowLeftRight size={16} className="text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">Inter WD Transfer</p>
+              <p className="text-[10px] text-muted-foreground">Send / receive between WDs</p>
             </div>
             <ChevronRight size={14} className="ml-auto text-muted-foreground" />
           </Link>
