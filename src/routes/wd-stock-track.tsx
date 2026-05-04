@@ -221,7 +221,7 @@ function CurrentView({
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
         <p className="flex-1 text-[11px] font-bold text-primary">
-          Tap Update Stock when you do a physical check.
+          System stock updates live as WSP dispatches arrive. Tap Update Stock for a physical check.
         </p>
         <button
           onClick={onUpdate}
