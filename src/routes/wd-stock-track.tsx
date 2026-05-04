@@ -397,49 +397,58 @@ function UpdateForm({
           const sysQty = r.qty;
           const raw = qtys[r.material_code] ?? "";
           const physical = raw === "" ? null : Number(raw);
-          const variance = physical !== null ? physical - sysQty : null;
+          // Used = System - Physical (only when physical <= system)
+          const used =
+            physical !== null && physical <= sysQty ? sysQty - physical : null;
+          const extra =
+            physical !== null && physical > sysQty ? physical - sysQty : null;
           return (
-            <div key={r.material_code} className="rounded-xl border bg-card p-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-xs font-bold text-foreground">
-                    {r.material_code}
+            <div key={r.material_code} className="rounded-xl border bg-card p-3">
+              <div className="mb-2 min-w-0">
+                <p className="truncate font-mono text-xs font-bold text-foreground">
+                  {r.material_code}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {matMap.get(r.material_code) ?? "—"}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-muted/40 p-2 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                    System
                   </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {matMap.get(r.material_code) ?? "—"}
-                  </p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Available:{" "}
-                    <span className="font-mono font-bold text-foreground">{sysQty}</span>
-                  </p>
+                  <p className="font-mono text-base font-bold text-foreground">{sysQty}</p>
                 </div>
-                <div className="w-24 shrink-0 space-y-1">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-1.5 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-primary">
+                    Physical
+                  </p>
                   <input
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    placeholder="Physical"
+                    placeholder="—"
                     value={raw}
                     onChange={(e) =>
                       setQtys((prev) => ({ ...prev, [r.material_code]: e.target.value }))
                     }
-                    className="w-full rounded-lg border bg-background px-2 py-2 text-right text-sm font-mono"
+                    className="mt-0.5 w-full bg-transparent text-center font-mono text-base font-bold text-foreground outline-none"
                   />
-                  {variance !== null && variance !== 0 && (
-                    <p
-                      className={`text-right text-[10px] font-bold ${
-                        variance < 0 ? "text-destructive" : "text-warning"
-                      }`}
-                    >
-                      {variance > 0 ? `+${variance}` : variance}{" "}
-                      {variance < 0 ? "short" : "excess"}
-                    </p>
-                  )}
-                  {variance === 0 && (
-                    <p className="text-right text-[10px] font-bold text-success">Match</p>
-                  )}
+                </div>
+                <div className="rounded-lg bg-success/10 p-2 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-success">
+                    Used
+                  </p>
+                  <p className="font-mono text-base font-bold text-success">
+                    {used !== null ? used : "—"}
+                  </p>
                 </div>
               </div>
+              {extra !== null && (
+                <p className="mt-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+                  +{extra} extra found vs system
+                </p>
+              )}
             </div>
           );
         })}
