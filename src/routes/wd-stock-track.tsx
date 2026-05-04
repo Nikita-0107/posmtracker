@@ -193,9 +193,11 @@ type SystemStockRow = { material_code: string; qty: number };
 function CurrentView({
   systemStock,
   latest,
+  onUpdate,
 }: {
   systemStock: SystemStockRow[];
   latest: Map<string, Snapshot>;
+  onUpdate: () => void;
 }) {
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
@@ -217,14 +219,21 @@ function CurrentView({
 
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
-        <p className="text-[11px] font-bold text-primary">
-          Showing system stock. Use Update to verify physical stock.
+      <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+        <p className="flex-1 text-[11px] font-bold text-primary">
+          Tap Update Stock when you do a physical check.
         </p>
+        <button
+          onClick={onUpdate}
+          className="shrink-0 rounded-md bg-primary px-2.5 py-1 text-[10px] font-bold text-primary-foreground shadow-sm transition active:scale-[0.98]"
+        >
+          Update Stock
+        </button>
       </div>
       {rows.map((r) => {
         const snap = latest.get(r.material_code);
-        const variance = snap ? snap.qty_counted - r.qty : null;
+        const lastDate = snap ? snap.snapshot_date : null;
+        const stale = lastDate ? daysSince(lastDate) > STALE_DAYS : true;
         return (
           <div key={r.material_code} className="rounded-xl border bg-card p-3">
             <div className="flex items-start justify-between gap-2">
@@ -233,53 +242,29 @@ function CurrentView({
                 <p className="truncate text-[11px] text-muted-foreground">
                   {matMap.get(r.material_code) ?? "—"}
                 </p>
-                {snap ? (
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Last verified: {snap.snapshot_date} · physical {snap.qty_counted}
+                <p className="mt-1.5 text-[11px] text-foreground">
+                  Available: <span className="font-bold">{r.qty}</span> units
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Last checked: {lastDate ? formatShortDate(lastDate) : "—"}
+                </p>
+                {stale && (
+                  <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
+                    ⚠ Update recommended
                   </p>
-                ) : (
-                  <p className="mt-1 text-[10px] text-muted-foreground">Not yet physically verified</p>
                 )}
               </div>
-              <div className="shrink-0 text-right">
-                <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">System</p>
-                <p className="text-2xl font-bold leading-none text-foreground">{r.qty}</p>
-                <VarianceBadge variance={variance} />
-              </div>
+              <button
+                onClick={onUpdate}
+                className="shrink-0 self-center rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-[10px] font-bold text-primary transition hover:bg-primary/10 active:scale-[0.98]"
+              >
+                Update
+              </button>
             </div>
           </div>
         );
       })}
     </div>
-  );
-}
-
-function VarianceBadge({ variance }: { variance: number | null }) {
-  if (variance === null) {
-    return (
-      <span className="mt-1 inline-block rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
-        Not verified
-      </span>
-    );
-  }
-  if (variance === 0) {
-    return (
-      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-success/15 px-1.5 py-0.5 text-[9px] font-bold text-success">
-        <Equal size={9} /> Match
-      </span>
-    );
-  }
-  if (variance < 0) {
-    return (
-      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-success/15 px-1.5 py-0.5 text-[9px] font-bold text-success">
-        <TrendingDown size={9} /> {Math.abs(variance)} used
-      </span>
-    );
-  }
-  return (
-    <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
-      <TrendingUp size={9} /> +{variance} extra
-    </span>
   );
 }
 
