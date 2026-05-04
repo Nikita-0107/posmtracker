@@ -253,14 +253,14 @@ function VarianceBadge({ variance }: { variance: number | null }) {
   }
   if (variance < 0) {
     return (
-      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive">
-        <TrendingDown size={9} /> {variance} short
+      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-success/15 px-1.5 py-0.5 text-[9px] font-bold text-success">
+        <TrendingDown size={9} /> {Math.abs(variance)} used
       </span>
     );
   }
   return (
-    <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
-      <TrendingUp size={9} /> +{variance} excess
+    <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+      <TrendingUp size={9} /> +{variance} extra
     </span>
   );
 }
