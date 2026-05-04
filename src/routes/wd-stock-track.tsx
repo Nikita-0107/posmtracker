@@ -292,8 +292,6 @@ function ChangeBadge({ change, prev }: { change: number | null; prev: number | n
 
 // ──────────────────────────── UPDATE FORM ────────────────────────────
 
-type DraftLine = { material_code: string; qty: string };
-
 function UpdateForm({
   systemStock,
   onDone,
@@ -305,40 +303,37 @@ function UpdateForm({
   const wdCode = profile?.wd_code ?? "";
   const userId = profile?.id ?? "";
   const { materials } = useMaterials();
-  const sysMap = useMemo(
-    () => new Map(systemStock.map((s) => [s.material_code, s.qty])),
+  const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+
+  // Only materials currently in WD stock with qty > 0
+  const stockRows = useMemo(
+    () =>
+      [...systemStock]
+        .filter((s) => s.qty > 0)
+        .sort((a, b) => a.material_code.localeCompare(b.material_code)),
     [systemStock],
   );
 
-  const [lines, setLines] = useState<DraftLine[]>([{ material_code: "", qty: "" }]);
+  // Map material_code -> physical qty input (string for empty state)
+  const [qtys, setQtys] = useState<Record<string, string>>({});
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [note, setNote] = useState("");
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [submitting, setSubmitting] = useState(false);
 
-  const usedCodes = new Set(lines.map((l) => l.material_code).filter(Boolean));
-
-  function update(i: number, patch: Partial<DraftLine>) {
-    setLines((prev) => prev.map((l, idx) => (idx === i ? { ...l, ...patch } : l)));
-  }
-  function addLine() {
-    setLines((prev) => [...prev, { material_code: "", qty: "" }]);
-  }
-  function removeLine(i: number) {
-    setLines((prev) => (prev.length === 1 ? prev : prev.filter((_, idx) => idx !== i)));
-  }
-
-  const validLines = lines.filter((l) => l.material_code && l.qty !== "" && Number(l.qty) >= 0);
-  const valid = validLines.length > 0 && proof !== null && date.length > 0;
+  const validItems = stockRows
+    .map((r) => ({ material_code: r.material_code, qty: qtys[r.material_code] ?? "" }))
+    .filter((l) => l.qty !== "" && Number(l.qty) >= 0);
+  const valid = validItems.length > 0 && proof !== null && date.length > 0;
 
   async function submit() {
     if (!valid) {
-      toast.error("Add at least one item, a date, and a proof photo");
+      toast.error("Enter at least one physical qty, a date, and a proof photo");
       return;
     }
     setSubmitting(true);
     try {
-      const items = validLines.map((l) => ({
+      const items = validItems.map((l) => ({
         material_code: l.material_code,
         qty_counted: Number(l.qty),
       }));
@@ -352,7 +347,7 @@ function UpdateForm({
       toast.success(`Stock count saved (${items.length} item${items.length > 1 ? "s" : ""})`, {
         description: data ? `Batch ${String(data).slice(0, 8)}` : undefined,
       });
-      setLines([{ material_code: "", qty: "" }]);
+      setQtys({});
       setProof(null);
       setNote("");
       await onDone();
@@ -361,6 +356,18 @@ function UpdateForm({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  if (stockRows.length === 0) {
+    return (
+      <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center">
+        <PackageX size={28} className="mx-auto text-muted-foreground" />
+        <p className="mt-2 text-sm font-bold text-foreground">No stock to verify</p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Stock appears here once WSP dispatches are confirmed received by your WD.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -378,76 +385,64 @@ function UpdateForm({
       </div>
 
       <div className="space-y-2">
-        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Items</p>
-        {lines.map((line, i) => {
-          const options = materials.filter(
-            (m) => m.code === line.material_code || !usedCodes.has(m.code),
-          );
-          const sysQty = line.material_code ? sysMap.get(line.material_code) ?? 0 : null;
-          const physical = line.qty === "" ? null : Number(line.qty);
-          const variance = sysQty !== null && physical !== null ? physical - sysQty : null;
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+            Materials in stock ({stockRows.length})
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            {validItems.length} of {stockRows.length} entered
+          </p>
+        </div>
+        {stockRows.map((r) => {
+          const sysQty = r.qty;
+          const raw = qtys[r.material_code] ?? "";
+          const physical = raw === "" ? null : Number(raw);
+          const variance = physical !== null ? physical - sysQty : null;
           return (
-            <div key={i} className="rounded-xl border bg-card p-2.5">
-              <div className="flex items-start gap-2">
-                <div className="flex-1 space-y-2">
-                  <select
-                    value={line.material_code}
-                    onChange={(e) => update(i, { material_code: e.target.value })}
-                    className="w-full rounded-lg border bg-background px-2 py-2 text-xs"
-                  >
-                    <option value="">Select material…</option>
-                    {options.map((m) => (
-                      <option key={m.code} value={m.code}>
-                        {m.code} — {m.name}
-                      </option>
-                    ))}
-                  </select>
-                  {sysQty !== null && (
-                    <p className="text-[10px] text-muted-foreground">
-                      System stock: <span className="font-mono font-bold text-foreground">{sysQty}</span>
-                    </p>
-                  )}
+            <div key={r.material_code} className="rounded-xl border bg-card p-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-mono text-xs font-bold text-foreground">
+                    {r.material_code}
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {matMap.get(r.material_code) ?? "—"}
+                  </p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Available:{" "}
+                    <span className="font-mono font-bold text-foreground">{sysQty}</span>
+                  </p>
+                </div>
+                <div className="w-24 shrink-0 space-y-1">
                   <input
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    placeholder="Physical qty"
-                    value={line.qty}
-                    onChange={(e) => update(i, { qty: e.target.value })}
-                    className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono"
+                    placeholder="Physical"
+                    value={raw}
+                    onChange={(e) =>
+                      setQtys((prev) => ({ ...prev, [r.material_code]: e.target.value }))
+                    }
+                    className="w-full rounded-lg border bg-background px-2 py-2 text-right text-sm font-mono"
                   />
                   {variance !== null && variance !== 0 && (
                     <p
-                      className={`text-[10px] font-bold ${
+                      className={`text-right text-[10px] font-bold ${
                         variance < 0 ? "text-destructive" : "text-warning"
                       }`}
                     >
-                      Variance: {variance > 0 ? `+${variance}` : variance}{" "}
+                      {variance > 0 ? `+${variance}` : variance}{" "}
                       {variance < 0 ? "short" : "excess"}
                     </p>
                   )}
+                  {variance === 0 && (
+                    <p className="text-right text-[10px] font-bold text-success">Match</p>
+                  )}
                 </div>
-                {lines.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeLine(i)}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-                    aria-label="Remove item"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
               </div>
             </div>
           );
         })}
-        <button
-          type="button"
-          onClick={addLine}
-          className="flex w-full items-center justify-center gap-1 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 py-2 text-xs font-bold text-primary"
-        >
-          <Plus size={14} /> Add another item
-        </button>
       </div>
 
       <div className="rounded-xl border bg-card p-3 space-y-2">
