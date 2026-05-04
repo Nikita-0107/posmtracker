@@ -295,11 +295,21 @@ function ChangeBadge({ change, prev }: { change: number | null; prev: number | n
 
 type DraftLine = { material_code: string; qty: string };
 
-function UpdateForm({ onDone }: { onDone: () => void | Promise<void> }) {
+function UpdateForm({
+  systemStock,
+  onDone,
+}: {
+  systemStock: SystemStockRow[];
+  onDone: () => void | Promise<void>;
+}) {
   const { profile } = useAuth();
   const wdCode = profile?.wd_code ?? "";
   const userId = profile?.id ?? "";
   const { materials } = useMaterials();
+  const sysMap = useMemo(
+    () => new Map(systemStock.map((s) => [s.material_code, s.qty])),
+    [systemStock],
+  );
 
   const [lines, setLines] = useState<DraftLine[]>([{ material_code: "", qty: "" }]);
   const [proof, setProof] = useState<ProofImageValue>(null);
