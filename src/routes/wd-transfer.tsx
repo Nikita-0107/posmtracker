@@ -601,9 +601,27 @@ function CreateForm({
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [picker, setPicker] = useState<{ idx: number | null } | null>(null);
 
   function removeLine(idx: number) {
     setLines((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function openAddPicker() {
+    setPicker({ idx: null });
+  }
+  function openEditPicker(idx: number) {
+    setPicker({ idx });
+  }
+  function handlePickerSave(materialCode: string, qty: number) {
+    setLines((prev) => {
+      if (picker?.idx === null || picker?.idx === undefined) {
+        return [...prev, { material_code: materialCode, qty: String(qty) }];
+      }
+      return prev.map((l, i) =>
+        i === picker.idx ? { material_code: materialCode, qty: String(qty) } : l,
+      );
+    });
+    setPicker(null);
   }
 
   const usedCodes = new Set(lines.map((l) => l.material_code).filter(Boolean));
@@ -618,6 +636,15 @@ function CreateForm({
         l.qty <= (stockMap.get(l.material_code) ?? 0),
     );
   const valid = !!toWd && validLines.length > 0 && validLines.length === lines.length;
+
+  // Disabled-state guidance
+  const guidance = !toWd
+    ? "Select a destination WD to continue"
+    : lines.length === 0
+      ? "Add at least one material to continue"
+      : !valid
+        ? "Fix quantity issues to continue"
+        : "";
 
   async function submit() {
     if (!valid) return;
@@ -658,35 +685,6 @@ function CreateForm({
     );
   }
 
-  const [picker, setPicker] = useState<{ idx: number | null } | null>(null);
-  
-
-  function openAddPicker() {
-    setPicker({ idx: null });
-  }
-  function openEditPicker(idx: number) {
-    setPicker({ idx });
-  }
-  function handlePickerSave(materialCode: string, qty: number) {
-    setLines((prev) => {
-      if (picker?.idx === null || picker?.idx === undefined) {
-        return [...prev, { material_code: materialCode, qty: String(qty) }];
-      }
-      return prev.map((l, i) =>
-        i === picker.idx ? { material_code: materialCode, qty: String(qty) } : l,
-      );
-    });
-    setPicker(null);
-  }
-
-  // Disabled-state guidance
-  const guidance = !toWd
-    ? "Select a destination WD to continue"
-    : lines.length === 0
-      ? "Add at least one material to continue"
-      : !valid
-        ? "Fix quantity issues to continue"
-        : "";
 
   return (
     <div className="space-y-3">
