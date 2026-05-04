@@ -169,22 +169,30 @@ function TabBtn({
   );
 }
 
-// ──────────────────────────── CURRENT (latest snapshot per material) ────────────────────────────
+// ──────────────────────────── CURRENT (system stock + last verification) ────────────────────────────
 
-function CurrentView({ latest }: { latest: Map<string, Snapshot> }) {
+type SystemStockRow = { material_code: string; qty: number };
+
+function CurrentView({
+  systemStock,
+  latest,
+}: {
+  systemStock: SystemStockRow[];
+  latest: Map<string, Snapshot>;
+}) {
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
   const rows = useMemo(() => {
-    return Array.from(latest.values()).sort((a, b) => a.material_code.localeCompare(b.material_code));
-  }, [latest]);
+    return [...systemStock].sort((a, b) => a.material_code.localeCompare(b.material_code));
+  }, [systemStock]);
 
   if (rows.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center">
-        <p className="text-sm font-bold text-foreground">No stock counts yet</p>
+        <p className="text-sm font-bold text-foreground">No system stock yet</p>
         <p className="mt-1 text-[11px] text-muted-foreground">
-          Tap <span className="font-bold">Update</span> to record your first physical count.
+          Stock appears once WSP dispatches are confirmed by your WD.
         </p>
       </div>
     );
@@ -192,26 +200,69 @@ function CurrentView({ latest }: { latest: Map<string, Snapshot> }) {
 
   return (
     <div className="space-y-2">
-      {rows.map((s) => (
-        <div key={s.material_code} className="rounded-xl border bg-card p-3">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-mono text-xs font-bold text-foreground">{s.material_code}</p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {matMap.get(s.material_code) ?? "—"}
-              </p>
-              <p className="mt-1 text-[10px] text-muted-foreground">
-                Last counted: {s.snapshot_date}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              <p className="text-2xl font-bold leading-none text-foreground">{s.qty_counted}</p>
-              <ChangeBadge change={s.qty_change} prev={s.qty_previous} />
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+        <p className="text-[11px] font-bold text-primary">
+          Showing system stock. Use Update to verify physical stock.
+        </p>
+      </div>
+      {rows.map((r) => {
+        const snap = latest.get(r.material_code);
+        const variance = snap ? snap.qty_counted - r.qty : null;
+        return (
+          <div key={r.material_code} className="rounded-xl border bg-card p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-mono text-xs font-bold text-foreground">{r.material_code}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {matMap.get(r.material_code) ?? "—"}
+                </p>
+                {snap ? (
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    Last verified: {snap.snapshot_date} · physical {snap.qty_counted}
+                  </p>
+                ) : (
+                  <p className="mt-1 text-[10px] text-muted-foreground">Not yet physically verified</p>
+                )}
+              </div>
+              <div className="shrink-0 text-right">
+                <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">System</p>
+                <p className="text-2xl font-bold leading-none text-foreground">{r.qty}</p>
+                <VarianceBadge variance={variance} />
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
+  );
+}
+
+function VarianceBadge({ variance }: { variance: number | null }) {
+  if (variance === null) {
+    return (
+      <span className="mt-1 inline-block rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+        Not verified
+      </span>
+    );
+  }
+  if (variance === 0) {
+    return (
+      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-success/15 px-1.5 py-0.5 text-[9px] font-bold text-success">
+        <Equal size={9} /> Match
+      </span>
+    );
+  }
+  if (variance < 0) {
+    return (
+      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive">
+        <TrendingDown size={9} /> {variance} short
+      </span>
+    );
+  }
+  return (
+    <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
+      <TrendingUp size={9} /> +{variance} excess
+    </span>
   );
 }
 
