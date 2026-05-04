@@ -52,6 +52,7 @@ function WdStockTrackPage() {
   const [tab, setTab] = useState<"current" | "update" | "history">("current");
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
+  const { stock: systemStock, loading: stockLoading, refresh: refreshStock } = useWdStock();
 
   async function refresh() {
     setLoading(true);
@@ -112,14 +113,24 @@ function WdStockTrackPage() {
             <p className="text-sm font-bold text-foreground">No WD assigned</p>
             <p className="mt-1 text-[11px] text-muted-foreground">Ask an admin to assign your WD code.</p>
           </div>
-        ) : loading ? (
+        ) : loading || stockLoading ? (
           <p className="flex items-center justify-center gap-1.5 py-8 text-xs text-muted-foreground">
             <Loader2 size={14} className="animate-spin" /> Loading…
           </p>
         ) : (
           <>
-            {tab === "current" && <CurrentView latest={latestByMaterial} />}
-            {tab === "update" && <UpdateForm onDone={async () => { await refresh(); setTab("history"); }} />}
+            {tab === "current" && (
+              <CurrentView systemStock={systemStock} latest={latestByMaterial} />
+            )}
+            {tab === "update" && (
+              <UpdateForm
+                systemStock={systemStock}
+                onDone={async () => {
+                  await Promise.all([refresh(), refreshStock()]);
+                  setTab("history");
+                }}
+              />
+            )}
             {tab === "history" && <HistoryView snapshots={snapshots} />}
           </>
         )}
