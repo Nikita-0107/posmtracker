@@ -602,12 +602,6 @@ function CreateForm({
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  function addLine() {
-    setLines((prev) => [...prev, { material_code: "", qty: "" }]);
-  }
-  function updateLine(idx: number, patch: Partial<DraftLine>) {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-  }
   function removeLine(idx: number) {
     setLines((prev) => prev.filter((_, i) => i !== idx));
   }
@@ -664,17 +658,47 @@ function CreateForm({
     );
   }
 
+  const [picker, setPicker] = useState<{ idx: number | null } | null>(null);
+  
+
+  function openAddPicker() {
+    setPicker({ idx: null });
+  }
+  function openEditPicker(idx: number) {
+    setPicker({ idx });
+  }
+  function handlePickerSave(materialCode: string, qty: number) {
+    setLines((prev) => {
+      if (picker?.idx === null || picker?.idx === undefined) {
+        return [...prev, { material_code: materialCode, qty: String(qty) }];
+      }
+      return prev.map((l, i) =>
+        i === picker.idx ? { material_code: materialCode, qty: String(qty) } : l,
+      );
+    });
+    setPicker(null);
+  }
+
+  // Disabled-state guidance
+  const guidance = !toWd
+    ? "Select a destination WD to continue"
+    : lines.length === 0
+      ? "Add at least one material to continue"
+      : !valid
+        ? "Fix quantity issues to continue"
+        : "";
+
   return (
     <div className="space-y-3">
       <div className="rounded-xl border bg-card p-3 space-y-2">
         <label className="block space-y-1">
-          <span className="text-[11px] font-bold text-foreground">Destination WD</span>
+          <span className="text-[11px] font-bold text-foreground">Send to WD</span>
           <select
             value={toWd}
             onChange={(e) => setToWd(e.target.value)}
             className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
           >
-            <option value="">Select destination…</option>
+            <option value="">Select destination WD…</option>
             {wdOptions.map((w) => (
               <option key={w.wd_code} value={w.wd_code}>
                 {w.wd_code} — {w.wd_name}
@@ -697,88 +721,240 @@ function CreateForm({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            Materials ({lines.length})
-          </p>
-          <button
-            onClick={addLine}
-            className="flex items-center gap-1 rounded-md bg-primary/10 px-2 py-1 text-[10px] font-bold text-primary"
-          >
-            <Plus size={11} /> Add material
-          </button>
-        </div>
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          Items to transfer ({lines.length})
+        </p>
 
-        {lines.length === 0 && (
-          <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-[11px] text-muted-foreground">
-            Tap "Add material" to start building this transfer.
-          </p>
+        {lines.length === 0 ? (
+          <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-5 text-center">
+            <Package size={22} className="mx-auto mb-1.5 text-muted-foreground" />
+            <p className="text-xs font-bold text-foreground">
+              Add at least one material to continue
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              Pick from your current WD stock.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-1.5">
+            {lines.map((l, idx) => {
+              const available = stockMap.get(l.material_code) ?? 0;
+              const numQty = Number(l.qty);
+              const tooMuch = Number.isFinite(numQty) && numQty > available;
+              return (
+                <div key={idx} className="rounded-xl border bg-card p-2.5">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-mono text-[11px] font-bold text-foreground">
+                        {l.material_code}
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        {matMap.get(l.material_code) ?? "—"}
+                      </p>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        Available: <span className="font-semibold text-foreground">{available}</span>
+                        {" · "}
+                        Selected:{" "}
+                        <span className={`font-semibold ${tooMuch ? "text-destructive" : "text-foreground"}`}>
+                          {l.qty || 0}
+                        </span>
+                        {tooMuch && <span className="ml-1 text-destructive">(exceeds stock)</span>}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <button
+                        onClick={() => openEditPicker(idx)}
+                        className="rounded-md border px-2 py-1 text-[10px] font-bold text-foreground hover:bg-muted"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => removeLine(idx)}
+                        className="flex items-center justify-center gap-1 rounded-md border border-destructive/30 px-2 py-1 text-[10px] font-bold text-destructive hover:bg-destructive/10"
+                      >
+                        <Trash2 size={11} /> Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
 
-        {lines.map((l, idx) => {
-          const available = stockMap.get(l.material_code) ?? 0;
-          const numQty = Number(l.qty);
-          const tooMuch = l.material_code && Number.isFinite(numQty) && numQty > available;
-          return (
-            <div key={idx} className="rounded-xl border bg-card p-2.5 space-y-1.5">
-              <div className="flex items-center gap-1.5">
-                <select
-                  value={l.material_code}
-                  onChange={(e) => updateLine(idx, { material_code: e.target.value })}
-                  className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-xs"
-                >
-                  <option value="">Select material…</option>
-                  {availableMaterials.map((s) => (
-                    <option
-                      key={s.material_code}
-                      value={s.material_code}
-                      disabled={usedCodes.has(s.material_code) && s.material_code !== l.material_code}
-                    >
-                      {s.material_code} ({s.qty} avail) ·{" "}
-                      {(matMap.get(s.material_code) ?? "—").slice(0, 28)}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  onClick={() => removeLine(idx)}
-                  className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted"
-                  aria-label="Remove line"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={available || undefined}
-                  value={l.qty}
-                  onChange={(e) => updateLine(idx, { qty: e.target.value })}
-                  placeholder="Qty"
-                  className="w-24 rounded-md border bg-background px-2 py-1.5 text-sm"
-                />
-                {l.material_code && (
-                  <span
-                    className={`text-[10px] font-semibold ${tooMuch ? "text-destructive" : "text-muted-foreground"}`}
-                  >
-                    {tooMuch ? `Max ${available}` : `Available: ${available}`}
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        <button
+          onClick={openAddPicker}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-primary/40 bg-primary/5 py-3 text-xs font-bold text-primary transition hover:bg-primary/10 active:scale-[0.99]"
+        >
+          <Plus size={14} /> {lines.length === 0 ? "Add items to transfer" : "Add another material"}
+        </button>
       </div>
 
-      <button
-        onClick={submit}
-        disabled={!valid || submitting}
-        className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-3 text-sm font-bold text-primary-foreground shadow-sm transition active:scale-[0.99] disabled:opacity-50"
-      >
-        {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-        Create Transfer
-      </button>
+      <div className="space-y-1.5">
+        <button
+          onClick={submit}
+          disabled={!valid || submitting}
+          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary py-3.5 text-sm font-bold text-primary-foreground shadow-sm transition active:scale-[0.99] disabled:opacity-50"
+        >
+          {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          Send Stock
+        </button>
+        {!valid && guidance && (
+          <p className="text-center text-[10px] font-semibold text-muted-foreground">
+            {guidance}
+          </p>
+        )}
+      </div>
+
+      {picker && (
+        <MaterialPicker
+          availableMaterials={availableMaterials}
+          matMap={matMap}
+          usedCodes={usedCodes}
+          existing={picker.idx !== null ? lines[picker.idx] : null}
+          onClose={() => setPicker(null)}
+          onSave={handlePickerSave}
+        />
+      )}
+    </div>
+  );
+}
+
+// ───────────── material picker ─────────────
+
+function MaterialPicker({
+  availableMaterials,
+  matMap,
+  usedCodes,
+  existing,
+  onClose,
+  onSave,
+}: {
+  availableMaterials: { material_code: string; qty: number }[];
+  matMap: Map<string, string>;
+  usedCodes: Set<string>;
+  existing: DraftLine | null;
+  onClose: () => void;
+  onSave: (materialCode: string, qty: number) => void;
+}) {
+  const isEdit = existing !== null;
+  const [selected, setSelected] = useState<string>(existing?.material_code ?? "");
+  const [qty, setQty] = useState<string>(existing?.qty ?? "");
+  const [search, setSearch] = useState("");
+
+  const selectableMaterials = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return availableMaterials.filter((s) => {
+      // hide ones already used in another line, unless editing this very one
+      if (usedCodes.has(s.material_code) && s.material_code !== existing?.material_code) {
+        return false;
+      }
+      if (!term) return true;
+      const name = (matMap.get(s.material_code) ?? "").toLowerCase();
+      return s.material_code.toLowerCase().includes(term) || name.includes(term);
+    });
+  }, [availableMaterials, usedCodes, existing, search, matMap]);
+
+  const selectedAvail =
+    availableMaterials.find((s) => s.material_code === selected)?.qty ?? 0;
+  const numQty = Number(qty);
+  const valid =
+    !!selected && Number.isFinite(numQty) && numQty > 0 && numQty <= selectedAvail;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center">
+      <div className="flex max-h-[85vh] w-full max-w-sm flex-col gap-3 rounded-2xl border bg-card p-4 shadow-2xl">
+        <div>
+          <p className="text-sm font-bold text-foreground">
+            {isEdit ? "Edit material" : "Add material to transfer"}
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            Showing materials currently in your WD stock.
+          </p>
+        </div>
+
+        {!isEdit && (
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search code or name…"
+            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          />
+        )}
+
+        <div className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1">
+          {selectableMaterials.length === 0 ? (
+            <p className="py-6 text-center text-[11px] text-muted-foreground">
+              No matching materials in stock.
+            </p>
+          ) : (
+            <div className="space-y-1">
+              {selectableMaterials.map((s) => {
+                const active = selected === s.material_code;
+                return (
+                  <button
+                    key={s.material_code}
+                    onClick={() => setSelected(s.material_code)}
+                    className={`flex w-full items-center gap-2 rounded-lg border p-2 text-left transition ${
+                      active
+                        ? "border-primary bg-primary/10"
+                        : "border-border bg-background hover:bg-muted"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-mono text-[11px] font-bold text-foreground">
+                        {s.material_code}
+                      </p>
+                      <p className="truncate text-[10px] text-muted-foreground">
+                        {matMap.get(s.material_code) ?? "—"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-bold text-foreground">
+                      {s.qty} avail
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {selected && (
+          <div className="space-y-1 rounded-lg border bg-muted/30 p-2">
+            <p className="text-[10px] font-semibold text-muted-foreground">
+              Quantity to send (max {selectedAvail})
+            </p>
+            <input
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={selectedAvail}
+              value={qty}
+              onChange={(e) => setQty(e.target.value)}
+              placeholder="e.g. 10"
+              className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+              autoFocus
+            />
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-lg border px-3 py-2 text-xs font-bold text-foreground"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(selected, numQty)}
+            disabled={!valid}
+            className="rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {isEdit ? "Update" : "Add to transfer"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
