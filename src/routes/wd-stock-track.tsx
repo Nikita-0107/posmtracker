@@ -133,7 +133,11 @@ function WdStockTrackPage() {
         ) : (
           <>
             {tab === "current" && (
-              <CurrentView systemStock={systemStock} latest={latestByMaterial} />
+              <CurrentView
+                systemStock={systemStock}
+                latest={latestByMaterial}
+                onUpdate={() => setTab("update")}
+              />
             )}
             {tab === "update" && (
               <UpdateForm
