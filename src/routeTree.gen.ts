@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as WspIssuesRouteImport } from './routes/wsp-issues'
 import { Route as WspInTransitRouteImport } from './routes/wsp-in-transit'
+import { Route as WdStockTrackRouteImport } from './routes/wd-stock-track'
 import { Route as WdIssueTlRouteImport } from './routes/wd-issue-tl'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as WdRouteImport } from './routes/wd'
@@ -33,6 +34,11 @@ const WspIssuesRoute = WspIssuesRouteImport.update({
 const WspInTransitRoute = WspInTransitRouteImport.update({
   id: '/wsp-in-transit',
   path: '/wsp-in-transit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WdStockTrackRoute = WdStockTrackRouteImport.update({
+  id: '/wd-stock-track',
+  path: '/wd-stock-track',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WdIssueTlRoute = WdIssueTlRouteImport.update({
@@ -113,6 +119,7 @@ export interface FileRoutesByFullPath {
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
+  '/wd-stock-track': typeof WdStockTrackRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
+  '/wd-stock-track': typeof WdStockTrackRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
+  '/wd-stock-track': typeof WdStockTrackRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
+    | '/wd-stock-track'
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
@@ -184,6 +194,7 @@ export interface FileRouteTypes {
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
+    | '/wd-stock-track'
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
@@ -201,6 +212,7 @@ export interface FileRouteTypes {
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
+    | '/wd-stock-track'
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
@@ -219,6 +231,7 @@ export interface RootRouteChildren {
   WdRoute: typeof WdRoute
   WdIssueRoute: typeof WdIssueRoute
   WdIssueTlRoute: typeof WdIssueTlRoute
+  WdStockTrackRoute: typeof WdStockTrackRoute
   WspInTransitRoute: typeof WspInTransitRoute
   WspIssuesRoute: typeof WspIssuesRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
@@ -239,6 +252,13 @@ declare module '@tanstack/react-router' {
       path: '/wsp-in-transit'
       fullPath: '/wsp-in-transit'
       preLoaderRoute: typeof WspInTransitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wd-stock-track': {
+      id: '/wd-stock-track'
+      path: '/wd-stock-track'
+      fullPath: '/wd-stock-track'
+      preLoaderRoute: typeof WdStockTrackRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/wd-issue-tl': {
@@ -347,6 +367,7 @@ const rootRouteChildren: RootRouteChildren = {
   WdRoute: WdRoute,
   WdIssueRoute: WdIssueRoute,
   WdIssueTlRoute: WdIssueTlRoute,
+  WdStockTrackRoute: WdStockTrackRoute,
   WspInTransitRoute: WspInTransitRoute,
   WspIssuesRoute: WspIssuesRoute,
   AdminConcernsRoute: AdminConcernsRoute,
