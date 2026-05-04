@@ -602,12 +602,6 @@ function CreateForm({
   const [lines, setLines] = useState<DraftLine[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  function addLine() {
-    setLines((prev) => [...prev, { material_code: "", qty: "" }]);
-  }
-  function updateLine(idx: number, patch: Partial<DraftLine>) {
-    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
-  }
   function removeLine(idx: number) {
     setLines((prev) => prev.filter((_, i) => i !== idx));
   }
