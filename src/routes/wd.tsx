@@ -70,18 +70,39 @@ function WdHomePage() {
           </div>
         </div>
 
-        {/* Section tabs */}
-        <div className="grid grid-cols-4 gap-1.5 rounded-xl border bg-card p-1">
+        <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
           <SectionBtn label="In Transit" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
           <SectionBtn label="WD Stock" icon={Boxes} active={section === "stock"} onClick={() => setSection("stock")} />
+          <SectionBtn label="Assignments" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
           <Link
             to="/wd-issue-tl"
-            className="flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-[10px] font-bold text-muted-foreground transition hover:bg-muted"
+            className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
-            <Send size={16} />
-            Weekly TL
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
+              <Send size={16} className="text-accent" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">Weekly TL Allocation</p>
+              <p className="text-[10px] text-muted-foreground">Allocate & verify</p>
+            </div>
+            <ChevronRight size={14} className="ml-auto text-muted-foreground" />
           </Link>
-          <SectionBtn label="Assignments" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
+          <Link
+            to="/wd-stock-track"
+            className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+              <Boxes size={16} className="text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold leading-tight">Stock Tracking</p>
+              <p className="text-[10px] text-muted-foreground">WD-level pilot</p>
+            </div>
+            <ChevronRight size={14} className="ml-auto text-muted-foreground" />
+          </Link>
         </div>
 
         {section === "in_transit" && <InTransitSection />}
