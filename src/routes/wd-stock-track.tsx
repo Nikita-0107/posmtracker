@@ -45,6 +45,20 @@ type Snapshot = {
   created_at: string;
 };
 
+const STALE_DAYS = 7;
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+}
+
+function daysSince(iso: string): number {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return Infinity;
+  return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+}
+
 function WdStockTrackPage() {
   const { profile } = useAuth();
   const wdCode = profile?.wd_code ?? null;
