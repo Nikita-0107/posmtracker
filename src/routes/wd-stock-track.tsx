@@ -17,6 +17,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
+import { useWdStock } from "@/hooks/use-wd";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
