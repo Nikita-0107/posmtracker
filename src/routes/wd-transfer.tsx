@@ -659,7 +659,7 @@ function CreateForm({
   }
 
   const [picker, setPicker] = useState<{ idx: number | null } | null>(null);
-  const [editIdx, setEditIdx] = useState<number | null>(null);
+  
 
   function openAddPicker() {
     setPicker({ idx: null });
