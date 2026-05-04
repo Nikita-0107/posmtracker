@@ -384,6 +384,9 @@ function UpdateForm({
           const options = materials.filter(
             (m) => m.code === line.material_code || !usedCodes.has(m.code),
           );
+          const sysQty = line.material_code ? sysMap.get(line.material_code) ?? 0 : null;
+          const physical = line.qty === "" ? null : Number(line.qty);
+          const variance = sysQty !== null && physical !== null ? physical - sysQty : null;
           return (
             <div key={i} className="rounded-xl border bg-card p-2.5">
               <div className="flex items-start gap-2">
@@ -400,6 +403,11 @@ function UpdateForm({
                       </option>
                     ))}
                   </select>
+                  {sysQty !== null && (
+                    <p className="text-[10px] text-muted-foreground">
+                      System stock: <span className="font-mono font-bold text-foreground">{sysQty}</span>
+                    </p>
+                  )}
                   <input
                     type="number"
                     inputMode="numeric"
@@ -409,6 +417,16 @@ function UpdateForm({
                     onChange={(e) => update(i, { qty: e.target.value })}
                     className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono"
                   />
+                  {variance !== null && variance !== 0 && (
+                    <p
+                      className={`text-[10px] font-bold ${
+                        variance < 0 ? "text-destructive" : "text-warning"
+                      }`}
+                    >
+                      Variance: {variance > 0 ? `+${variance}` : variance}{" "}
+                      {variance < 0 ? "short" : "excess"}
+                    </p>
+                  )}
                 </div>
                 {lines.length > 1 && (
                   <button
