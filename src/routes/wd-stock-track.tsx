@@ -4,8 +4,6 @@ import {
   ClipboardCheck,
   Loader2,
   Plus,
-  Minus,
-  X,
   ChevronDown,
   ChevronUp,
   TrendingDown,
@@ -13,6 +11,7 @@ import {
   Equal,
   History,
   Boxes,
+  PackageX,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
