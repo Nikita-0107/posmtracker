@@ -253,14 +253,14 @@ function VarianceBadge({ variance }: { variance: number | null }) {
   }
   if (variance < 0) {
     return (
-      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive">
-        <TrendingDown size={9} /> {variance} short
+      <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-success/15 px-1.5 py-0.5 text-[9px] font-bold text-success">
+        <TrendingDown size={9} /> {Math.abs(variance)} used
       </span>
     );
   }
   return (
-    <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold text-warning">
-      <TrendingUp size={9} /> +{variance} excess
+    <span className="mt-1 inline-flex items-center gap-0.5 rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+      <TrendingUp size={9} /> +{variance} extra
     </span>
   );
 }
@@ -397,49 +397,58 @@ function UpdateForm({
           const sysQty = r.qty;
           const raw = qtys[r.material_code] ?? "";
           const physical = raw === "" ? null : Number(raw);
-          const variance = physical !== null ? physical - sysQty : null;
+          // Used = System - Physical (only when physical <= system)
+          const used =
+            physical !== null && physical <= sysQty ? sysQty - physical : null;
+          const extra =
+            physical !== null && physical > sysQty ? physical - sysQty : null;
           return (
-            <div key={r.material_code} className="rounded-xl border bg-card p-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-mono text-xs font-bold text-foreground">
-                    {r.material_code}
+            <div key={r.material_code} className="rounded-xl border bg-card p-3">
+              <div className="mb-2 min-w-0">
+                <p className="truncate font-mono text-xs font-bold text-foreground">
+                  {r.material_code}
+                </p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {matMap.get(r.material_code) ?? "—"}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-muted/40 p-2 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                    System
                   </p>
-                  <p className="truncate text-[11px] text-muted-foreground">
-                    {matMap.get(r.material_code) ?? "—"}
-                  </p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    Available:{" "}
-                    <span className="font-mono font-bold text-foreground">{sysQty}</span>
-                  </p>
+                  <p className="font-mono text-base font-bold text-foreground">{sysQty}</p>
                 </div>
-                <div className="w-24 shrink-0 space-y-1">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-1.5 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-primary">
+                    Physical
+                  </p>
                   <input
                     type="number"
                     inputMode="numeric"
                     min={0}
-                    placeholder="Physical"
+                    placeholder="—"
                     value={raw}
                     onChange={(e) =>
                       setQtys((prev) => ({ ...prev, [r.material_code]: e.target.value }))
                     }
-                    className="w-full rounded-lg border bg-background px-2 py-2 text-right text-sm font-mono"
+                    className="mt-0.5 w-full bg-transparent text-center font-mono text-base font-bold text-foreground outline-none"
                   />
-                  {variance !== null && variance !== 0 && (
-                    <p
-                      className={`text-right text-[10px] font-bold ${
-                        variance < 0 ? "text-destructive" : "text-warning"
-                      }`}
-                    >
-                      {variance > 0 ? `+${variance}` : variance}{" "}
-                      {variance < 0 ? "short" : "excess"}
-                    </p>
-                  )}
-                  {variance === 0 && (
-                    <p className="text-right text-[10px] font-bold text-success">Match</p>
-                  )}
+                </div>
+                <div className="rounded-lg bg-success/10 p-2 text-center">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-success">
+                    Used
+                  </p>
+                  <p className="font-mono text-base font-bold text-success">
+                    {used !== null ? used : "—"}
+                  </p>
                 </div>
               </div>
+              {extra !== null && (
+                <p className="mt-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+                  +{extra} extra found vs system
+                </p>
+              )}
             </div>
           );
         })}
@@ -481,6 +490,7 @@ function UpdateForm({
 function HistoryView({ snapshots }: { snapshots: Snapshot[] }) {
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+  const [view, setView] = useState<"batches" | "monthly">("batches");
 
   // Group by batch_id
   const batches = useMemo(() => {
@@ -501,6 +511,33 @@ function HistoryView({ snapshots }: { snapshots: Snapshot[] }) {
       .sort((a, b) => b.created_at.localeCompare(a.created_at));
   }, [snapshots]);
 
+  // Monthly usage: sum of negative qty_change per material per month (used = -change)
+  const monthly = useMemo(() => {
+    const map = new Map<string, Map<string, number>>(); // monthKey -> material -> used
+    for (const s of snapshots) {
+      if (s.qty_change === null || s.qty_change >= 0) continue;
+      const d = new Date(s.snapshot_date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const inner = map.get(key) ?? new Map<string, number>();
+      inner.set(s.material_code, (inner.get(s.material_code) ?? 0) + Math.abs(s.qty_change));
+      map.set(key, inner);
+    }
+    return Array.from(map.entries())
+      .map(([key, inner]) => {
+        const [y, m] = key.split("-").map(Number);
+        const label = new Date(y, m - 1, 1).toLocaleString(undefined, {
+          month: "long",
+          year: "numeric",
+        });
+        const items = Array.from(inner.entries())
+          .map(([code, used]) => ({ code, used }))
+          .sort((a, b) => b.used - a.used);
+        const total = items.reduce((acc, i) => acc + i.used, 0);
+        return { key, label, items, total };
+      })
+      .sort((a, b) => b.key.localeCompare(a.key));
+  }, [snapshots]);
+
   if (batches.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center">
@@ -510,10 +547,79 @@ function HistoryView({ snapshots }: { snapshots: Snapshot[] }) {
   }
 
   return (
-    <div className="space-y-2">
-      {batches.map((b) => (
-        <BatchCard key={b.batch_id} batch={b} matMap={matMap} />
-      ))}
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-1.5 rounded-xl border bg-card p-1">
+        <button
+          onClick={() => setView("batches")}
+          className={`rounded-lg px-2 py-1.5 text-[11px] font-bold transition ${
+            view === "batches"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Verifications
+        </button>
+        <button
+          onClick={() => setView("monthly")}
+          className={`rounded-lg px-2 py-1.5 text-[11px] font-bold transition ${
+            view === "monthly"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted"
+          }`}
+        >
+          Monthly Summary
+        </button>
+      </div>
+
+      {view === "batches" && (
+        <div className="space-y-2">
+          {batches.map((b) => (
+            <BatchCard key={b.batch_id} batch={b} matMap={matMap} />
+          ))}
+        </div>
+      )}
+
+      {view === "monthly" && (
+        <div className="space-y-2">
+          {monthly.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center">
+              <p className="text-sm font-bold text-foreground">No usage recorded yet</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Usage appears after at least two physical counts of the same material.
+              </p>
+            </div>
+          ) : (
+            monthly.map((m) => (
+              <div key={m.key} className="overflow-hidden rounded-xl border bg-card">
+                <div className="flex items-center justify-between border-b bg-muted/30 px-3 py-2">
+                  <p className="text-xs font-bold text-foreground">{m.label}</p>
+                  <p className="text-[10px] font-bold text-success">{m.total} total used</p>
+                </div>
+                <div className="divide-y">
+                  {m.items.map((it) => (
+                    <div
+                      key={it.code}
+                      className="flex items-center justify-between gap-2 px-3 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-mono text-[11px] font-bold text-foreground">
+                          {it.code}
+                        </p>
+                        <p className="truncate text-[10px] text-muted-foreground">
+                          {matMap.get(it.code) ?? "—"}
+                        </p>
+                      </div>
+                      <p className="shrink-0 font-mono text-sm font-bold text-success">
+                        {it.used} used
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
