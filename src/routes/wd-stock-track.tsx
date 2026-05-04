@@ -274,7 +274,7 @@ function UpdateForm({ onDone }: { onDone: () => void | Promise<void> }) {
         _proof_image_path: proof!.path,
         _items: items,
         _snapshot_date: date,
-        _note: note.trim() || null,
+        _note: note.trim() || undefined,
       });
       if (error) throw new Error(error.message);
       toast.success(`Stock count saved (${items.length} item${items.length > 1 ? "s" : ""})`, {
