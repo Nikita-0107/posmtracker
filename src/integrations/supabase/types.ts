@@ -658,6 +658,51 @@ export type Database = {
           },
         ]
       }
+      wd_stock_snapshots: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          material_code: string
+          note: string | null
+          proof_image_path: string
+          qty_change: number | null
+          qty_counted: number
+          qty_previous: number | null
+          snapshot_date: string
+          wd_code: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          material_code: string
+          note?: string | null
+          proof_image_path: string
+          qty_change?: number | null
+          qty_counted: number
+          qty_previous?: number | null
+          snapshot_date?: string
+          wd_code: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          material_code?: string
+          note?: string | null
+          proof_image_path?: string
+          qty_change?: number | null
+          qty_counted?: number
+          qty_previous?: number | null
+          snapshot_date?: string
+          wd_code?: string
+        }
+        Relationships: []
+      }
       wd_tls: {
         Row: {
           created_at: string
@@ -855,6 +900,15 @@ export type Database = {
           _qty: number
         }
         Returns: number
+      }
+      record_wd_stock_snapshot: {
+        Args: {
+          _items: Json
+          _note?: string
+          _proof_image_path: string
+          _snapshot_date?: string
+        }
+        Returns: string
       }
       request_movement_correction: {
         Args: { _movement_id: string; _new_qty: number; _reason: string }
