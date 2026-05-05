@@ -30,6 +30,7 @@ import {
 } from "@/hooks/use-wd";
 import { supabase } from "@/integrations/supabase/client";
 import { wdMaster } from "@/lib/posm-data";
+import { exportWdReport } from "@/lib/export-wd-report";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd")({
