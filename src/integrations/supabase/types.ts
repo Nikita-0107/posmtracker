@@ -783,6 +783,7 @@ export type Database = {
           tl_name: string
           tl_type: string | null
           updated_at: string
+          user_id: string | null
           wd_code: string
           wd_name: string | null
         }
@@ -793,6 +794,7 @@ export type Database = {
           tl_name: string
           tl_type?: string | null
           updated_at?: string
+          user_id?: string | null
           wd_code: string
           wd_name?: string | null
         }
@@ -803,6 +805,7 @@ export type Database = {
           tl_name?: string
           tl_type?: string | null
           updated_at?: string
+          user_id?: string | null
           wd_code?: string
           wd_name?: string | null
         }
@@ -938,7 +941,9 @@ export type Database = {
         Args: { _items: Json; _wd_tl_id: string }
         Returns: string
       }
+      current_user_tl_wd_code: { Args: never; Returns: string }
       current_user_wd: { Args: never; Returns: string }
+      current_user_wd_tl_id: { Args: never; Returns: string }
       current_user_wsp: {
         Args: never
         Returns: Database["public"]["Enums"]["wsp_code"]
@@ -1116,6 +1121,14 @@ export type Database = {
           material_code: string
           qty: number
         }[]
+      }
+      tl_self_return: {
+        Args: { _material_code: string; _note?: string; _qty: number }
+        Returns: string
+      }
+      tl_self_take: {
+        Args: { _material_code: string; _qty: number }
+        Returns: string
       }
     }
     Enums: {
