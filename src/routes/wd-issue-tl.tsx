@@ -479,6 +479,10 @@ function MarkReasonModal({
       toast.error("Pick a date for leave end");
       return;
     }
+    if (reason === "other" && !comment.trim()) {
+      toast.error("Please mention a reason");
+      return;
+    }
     setSubmitting(true);
     const expires_at =
       reason === "on_leave"
