@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, useCallback } from "react";
-import { ShieldCheck, Users, AlertTriangle, Loader2 } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
@@ -13,10 +13,9 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 type WspCode = "CEVL" | "CEVJ" | "CEVY";
-type AppRole = "admin" | "wsp" | "wd" | "tl";
 type PrimaryRole = "wsp" | "wd" | "tl";
-
 const WSP_OPTIONS: WspCode[] = ["CEVL", "CEVJ", "CEVY"];
+const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
 
 type Row = {
   id: string;
@@ -25,14 +24,17 @@ type Row = {
   wsp: WspCode | null;
   wd_code: string | null;
   tl_type: string | null;
-  roles: AppRole[];
-  // For WD users: which WSPs they're allowed to receive from
-  allowed_wsps: WspCode[];
+  roles: string[];
+  allowed_wsps: string[];
 };
 
-const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
+type Scope = {
+  is_super: boolean;
+  wsp_scope: WspCode | null;
+  wd_scope: string | null;
+};
 
-function primaryRoleOf(roles: AppRole[]): PrimaryRole | null {
+function primaryOf(roles: string[]): PrimaryRole | null {
   if (roles.includes("wsp")) return "wsp";
   if (roles.includes("wd")) return "wd";
   if (roles.includes("tl")) return "tl";
@@ -42,12 +44,11 @@ function primaryRoleOf(roles: AppRole[]): PrimaryRole | null {
 function AdminUsersPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [scope, setScope] = useState<Scope | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Check admin role
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
@@ -55,242 +56,59 @@ function AdminUsersPage() {
       return;
     }
     (async () => {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("user_admin_scope", { _user_id: user.id });
       if (error) {
         console.error(error);
-        setIsAdmin(false);
+        setScope({ is_super: false, wsp_scope: null, wd_scope: null });
         return;
       }
-      setIsAdmin(!!data);
+      const r = (data ?? [])[0] as Scope | undefined;
+      setScope(
+        r ?? { is_super: false, wsp_scope: null, wd_scope: null },
+      );
     })();
   }, [user, authLoading, navigate]);
 
+  const canManageUsers =
+    !!scope && (scope.is_super || !!scope.wsp_scope || !!scope.wd_scope);
+
   const loadUsers = useCallback(async () => {
     setLoading(true);
-    const [
-      { data: profiles, error: pErr },
-      { data: roles, error: rErr },
-      { data: assignments, error: aErr },
-    ] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select("id, mobile, display_name, wsp, wd_code, tl_type")
-        .order("created_at", { ascending: false }),
-      supabase.from("user_roles").select("user_id, role"),
-      supabase.from("wd_assignments").select("wd_code, wsp"),
-    ]);
-    if (pErr || rErr || aErr) {
-      console.error(pErr || rErr || aErr);
-      toast.error("Failed to load users");
+    const { data, error } = await supabase.rpc("list_manageable_users");
+    if (error) {
+      toast.error(error.message);
       setLoading(false);
       return;
     }
-    const rolesByUser = new Map<string, AppRole[]>();
-    (roles ?? []).forEach((r) => {
-      const list = rolesByUser.get(r.user_id) ?? [];
-      list.push(r.role as AppRole);
-      rolesByUser.set(r.user_id, list);
-    });
-    const wspsByWd = new Map<string, WspCode[]>();
-    (assignments ?? []).forEach((a) => {
-      const list = wspsByWd.get(a.wd_code) ?? [];
-      list.push(a.wsp as WspCode);
-      wspsByWd.set(a.wd_code, list);
-    });
-    const mapped: Row[] = (profiles ?? []).map((p) => ({
-      id: p.id,
-      mobile: p.mobile,
-      display_name: p.display_name,
-      wsp: p.wsp as WspCode | null,
-      wd_code: p.wd_code,
-      tl_type: (p as { tl_type: string | null }).tl_type ?? null,
-      roles: rolesByUser.get(p.id) ?? [],
-      allowed_wsps: p.wd_code ? wspsByWd.get(p.wd_code) ?? [] : [],
-    }));
-    // Sort users with no role to the top so admins see pending signups first.
-    mapped.sort((a, b) => {
-      const aPending = a.roles.length === 0 ? 0 : 1;
-      const bPending = b.roles.length === 0 ? 0 : 1;
-      return aPending - bPending;
-    });
-    setRows(mapped);
+    setRows(
+      (data ?? []).map((r: Row & { allowed_wsps: string[] }) => ({
+        ...r,
+        allowed_wsps: r.allowed_wsps ?? [],
+        roles: r.roles ?? [],
+      })),
+    );
     setLoading(false);
   }, []);
 
   useEffect(() => {
-    if (isAdmin) void loadUsers();
-  }, [isAdmin, loadUsers]);
+    if (canManageUsers) void loadUsers();
+  }, [canManageUsers, loadUsers]);
 
-  async function setPrimaryRole(row: Row, newRole: PrimaryRole | "") {
-    setSavingId(row.id);
-    // Remove existing wsp/wd/tl roles
-    const { error: delErr } = await supabase
-      .from("user_roles")
-      .delete()
-      .eq("user_id", row.id)
-      .in("role", ["wsp", "wd", "tl"]);
-    if (delErr) {
-      setSavingId(null);
-      toast.error(delErr.message);
-      return;
-    }
-    // Clear assignment fields tied to previous role
-    const update: { wsp: WspCode | null; wd_code: string | null } = {
-      wsp: null,
-      wd_code: null,
-    };
-    const { error: upErr } = await supabase.from("profiles").update(update).eq("id", row.id);
-    if (upErr) {
-      setSavingId(null);
-      toast.error(upErr.message);
-      return;
-    }
-    if (newRole) {
-      const { error: insErr } = await supabase
-        .from("user_roles")
-        .insert({ user_id: row.id, role: newRole });
-      if (insErr) {
-        setSavingId(null);
-        toast.error(insErr.message);
-        return;
-      }
-    }
-    setSavingId(null);
-    toast.success(newRole ? `Role set to ${newRole.toUpperCase()}` : "Role cleared");
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === row.id
-          ? {
-              ...r,
-              wsp: null,
-              wd_code: null,
-              allowed_wsps: [],
-              roles: [
-                ...r.roles.filter((x) => x === "admin"),
-                ...(newRole ? [newRole as AppRole] : []),
-              ],
-            }
-          : r,
-      ),
-    );
-  }
+  const sections = useMemo(() => {
+    const supers: Row[] = [];
+    const admins: Row[] = [];
+    const users: Row[] = [];
+    const pending: Row[] = [];
+    rows.forEach((r) => {
+      if (r.roles.includes("admin")) supers.push(r);
+      else if (r.roles.includes("wsp") || r.roles.includes("wd")) admins.push(r);
+      else if (r.roles.includes("tl")) users.push(r);
+      else pending.push(r);
+    });
+    return { supers, admins, users, pending };
+  }, [rows]);
 
-  async function updateWsp(userId: string, wsp: WspCode | null) {
-    setSavingId(userId);
-    const { error } = await supabase.from("profiles").update({ wsp }).eq("id", userId);
-    setSavingId(null);
-    if (error) return toast.error(error.message);
-    toast.success("WSP assigned");
-    setRows((prev) => prev.map((r) => (r.id === userId ? { ...r, wsp } : r)));
-  }
-
-  async function updateWdCode(userId: string, wd_code: string | null) {
-    setSavingId(userId);
-    const { error } = await supabase.from("profiles").update({ wd_code }).eq("id", userId);
-    setSavingId(null);
-    if (error) return toast.error(error.message);
-    toast.success("WD assigned");
-    // refresh allowed_wsps after wd_code change
-    await loadUsers();
-  }
-
-  async function updateTlType(userId: string, tl_type: string | null) {
-    setSavingId(userId);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ tl_type })
-      .eq("id", userId);
-    setSavingId(null);
-    if (error) return toast.error(error.message);
-    toast.success(tl_type ? `TL type set to ${tl_type}` : "TL type cleared");
-    setRows((prev) =>
-      prev.map((r) => (r.id === userId ? { ...r, tl_type } : r)),
-    );
-  }
-
-  async function toggleAllowedWsp(row: Row, wsp: WspCode, on: boolean) {
-    if (!row.wd_code) {
-      toast.error("Assign a WD code first");
-      return;
-    }
-    setSavingId(row.id);
-    if (on) {
-      const { error } = await supabase
-        .from("wd_assignments")
-        .insert({ wd_code: row.wd_code, wsp });
-      if (error && !error.message.toLowerCase().includes("duplicate")) {
-        setSavingId(null);
-        return toast.error(error.message);
-      }
-    } else {
-      const { error } = await supabase
-        .from("wd_assignments")
-        .delete()
-        .eq("wd_code", row.wd_code)
-        .eq("wsp", wsp);
-      if (error) {
-        setSavingId(null);
-        return toast.error(error.message);
-      }
-    }
-    setSavingId(null);
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === row.id
-          ? {
-              ...r,
-              allowed_wsps: on
-                ? Array.from(new Set([...r.allowed_wsps, wsp]))
-                : r.allowed_wsps.filter((w) => w !== wsp),
-            }
-          : r,
-      ),
-    );
-  }
-
-  async function toggleAdmin(userId: string, makeAdmin: boolean) {
-    setSavingId(userId);
-    if (makeAdmin) {
-      const { error } = await supabase
-        .from("user_roles")
-        .insert({ user_id: userId, role: "admin" });
-      if (error && !error.message.toLowerCase().includes("duplicate")) {
-        setSavingId(null);
-        return toast.error(error.message);
-      }
-    } else {
-      const { error } = await supabase
-        .from("user_roles")
-        .delete()
-        .eq("user_id", userId)
-        .eq("role", "admin");
-      if (error) {
-        setSavingId(null);
-        return toast.error(error.message);
-      }
-    }
-    setSavingId(null);
-    toast.success(makeAdmin ? "Granted admin" : "Removed admin");
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === userId
-          ? {
-              ...r,
-              roles: makeAdmin
-                ? Array.from(new Set([...r.roles, "admin" as AppRole]))
-                : r.roles.filter((x) => x !== "admin"),
-            }
-          : r,
-      ),
-    );
-  }
-
-  if (authLoading || isAdmin === null) {
+  if (authLoading || scope === null) {
     return (
       <AppShell>
         <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -300,30 +118,41 @@ function AdminUsersPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!canManageUsers) {
     return (
       <AppShell>
         <div className="mx-auto max-w-md rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-center">
           <AlertTriangle className="mx-auto mb-2 text-destructive" size={28} />
-          <h2 className="font-heading text-lg font-bold text-foreground">Admin access required</h2>
+          <h2 className="font-heading text-lg font-bold text-foreground">Access required</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            You don't have permission to view this page.
+            You don't have permission to manage users.
           </p>
         </div>
       </AppShell>
     );
   }
 
+  const scopeLabel = scope.is_super
+    ? "Super Admin"
+    : scope.wsp_scope
+      ? `WSP Admin · ${scope.wsp_scope}`
+      : `WD Admin · ${scope.wd_scope}`;
+
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
         <AdminTabs />
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="text-primary" size={20} />
-          <h1 className="font-heading text-lg font-bold text-foreground">User Management</h1>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="text-primary" size={20} />
+            <h1 className="font-heading text-lg font-bold text-foreground">User Management</h1>
+          </div>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted-foreground">
+            {scopeLabel}
+          </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          Assign a role and the matching entity. Users with no role see a "waiting" screen.
+          Users sign up themselves with their mobile number. Assign each new user a role and area below.
         </p>
 
         {loading ? (
@@ -333,206 +162,473 @@ function AdminUsersPage() {
         ) : rows.length === 0 ? (
           <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground">
             <Users className="mx-auto mb-2" size={24} />
-            No users yet.
+            No users in your scope yet.
           </div>
         ) : (
-          <div className="space-y-2">
-            {rows.map((row) => {
-              const isRowAdmin = row.roles.includes("admin");
-              const primary = primaryRoleOf(row.roles);
-              const saving = savingId === row.id;
-              const isPending = row.roles.length === 0;
-              return (
-                <div
-                  key={row.id}
-                  className={`space-y-2 rounded-xl border bg-card p-3 shadow-sm ${
-                    isPending ? "border-primary/40 ring-1 ring-primary/20" : ""
-                  }`}
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-semibold text-foreground">
-                          {row.display_name || row.mobile}
-                        </span>
-                        {isRowAdmin && (
-                          <span className="inline-flex items-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
-                            ★ Super Admin
-                          </span>
-                        )}
-                        {isPending && (
-                          <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
-                            Pending
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground">+91 {row.mobile}</div>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
-                        Role
-                        <select
-                          disabled={saving}
-                          value={primary ?? ""}
-                          onChange={(e) =>
-                            setPrimaryRole(row, (e.target.value || "") as PrimaryRole | "")
-                          }
-                          className="rounded-md border bg-background px-2 py-1 text-xs font-bold text-foreground"
-                        >
-                          <option value="">— None —</option>
-                          <option value="wsp">WSP</option>
-                          <option value="wd">WD</option>
-                          <option value="tl">TL</option>
-                        </select>
-                      </label>
-                      <label className="flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400">
-                        <input
-                          type="checkbox"
-                          disabled={saving || row.id === user?.id}
-                          checked={isRowAdmin}
-                          onChange={(e) => toggleAdmin(row.id, e.target.checked)}
-                        />
-                        ★ Super Admin
-                      </label>
-                      {saving && (
-                        <Loader2 className="animate-spin text-muted-foreground" size={14} />
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Dynamic assignment per role */}
-                  {primary === "wsp" && (
-                    <div className="rounded-lg border bg-muted/30 p-2.5">
-                      <label className="block space-y-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Assign WSP
-                        </span>
-                        <select
-                          disabled={saving}
-                          value={row.wsp ?? ""}
-                          onChange={(e) =>
-                            updateWsp(row.id, (e.target.value || null) as WspCode | null)
-                          }
-                          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
-                        >
-                          <option value="">— Select WSP —</option>
-                          {WSP_OPTIONS.map((w) => (
-                            <option key={w} value={w}>
-                              {w}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                  )}
-
-                  {primary === "wd" && (
-                    <div className="space-y-2 rounded-lg border bg-muted/30 p-2.5">
-                      <label className="block space-y-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Assign WD
-                        </span>
-                        <select
-                          disabled={saving}
-                          value={row.wd_code ?? ""}
-                          onChange={(e) => updateWdCode(row.id, e.target.value || null)}
-                          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
-                        >
-                          <option value="">— Select WD —</option>
-                          {wdMaster.map((w) => (
-                            <option key={w.wd_code} value={w.wd_code}>
-                              {w.wd_code} — {w.wd_name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      {row.wd_code && (
-                        <div className="space-y-1">
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Allowed WSPs
-                          </span>
-                          <div className="flex flex-wrap gap-2">
-                            {WSP_OPTIONS.map((w) => {
-                              const on = row.allowed_wsps.includes(w);
-                              return (
-                                <label
-                                  key={w}
-                                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold ${
-                                    on
-                                      ? "border-success/40 bg-success/10 text-success"
-                                      : "bg-background text-foreground"
-                                  }`}
-                                >
-                                  <input
-                                    type="checkbox"
-                                    disabled={saving}
-                                    checked={on}
-                                    onChange={(e) => toggleAllowedWsp(row, w, e.target.checked)}
-                                  />
-                                  {w}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {primary === "tl" && (
-                    <div className="space-y-2 rounded-lg border bg-muted/30 p-2.5">
-                      <label className="block space-y-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Assign WD / Region
-                        </span>
-                        <select
-                          disabled={saving}
-                          value={row.wd_code ?? ""}
-                          onChange={(e) => updateWdCode(row.id, e.target.value || null)}
-                          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
-                        >
-                          <option value="">— Select WD / Region —</option>
-                          {wdMaster.map((w) => (
-                            <option key={w.wd_code} value={w.wd_code}>
-                              {w.wd_code} — {w.wd_name}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block space-y-1">
-                        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          TL Type
-                        </span>
-                        <select
-                          disabled={saving}
-                          value={row.tl_type ?? ""}
-                          onChange={(e) =>
-                            updateTlType(row.id, e.target.value || null)
-                          }
-                          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
-                        >
-                          <option value="">— Select type —</option>
-                          {TL_TYPE_OPTIONS.map((t) => (
-                            <option key={t} value={t}>
-                              {t}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                  )}
-
-                  {!primary && !isRowAdmin && (
-                    <p className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/20 px-2.5 py-2 text-[11px] text-muted-foreground">
-                      No role assigned — user will see "Waiting for role and assignment".
-                    </p>
-                  )}
-                </div>
-              );
-            })}
+          <div className="space-y-5">
+            {sections.pending.length > 0 && (
+              <Section
+                title="Pending Setup"
+                hint="New signups waiting for a role"
+                tone="warn"
+                rows={sections.pending}
+                editingId={editingId}
+                setEditingId={setEditingId}
+                scope={scope}
+                currentUserId={user!.id}
+                reload={loadUsers}
+              />
+            )}
+            <Section
+              title="⭐ Super Admins"
+              hint="Full access across the system"
+              tone="amber"
+              rows={sections.supers}
+              editingId={editingId}
+              setEditingId={setEditingId}
+              scope={scope}
+              currentUserId={user!.id}
+              reload={loadUsers}
+            />
+            <Section
+              title="🔵 Admins"
+              hint="WSP & WD Admins"
+              tone="blue"
+              rows={sections.admins}
+              editingId={editingId}
+              setEditingId={setEditingId}
+              scope={scope}
+              currentUserId={user!.id}
+              reload={loadUsers}
+            />
+            <Section
+              title="⚪ Users"
+              hint="Team Leads"
+              tone="muted"
+              rows={sections.users}
+              editingId={editingId}
+              setEditingId={setEditingId}
+              scope={scope}
+              currentUserId={user!.id}
+              reload={loadUsers}
+            />
           </div>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function Section({
+  title,
+  hint,
+  tone,
+  rows,
+  editingId,
+  setEditingId,
+  scope,
+  currentUserId,
+  reload,
+}: {
+  title: string;
+  hint: string;
+  tone: "amber" | "blue" | "muted" | "warn";
+  rows: Row[];
+  editingId: string | null;
+  setEditingId: (v: string | null) => void;
+  scope: Scope;
+  currentUserId: string;
+  reload: () => Promise<void>;
+}) {
+  if (rows.length === 0) return null;
+  const headerColor =
+    tone === "amber"
+      ? "text-amber-600 dark:text-amber-400"
+      : tone === "blue"
+        ? "text-blue-600 dark:text-blue-400"
+        : tone === "warn"
+          ? "text-primary"
+          : "text-muted-foreground";
+  return (
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <h2 className={`font-heading text-sm font-bold uppercase tracking-wide ${headerColor}`}>
+          {title}
+          <span className="ml-2 text-[11px] font-semibold text-muted-foreground">({rows.length})</span>
+        </h2>
+        <span className="text-[11px] text-muted-foreground">{hint}</span>
+      </div>
+      <div className="space-y-2">
+        {rows.map((row) => (
+          <UserRow
+            key={row.id}
+            row={row}
+            isEditing={editingId === row.id}
+            onEdit={() => setEditingId(row.id)}
+            onClose={() => setEditingId(null)}
+            scope={scope}
+            currentUserId={currentUserId}
+            reload={reload}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RoleBadge({ role }: { role: string }) {
+  if (role === "admin")
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+        <Star size={10} /> Super Admin
+      </span>
+    );
+  if (role === "wsp")
+    return (
+      <span className="inline-flex items-center rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+        WSP Admin
+      </span>
+    );
+  if (role === "wd")
+    return (
+      <span className="inline-flex items-center rounded-full bg-blue-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+        WD Admin
+      </span>
+    );
+  if (role === "tl")
+    return (
+      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground">
+        TL User
+      </span>
+    );
+  return null;
+}
+
+function UserRow({
+  row,
+  isEditing,
+  onEdit,
+  onClose,
+  scope,
+  currentUserId,
+  reload,
+}: {
+  row: Row;
+  isEditing: boolean;
+  onEdit: () => void;
+  onClose: () => void;
+  scope: Scope;
+  currentUserId: string;
+  reload: () => Promise<void>;
+}) {
+  const isSuperRow = row.roles.includes("admin");
+  const primary = primaryOf(row.roles);
+  const isPending = row.roles.length === 0;
+
+  // Permission to edit this row
+  const canEdit =
+    scope.is_super ||
+    (!isSuperRow &&
+      ((scope.wsp_scope &&
+        (row.wsp === scope.wsp_scope ||
+          row.allowed_wsps.includes(scope.wsp_scope) ||
+          isPending)) ||
+        (scope.wd_scope && (row.wd_code === scope.wd_scope || isPending))));
+
+  const assignmentLabel = isSuperRow
+    ? "All areas"
+    : primary === "wsp"
+      ? row.wsp ?? "—"
+      : primary === "wd" || primary === "tl"
+        ? row.wd_code ?? "—"
+        : "Account under setup";
+
+  return (
+    <div
+      className={`rounded-xl border bg-card p-3 shadow-sm ${
+        isPending ? "border-primary/40 ring-1 ring-primary/20" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-foreground">
+              {row.display_name || row.mobile}
+            </span>
+            {isSuperRow && <RoleBadge role="admin" />}
+            {primary && <RoleBadge role={primary} />}
+            {isPending && (
+              <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
+                Pending
+              </span>
+            )}
+          </div>
+          <div className="text-xs text-muted-foreground">+91 {row.mobile}</div>
+          <div className="mt-0.5 text-[11px] font-semibold text-muted-foreground">
+            {assignmentLabel}
+            {primary === "tl" && row.tl_type && ` · ${row.tl_type}`}
+          </div>
+        </div>
+        {canEdit && !isEditing && (
+          <button
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted"
+          >
+            <Pencil size={12} /> Change
+          </button>
+        )}
+      </div>
+
+      {isEditing && canEdit && (
+        <EditPanel
+          row={row}
+          scope={scope}
+          currentUserId={currentUserId}
+          onClose={onClose}
+          reload={reload}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditPanel({
+  row,
+  scope,
+  currentUserId,
+  onClose,
+  reload,
+}: {
+  row: Row;
+  scope: Scope;
+  currentUserId: string;
+  onClose: () => void;
+  reload: () => Promise<void>;
+}) {
+  const isSuperRow = row.roles.includes("admin");
+  const [primary, setPrimary] = useState<PrimaryRole | "">(primaryOf(row.roles) ?? "");
+  const [wsp, setWsp] = useState<WspCode | "">((row.wsp as WspCode) ?? "");
+  const [wdCode, setWdCode] = useState<string>(row.wd_code ?? "");
+  const [tlType, setTlType] = useState<string>(row.tl_type ?? "");
+  const [allowedWsps, setAllowedWsps] = useState<WspCode[]>(
+    (row.allowed_wsps as WspCode[]) ?? [],
+  );
+  const [saving, setSaving] = useState(false);
+
+  // Allowed role choices based on scope
+  const roleChoices: PrimaryRole[] = scope.is_super
+    ? ["wsp", "wd", "tl"]
+    : scope.wsp_scope
+      ? ["wd", "tl"]
+      : ["tl"];
+
+  // WD options visible to this admin
+  const wdOptions = useMemo(() => {
+    if (scope.is_super) return wdMaster;
+    if (scope.wd_scope) return wdMaster.filter((w) => w.wd_code === scope.wd_scope);
+    return wdMaster; // WSP admin: filter further client-side via wd_assignments isn't trivial; allow all, server enforces.
+  }, [scope]);
+
+  async function save() {
+    setSaving(true);
+    try {
+      const role = primary || null;
+      const { error } = await supabase.rpc("admin_assign_role", {
+        _target: row.id,
+        _role: role,
+        _wsp: role === "wsp" ? wsp || null : null,
+        _wd_code: role === "wd" || role === "tl" ? wdCode || null : null,
+        _tl_type: role === "tl" ? tlType || null : null,
+      } as never);
+      if (error) throw error;
+
+      // Sync allowed WSPs for WD users (Super Admin only)
+      if (scope.is_super && role === "wd" && wdCode) {
+        const desired = new Set(allowedWsps);
+        const current = new Set(row.allowed_wsps);
+        const toAdd = [...desired].filter((w) => !current.has(w));
+        const toRemove = [...current].filter((w) => !desired.has(w as WspCode));
+        if (toAdd.length) {
+          await supabase
+            .from("wd_assignments")
+            .insert(toAdd.map((w) => ({ wd_code: wdCode, wsp: w })));
+        }
+        for (const w of toRemove) {
+          await supabase
+            .from("wd_assignments")
+            .delete()
+            .eq("wd_code", wdCode)
+            .eq("wsp", w as WspCode);
+        }
+      }
+
+      toast.success("Saved");
+      onClose();
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleSuper(on: boolean) {
+    setSaving(true);
+    const { error } = await supabase.rpc("admin_toggle_super_admin", {
+      _target: row.id,
+      _on: on,
+    });
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(on ? "Granted Super Admin" : "Removed Super Admin");
+    onClose();
+    await reload();
+  }
+
+  return (
+    <div className="mt-3 space-y-3 rounded-lg border bg-muted/30 p-3">
+      {scope.is_super && (
+        <label className="flex items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+          <span className="inline-flex items-center gap-1">
+            <Star size={12} /> Super Admin
+          </span>
+          <input
+            type="checkbox"
+            disabled={saving || row.id === currentUserId}
+            checked={isSuperRow}
+            onChange={(e) => toggleSuper(e.target.checked)}
+          />
+        </label>
+      )}
+
+      <label className="block space-y-1">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          Role
+        </span>
+        <select
+          disabled={saving}
+          value={primary}
+          onChange={(e) => setPrimary((e.target.value || "") as PrimaryRole | "")}
+          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+        >
+          <option value="">— None (account under setup) —</option>
+          {roleChoices.includes("wsp") && <option value="wsp">WSP Admin</option>}
+          {roleChoices.includes("wd") && <option value="wd">WD Admin</option>}
+          {roleChoices.includes("tl") && <option value="tl">TL User</option>}
+        </select>
+      </label>
+
+      {primary === "wsp" && (
+        <label className="block space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Assign WSP
+          </span>
+          <select
+            disabled={saving || (!scope.is_super && !!scope.wsp_scope)}
+            value={wsp}
+            onChange={(e) => setWsp((e.target.value || "") as WspCode | "")}
+            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+          >
+            <option value="">— Select WSP —</option>
+            {(scope.is_super ? WSP_OPTIONS : [scope.wsp_scope!]).map((w) => (
+              <option key={w} value={w!}>
+                {w}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {(primary === "wd" || primary === "tl") && (
+        <label className="block space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Assign WD
+          </span>
+          <select
+            disabled={saving}
+            value={wdCode}
+            onChange={(e) => setWdCode(e.target.value)}
+            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+          >
+            <option value="">— Select WD —</option>
+            {wdOptions.map((w) => (
+              <option key={w.wd_code} value={w.wd_code}>
+                {w.wd_code} — {w.wd_name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {primary === "wd" && wdCode && scope.is_super && (
+        <div className="space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Allowed WSPs (which WSPs can dispatch to this WD)
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {WSP_OPTIONS.map((w) => {
+              const on = allowedWsps.includes(w);
+              return (
+                <label
+                  key={w}
+                  className={`flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold ${
+                    on ? "border-success/40 bg-success/10 text-success" : "bg-background"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={on}
+                    onChange={(e) =>
+                      setAllowedWsps((prev) =>
+                        e.target.checked ? [...prev, w] : prev.filter((x) => x !== w),
+                      )
+                    }
+                  />
+                  {w}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {primary === "tl" && (
+        <label className="block space-y-1">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            TL Type
+          </span>
+          <select
+            disabled={saving}
+            value={tlType}
+            onChange={(e) => setTlType(e.target.value)}
+            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+          >
+            <option value="">— Select type —</option>
+            {TL_TYPE_OPTIONS.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      <div className="flex items-center justify-end gap-2 pt-1">
+        <button
+          onClick={onClose}
+          disabled={saving}
+          className="rounded-md border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={save}
+          disabled={saving}
+          className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:opacity-90"
+        >
+          {saving && <Loader2 className="animate-spin" size={12} />} Save
+        </button>
+      </div>
+    </div>
   );
 }

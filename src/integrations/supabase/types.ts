@@ -906,6 +906,20 @@ export type Database = {
       }
     }
     Functions: {
+      admin_assign_role: {
+        Args: {
+          _role: string
+          _target: string
+          _tl_type: string
+          _wd_code: string
+          _wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Returns: undefined
+      }
+      admin_toggle_super_admin: {
+        Args: { _on: boolean; _target: string }
+        Returns: undefined
+      }
       close_weekly_tl_allocation: {
         Args: {
           _allocation_id: string
@@ -1005,6 +1019,20 @@ export type Database = {
       issue_to_tl_v2: {
         Args: { _issue_date: string; _items: Json; _wd_tl_id: string }
         Returns: string
+      }
+      list_manageable_users: {
+        Args: never
+        Returns: {
+          allowed_wsps: string[]
+          created_at: string
+          display_name: string
+          id: string
+          mobile: string
+          roles: string[]
+          tl_type: string
+          wd_code: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }[]
       }
       receive_material:
         | {
@@ -1129,6 +1157,14 @@ export type Database = {
       tl_self_take: {
         Args: { _material_code: string; _qty: number }
         Returns: string
+      }
+      user_admin_scope: {
+        Args: { _user_id: string }
+        Returns: {
+          is_super: boolean
+          wd_scope: string
+          wsp_scope: Database["public"]["Enums"]["wsp_code"]
+        }[]
       }
     }
     Enums: {
