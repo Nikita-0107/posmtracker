@@ -184,6 +184,37 @@ function TlAllocationPage() {
   );
 }
 
+// ───────────────────────── TL label helpers ─────────────────────────
+
+function tlMeta(tl: { legacy_tl_id: number | null; tl_type: string | null }) {
+  const parts: string[] = [];
+  if (tl.legacy_tl_id != null) parts.push(String(tl.legacy_tl_id));
+  if (tl.tl_type) parts.push(tl.tl_type);
+  return parts.join(" • ");
+}
+
+function TlLabel({
+  tl,
+  bold = true,
+  nameClass = "",
+  metaClass = "",
+}: {
+  tl: TlOption;
+  bold?: boolean;
+  nameClass?: string;
+  metaClass?: string;
+}) {
+  const meta = tlMeta(tl);
+  return (
+    <span className="inline-flex items-baseline gap-1 min-w-0">
+      <span className={`${bold ? "font-bold" : ""} truncate ${nameClass}`}>{tl.tl_name}</span>
+      {meta && (
+        <span className={`text-[10px] font-normal opacity-70 ${metaClass}`}>({meta})</span>
+      )}
+    </span>
+  );
+}
+
 // ───────────────────────── horizontal summary strip ─────────────────────────
 
 function TlSummaryStrip({
