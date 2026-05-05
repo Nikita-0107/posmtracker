@@ -292,7 +292,7 @@ function TlAllocationPage() {
         <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
           {(
             [
-              { k: "allocate", l: "Allocate", i: <Send size={14} /> },
+              { k: "allocate", l: "Send Stock", i: <Send size={14} /> },
               { k: "return", l: "Return", i: <Undo2 size={14} /> },
               { k: "history", l: "History", i: <History size={14} /> },
             ] as { k: Tab; l: string; i: React.ReactNode }[]
