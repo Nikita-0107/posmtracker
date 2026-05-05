@@ -518,6 +518,168 @@ function UpdateForm({
   );
 }
 
+// Brand-grouped list for the Update form. Brands are ordered overdue first
+// so the user naturally walks down the list, brand by brand.
+function UpdateBrandList({
+  stockRows,
+  latest,
+  matMap,
+  qtys,
+  setQtys,
+  validCount,
+}: {
+  stockRows: SystemStockRow[];
+  latest: Map<string, Snapshot>;
+  matMap: Map<string, string>;
+  qtys: Record<string, string>;
+  setQtys: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  validCount: number;
+}) {
+  const groups = useMemo(() => {
+    const m = new Map<
+      string,
+      {
+        brand: string;
+        rows: Array<SystemStockRow & { name: string; lastDate: string | null }>;
+        oldest: number;
+        hasNever: boolean;
+      }
+    >();
+    for (const r of stockRows) {
+      const name = matMap.get(r.material_code) ?? "";
+      const brand = brandFromName(name);
+      const snap = latest.get(r.material_code);
+      const lastDate = snap ? snap.snapshot_date : null;
+      const g = m.get(brand) ?? { brand, rows: [], oldest: -1, hasNever: false };
+      g.rows.push({ ...r, name, lastDate });
+      const vs = verifyStatus(lastDate);
+      if (vs.status === "never") g.hasNever = true;
+      if (vs.daysSince !== null && vs.daysSince > g.oldest) g.oldest = vs.daysSince;
+      m.set(brand, g);
+    }
+    const arr = Array.from(m.values());
+    arr.sort((a, b) => {
+      const ar = a.hasNever || a.oldest >= VERIFY_INTERVAL_DAYS ? 0 : 1;
+      const br = b.hasNever || b.oldest >= VERIFY_INTERVAL_DAYS ? 0 : 1;
+      if (ar !== br) return ar - br;
+      return b.oldest - a.oldest || a.brand.localeCompare(b.brand);
+    });
+    return arr;
+  }, [stockRows, latest, matMap]);
+
+  const [openBrand, setOpenBrand] = useState<string | null>(groups[0]?.brand ?? null);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          By brand ({groups.length})
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          {validCount} of {stockRows.length} entered
+        </p>
+      </div>
+      {groups.map((g) => {
+        const open = openBrand === g.brand;
+        const filled = g.rows.filter((r) => (qtys[r.material_code] ?? "") !== "").length;
+        const overdue = g.hasNever || g.oldest >= VERIFY_INTERVAL_DAYS;
+        return (
+          <div key={g.brand} className="overflow-hidden rounded-xl border bg-card">
+            <button
+              type="button"
+              onClick={() => setOpenBrand(open ? null : g.brand)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-bold text-foreground">{g.brand}</p>
+                  {overdue && (
+                    <span className="rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive">
+                      Verify now
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {filled}/{g.rows.length} entered
+                  {g.oldest >= 0 ? ` · oldest ${g.oldest}d` : ""}
+                </p>
+              </div>
+              {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {open && (
+              <div className="space-y-2 border-t bg-muted/20 p-2">
+                {g.rows.map((r) => {
+                  const sysQty = r.qty;
+                  const raw = qtys[r.material_code] ?? "";
+                  const physical = raw === "" ? null : Number(raw);
+                  const used =
+                    physical !== null && physical <= sysQty ? sysQty - physical : null;
+                  const extra =
+                    physical !== null && physical > sysQty ? physical - sysQty : null;
+                  return (
+                    <div key={r.material_code} className="rounded-xl border bg-card p-3">
+                      <div className="mb-2 min-w-0">
+                        <p className="truncate font-mono text-xs font-bold text-foreground">
+                          {r.material_code}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {r.name || "—"}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-lg bg-muted/40 p-2 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                            System
+                          </p>
+                          <p className="font-mono text-base font-bold text-foreground">
+                            {sysQty}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-1.5 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-primary">
+                            Physical
+                          </p>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            placeholder="—"
+                            value={raw}
+                            onChange={(e) =>
+                              setQtys((prev) => ({
+                                ...prev,
+                                [r.material_code]: e.target.value,
+                              }))
+                            }
+                            className="mt-0.5 w-full bg-transparent text-center font-mono text-base font-bold text-foreground outline-none"
+                          />
+                        </div>
+                        <div className="rounded-lg bg-success/10 p-2 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-success">
+                            Used
+                          </p>
+                          <p className="font-mono text-base font-bold text-success">
+                            {used !== null ? used : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      {extra !== null && (
+                        <p className="mt-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+                          +{extra} extra found vs system
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ──────────────────────────── HISTORY ────────────────────────────
 
 function HistoryView({ snapshots }: { snapshots: Snapshot[] }) {
