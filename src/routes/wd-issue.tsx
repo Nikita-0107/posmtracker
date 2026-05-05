@@ -606,6 +606,7 @@ function LineItemRow({
   item,
   materials,
   stockQty,
+  transit,
   stockLoading,
   exceeds,
   dup,
