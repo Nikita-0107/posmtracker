@@ -197,7 +197,6 @@ function TlPortalPage() {
     const { error } = await supabase.rpc("tl_self_return", {
       _material_code: retMat,
       _qty: qty,
-      _note: null,
     });
     setSubmitting(false);
     if (error) return toast.error(error.message);
