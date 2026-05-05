@@ -317,8 +317,8 @@ function AllocateTab({
     lines.length > 0 &&
     lines.every((l) => {
       const n = parseInt(l.qty, 10);
-      const onHand = stocked.find((s) => s.material_code === l.code)?.qty ?? 0;
-      return Number.isFinite(n) && n > 0 && n <= onHand;
+      const avail = stocked.find((s) => s.material_code === l.code)?.available ?? 0;
+      return Number.isFinite(n) && n > 0 && n <= avail;
     });
 
   async function submit() {
