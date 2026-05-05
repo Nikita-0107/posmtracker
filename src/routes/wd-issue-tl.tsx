@@ -678,7 +678,7 @@ type HistEntry = {
 };
 
 function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }) {
-  const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t.tl_name])), [tls]);
+  const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t])), [tls]);
   const [entries, setEntries] = useState<HistEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
