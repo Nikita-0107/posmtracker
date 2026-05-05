@@ -15,6 +15,7 @@ import {
   Send,
   ChevronRight,
   ArrowLeftRight,
+  Download,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
