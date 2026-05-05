@@ -444,6 +444,7 @@ function WdIssuePage() {
                       item={it}
                       materials={materials}
                       stockQty={v.stockQty}
+                      transit={v.transit}
                       stockLoading={stockLoading}
                       exceeds={v.exceeds}
                       dup={v.dup}
