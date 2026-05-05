@@ -189,7 +189,9 @@ function WdIssuePage() {
   );
 
   const itemValidations = items.map((it) => {
-    const stockQty = it.material ? stock[it.material.code] ?? 0 : 0;
+    const sysQty = it.material ? stock[it.material.code] ?? 0 : 0;
+    const transit = it.material ? inTransit[it.material.code] ?? 0 : 0;
+    const stockQty = Math.max(0, sysQty - transit);
     const qtyNum = Number(it.qty);
     const exceeds = !!it.material && it.qty !== "" && qtyNum > stockQty;
     const dup = !!it.material && dupCodes.has(it.material.code);
@@ -199,7 +201,7 @@ function WdIssuePage() {
       qtyNum > 0 &&
       !exceeds &&
       !dup;
-    return { stockQty, qtyNum, exceeds, dup, ok };
+    return { stockQty, transit, qtyNum, exceeds, dup, ok };
   });
 
   const allItemsValid = itemValidations.length > 0 && itemValidations.every((v) => v.ok);
