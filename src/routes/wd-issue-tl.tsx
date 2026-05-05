@@ -248,16 +248,57 @@ function AllocateTab({
   const [tlId, setTlId] = useState<string>("");
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const { stock, loading: stockLoading } = useWdStock();
+  const { stock, loading: stockLoading, wdCode } = useWdStock();
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+
+  // In-transit = pending outgoing inter-WD transfers from this WD
+  const [inTransit, setInTransit] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!wdCode) {
+      setInTransit(new Map());
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { data: trs } = await supabase
+        .from("wd_transfers")
+        .select("id")
+        .eq("from_wd_code", wdCode)
+        .eq("status", "pending");
+      const ids = (trs ?? []).map((r) => r.id);
+      if (ids.length === 0) {
+        if (alive) setInTransit(new Map());
+        return;
+      }
+      const { data: items } = await supabase
+        .from("wd_transfer_items")
+        .select("material_code, qty_requested, item_status")
+        .in("transfer_id", ids);
+      const m = new Map<string, number>();
+      for (const it of items ?? []) {
+        if (it.item_status !== "pending") continue;
+        m.set(it.material_code, (m.get(it.material_code) ?? 0) + it.qty_requested);
+      }
+      if (alive) setInTransit(m);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wdCode]);
 
   const stocked = useMemo(
     () =>
       stock
-        .filter((r) => r.qty > 0)
+        .map((r) => ({
+          material_code: r.material_code,
+          qty: r.qty,
+          inTransit: inTransit.get(r.material_code) ?? 0,
+          available: Math.max(0, r.qty - (inTransit.get(r.material_code) ?? 0)),
+        }))
+        .filter((r) => r.available > 0)
         .sort((a, b) => a.material_code.localeCompare(b.material_code)),
-    [stock],
+    [stock, inTransit],
   );
 
   function pickMaterial(code: string) {
