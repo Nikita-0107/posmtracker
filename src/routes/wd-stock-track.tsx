@@ -46,7 +46,7 @@ type Snapshot = {
   created_at: string;
 };
 
-const STALE_DAYS = 7;
+const STALE_DAYS = VERIFY_INTERVAL_DAYS;
 
 function formatShortDate(iso: string): string {
   const d = new Date(iso);
