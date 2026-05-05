@@ -599,7 +599,7 @@ function ReturnTab({
                       : "border-border bg-background text-foreground"
                 }`}
               >
-                {t.tl_name} · {pending}
+                <TlLabel tl={t} /> · {pending}
               </button>
             );
           })}
