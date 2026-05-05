@@ -184,6 +184,37 @@ function TlAllocationPage() {
   );
 }
 
+// ───────────────────────── TL label helpers ─────────────────────────
+
+function tlMeta(tl: { legacy_tl_id: number | null; tl_type: string | null }) {
+  const parts: string[] = [];
+  if (tl.legacy_tl_id != null) parts.push(String(tl.legacy_tl_id));
+  if (tl.tl_type) parts.push(tl.tl_type);
+  return parts.join(" • ");
+}
+
+function TlLabel({
+  tl,
+  bold = true,
+  nameClass = "",
+  metaClass = "",
+}: {
+  tl: TlOption;
+  bold?: boolean;
+  nameClass?: string;
+  metaClass?: string;
+}) {
+  const meta = tlMeta(tl);
+  return (
+    <span className="inline-flex items-baseline gap-1 min-w-0">
+      <span className={`${bold ? "font-bold" : ""} truncate ${nameClass}`}>{tl.tl_name}</span>
+      {meta && (
+        <span className={`text-[10px] font-normal opacity-70 ${metaClass}`}>({meta})</span>
+      )}
+    </span>
+  );
+}
+
 // ───────────────────────── horizontal summary strip ─────────────────────────
 
 function TlSummaryStrip({
@@ -221,9 +252,9 @@ function TlSummaryStrip({
             key={tl.id}
             className="flex min-w-[140px] snap-start flex-col gap-1 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
           >
-            <div className="flex items-center gap-1.5">
-              <Users size={12} className="text-muted-foreground" />
-              <p className="truncate font-bold text-foreground text-sm">{tl.tl_name}</p>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <Users size={12} className="text-muted-foreground shrink-0" />
+              <TlLabel tl={tl} nameClass="text-sm text-foreground" metaClass="text-muted-foreground" />
             </div>
             <p className="text-[10px] uppercase text-muted-foreground">AVAILABLE STOCK WITH TL</p>
             <p className="font-mono text-base font-bold text-primary">{pending}</p>
@@ -367,7 +398,7 @@ function AllocateTab({
                   : "border-border bg-background text-foreground"
               }`}
             >
-              {t.tl_name}
+              <TlLabel tl={t} />
             </button>
           ))}
         </div>
@@ -568,7 +599,7 @@ function ReturnTab({
                       : "border-border bg-background text-foreground"
                 }`}
               >
-                {t.tl_name} · {pending}
+                <TlLabel tl={t} /> · {pending}
               </button>
             );
           })}
@@ -647,7 +678,7 @@ type HistEntry = {
 };
 
 function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }) {
-  const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t.tl_name])), [tls]);
+  const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t])), [tls]);
   const [entries, setEntries] = useState<HistEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -751,7 +782,7 @@ function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-bold">
-              {tlMap.get(e.tlId) ?? "—"} · <span className="font-mono">{e.material_code}</span>
+              {tlMap.get(e.tlId) ? <TlLabel tl={tlMap.get(e.tlId)!} /> : "—"} · <span className="font-mono">{e.material_code}</span>
             </p>
             <p className="text-[10px] text-muted-foreground">
               {new Date(e.date + "T00:00:00").toLocaleDateString("en-IN")}
