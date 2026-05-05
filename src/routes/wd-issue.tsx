@@ -723,11 +723,14 @@ function LineItemRow({
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border bg-muted/30 px-2.5 py-2">
           <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Current Stock
+            Available Stock
           </p>
           <p className="font-mono text-sm font-bold text-foreground">
             {item.material ? (stockLoading ? "…" : stockQty) : "—"}
           </p>
+          {item.material && transit > 0 && (
+            <p className="mt-0.5 text-[9px] text-muted-foreground">{transit} in transit</p>
+          )}
         </div>
         <div className="space-y-0.5">
           <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
