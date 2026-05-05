@@ -76,7 +76,7 @@ function useTlBalances(refreshKey: number) {
       cur.allocated += l.qty_issued;
       bal.byMat.set(l.material_code, cur);
     }
-    for (const r of (retRows ?? []) as Array<{ wd_tl_id: string; material_code: string; qty: number }>) {
+    for (const r of (retRows ?? []) as unknown as Array<{ wd_tl_id: string; material_code: string; qty: number }>) {
       const bal = map.get(r.wd_tl_id);
       if (!bal) continue;
       const cur = bal.byMat.get(r.material_code) ?? { allocated: 0, returned: 0, pending: 0 };
