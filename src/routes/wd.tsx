@@ -15,6 +15,7 @@ import {
   Send,
   ChevronRight,
   ArrowLeftRight,
+  Download,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
@@ -29,6 +30,7 @@ import {
 } from "@/hooks/use-wd";
 import { supabase } from "@/integrations/supabase/client";
 import { wdMaster } from "@/lib/posm-data";
+import { exportWdReport } from "@/lib/export-wd-report";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd")({
@@ -47,6 +49,7 @@ function WdHomePage() {
   const { profile } = useAuth();
   const { isAdmin } = useRoles();
   const [section, setSection] = useState<Section>("in_transit");
+  const [downloading, setDownloading] = useState(false);
 
   const wdLabel = profile?.wd_code
     ? `${profile.wd_code}${
@@ -58,6 +61,22 @@ function WdHomePage() {
       ? "All distributors (admin)"
       : "No WD assigned";
 
+  async function downloadReport() {
+    if (!profile?.wd_code) {
+      toast.error("No WD assigned");
+      return;
+    }
+    setDownloading(true);
+    try {
+      const { filename } = await exportWdReport(profile.wd_code);
+      toast.success(`Downloaded ${filename}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to export");
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <AppShell>
       <div className="mx-auto max-w-md space-y-4">
@@ -65,10 +84,18 @@ function WdHomePage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <Truck size={20} className="text-accent" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="font-heading text-lg font-bold leading-tight">WD Operations</h2>
             <p className="truncate text-[11px] text-muted-foreground">{wdLabel}</p>
           </div>
+          <button
+            onClick={downloadReport}
+            disabled={downloading || !profile?.wd_code}
+            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+          >
+            {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+            Download Report
+          </button>
         </div>
 
         <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
