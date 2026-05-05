@@ -113,8 +113,8 @@ function WdHomePage() {
               <Send size={16} className="text-accent" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-bold leading-tight">Weekly TL Allocation</p>
-              <p className="text-[10px] text-muted-foreground">Allocate & verify</p>
+              <p className="text-xs font-bold leading-tight">Send Stock to TLs</p>
+              <p className="text-[10px] text-muted-foreground">Allocate & track</p>
             </div>
             <ChevronRight size={14} className="ml-auto text-muted-foreground" />
           </Link>
