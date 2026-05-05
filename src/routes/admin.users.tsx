@@ -394,7 +394,6 @@ function AdminUsersPage() {
                         />
                         ★ Super Admin
                       </label>
-                      </label>
                       {saving && (
                         <Loader2 className="animate-spin text-muted-foreground" size={14} />
                       )}
