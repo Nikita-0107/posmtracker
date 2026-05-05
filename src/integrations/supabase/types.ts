@@ -1168,7 +1168,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "wsp" | "wd" | "tl"
+      app_role: "admin" | "wsp" | "wd" | "tl" | "wsp_admin" | "wd_admin"
       batch_type: "Launch" | "Cyclical" | "SOV" | "Others"
       concern_reason: "shortage" | "damage" | "other"
       concern_status: "pending" | "approved" | "rejected"
@@ -1310,7 +1310,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "wsp", "wd", "tl"],
+      app_role: ["admin", "wsp", "wd", "tl", "wsp_admin", "wd_admin"],
       batch_type: ["Launch", "Cyclical", "SOV", "Others"],
       concern_reason: ["shortage", "damage", "other"],
       concern_status: ["pending", "approved", "rejected"],
