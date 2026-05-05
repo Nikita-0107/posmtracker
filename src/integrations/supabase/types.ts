@@ -385,6 +385,42 @@ export type Database = {
           },
         ]
       }
+      tl_inactivity_reasons: {
+        Row: {
+          comment: string | null
+          created_at: string
+          created_by: string
+          expires_at: string | null
+          id: string
+          leave_until: string | null
+          reason: string
+          wd_code: string
+          wd_tl_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          created_by: string
+          expires_at?: string | null
+          id?: string
+          leave_until?: string | null
+          reason: string
+          wd_code: string
+          wd_tl_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string | null
+          id?: string
+          leave_until?: string | null
+          reason?: string
+          wd_code?: string
+          wd_tl_id?: string
+        }
+        Relationships: []
+      }
       tl_issuance_items: {
         Row: {
           created_at: string
