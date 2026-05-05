@@ -386,9 +386,11 @@ function ChangeBadge({ change, prev }: { change: number | null; prev: number | n
 
 function UpdateForm({
   systemStock,
+  latest,
   onDone,
 }: {
   systemStock: SystemStockRow[];
+  latest: Map<string, Snapshot>;
   onDone: () => void | Promise<void>;
 }) {
   const { profile } = useAuth();
