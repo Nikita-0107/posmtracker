@@ -403,7 +403,10 @@ function AllocateTab({
                   <p className="truncate text-[10px] text-muted-foreground" style={{ maxWidth: 140 }}>
                     {matName.get(s.material_code) ?? "—"}
                   </p>
-                  <p className="text-[10px] font-bold text-primary">{s.qty} available</p>
+                  <p className="text-[11px] font-bold text-primary">Available: {s.available}</p>
+                  {s.inTransit > 0 && (
+                    <p className="text-[10px] text-muted-foreground">{s.inTransit} in transit</p>
+                  )}
                 </button>
               );
             })}
