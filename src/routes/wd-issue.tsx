@@ -66,6 +66,34 @@ function WdIssuePage() {
   const { materials } = useMaterials();
   const { stock, refresh, loading: stockLoading } = useStock();
 
+  // In-transit per material = pending/issue dispatch lines from this WSP
+  const [inTransit, setInTransit] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!wsp) {
+      setInTransit({});
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("stock_movements")
+        .select("material_code, qty, item_status")
+        .eq("wsp", wsp)
+        .eq("movement", "dispatch")
+        .in("item_status", ["pending", "issue"]);
+      if (!alive) return;
+      const m: Record<string, number> = {};
+      for (const r of (data ?? []) as { material_code: string; qty: number }[]) {
+        m[r.material_code] = (m[r.material_code] ?? 0) + r.qty;
+      }
+      setInTransit(m);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wsp]);
+
   // Header
   const [date, setDate] = useState<string>(todayISO());
   const [wd, setWd] = useState("");
