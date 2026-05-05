@@ -398,7 +398,7 @@ function AllocateTab({
                   : "border-border bg-background text-foreground"
               }`}
             >
-              {t.tl_name}
+              <TlLabel tl={t} />
             </button>
           ))}
         </div>
