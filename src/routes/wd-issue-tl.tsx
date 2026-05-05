@@ -129,7 +129,7 @@ function TlAllocationPage() {
           <div className="min-w-0 flex-1">
             <h2 className="font-heading text-lg font-bold leading-tight">TL Allocation</h2>
             <p className="text-[11px] text-muted-foreground">
-              Send stock to TLs · Record returns · Track pending
+              Send stock to TLs · Record returns · Track TL stock
             </p>
           </div>
         </div>
@@ -582,7 +582,7 @@ function ReturnTab({
           </p>
           {pendingMats.length === 0 ? (
             <p className="rounded-lg border bg-muted/20 p-3 text-center text-xs text-muted-foreground">
-              Nothing pending with this TL.
+              No stock with this TL.
             </p>
           ) : (
             <div className="space-y-1.5">
@@ -598,7 +598,7 @@ function ReturnTab({
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-xs font-bold">{m.code}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        Pending: {m.pending}
+                        AVAILABLE STOCK WITH TL: {m.pending}
                       </p>
                     </div>
                     <input
