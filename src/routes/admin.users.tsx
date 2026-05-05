@@ -458,7 +458,7 @@ function EditPanel({
             .from("wd_assignments")
             .delete()
             .eq("wd_code", wdCode)
-            .eq("wsp", w);
+            .eq("wsp", w as WspCode);
         }
       }
 
