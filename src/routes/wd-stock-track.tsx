@@ -20,6 +20,7 @@ import { useWdStock } from "@/hooks/use-wd";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { brandFromName, verifyStatus, VERIFY_INTERVAL_DAYS } from "@/lib/brand";
 
 export const Route = createFileRoute("/wd-stock-track")({
   component: WdStockTrackPage,
