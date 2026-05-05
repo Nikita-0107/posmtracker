@@ -340,7 +340,7 @@ function TlAllocationPage() {
       )}
     </AppShell>
   );
-
+}
 
 
 // ───────────────────────── TL label helpers ─────────────────────────
