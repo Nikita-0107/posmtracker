@@ -29,6 +29,132 @@ type TlBalance = {
   byMat: Map<string, { allocated: number; returned: number; pending: number }>;
 };
 
+type TlActivity = {
+  lastActivityAt: string | null; // ISO
+  reason: null | {
+    id: string;
+    reason: "on_leave" | "no_requirement" | "stock_sufficient" | "other";
+    comment: string | null;
+    leave_until: string | null;
+    expires_at: string | null;
+    created_at: string;
+  };
+};
+
+const INACTIVITY_DAYS = 7;
+
+function daysSince(iso: string | null): number {
+  if (!iso) return Infinity;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.floor(ms / 86400000);
+}
+
+function reasonIsActive(r: TlActivity["reason"]): boolean {
+  if (!r) return false;
+  const now = Date.now();
+  if (r.leave_until) {
+    return new Date(r.leave_until + "T23:59:59").getTime() >= now;
+  }
+  if (r.expires_at) {
+    return new Date(r.expires_at).getTime() >= now;
+  }
+  // No explicit expiry: valid for INACTIVITY_DAYS from creation
+  return now - new Date(r.created_at).getTime() < INACTIVITY_DAYS * 86400000;
+}
+
+function reasonLabel(r: NonNullable<TlActivity["reason"]>): string {
+  if (r.reason === "on_leave" && r.leave_until) {
+    const d = new Date(r.leave_until + "T00:00:00");
+    return `On Leave (till ${d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })})`;
+  }
+  const map: Record<string, string> = {
+    on_leave: "On Leave",
+    no_requirement: "No requirement",
+    stock_sufficient: "Stock sufficient",
+    other: "No activity (Marked)",
+  };
+  return map[r.reason] ?? "No activity (Marked)";
+}
+
+function useTlActivity(tls: TlOption[], refreshKey: number) {
+  const [activity, setActivity] = useState<Map<string, TlActivity>>(new Map());
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      if (tls.length === 0) {
+        setActivity(new Map());
+        return;
+      }
+      const tlIds = tls.map((t) => t.id);
+      const [{ data: issRows }, retRes, reasonRes] = await Promise.all([
+        supabase
+          .from("tl_issuances")
+          .select("wd_tl_id, created_at")
+          .in("wd_tl_id", tlIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from("tl_returns" as any)
+          .select("wd_tl_id, created_at")
+          .in("wd_tl_id", tlIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from("tl_inactivity_reasons" as any)
+          .select("id, wd_tl_id, reason, comment, leave_until, expires_at, created_at")
+          .in("wd_tl_id", tlIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const lastBy = new Map<string, string>();
+      for (const r of (issRows ?? []) as { wd_tl_id: string; created_at: string }[]) {
+        const cur = lastBy.get(r.wd_tl_id);
+        if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+      }
+      for (const r of (retRes.data ?? []) as unknown as { wd_tl_id: string; created_at: string }[]) {
+        const cur = lastBy.get(r.wd_tl_id);
+        if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+      }
+
+      const reasonBy = new Map<string, TlActivity["reason"]>();
+      for (const r of (reasonRes.data ?? []) as unknown as Array<{
+        id: string;
+        wd_tl_id: string;
+        reason: TlActivity["reason"] extends null ? never : NonNullable<TlActivity["reason"]>["reason"];
+        comment: string | null;
+        leave_until: string | null;
+        expires_at: string | null;
+        created_at: string;
+      }>) {
+        if (reasonBy.has(r.wd_tl_id)) continue; // first (newest) wins
+        reasonBy.set(r.wd_tl_id, {
+          id: r.id,
+          reason: r.reason,
+          comment: r.comment,
+          leave_until: r.leave_until,
+          expires_at: r.expires_at,
+          created_at: r.created_at,
+        });
+      }
+
+      const out = new Map<string, TlActivity>();
+      for (const t of tls) {
+        out.set(t.id, {
+          lastActivityAt: lastBy.get(t.id) ?? null,
+          reason: reasonBy.get(t.id) ?? null,
+        });
+      }
+      if (alive) setActivity(out);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tls, refreshKey]);
+
+  return activity;
+}
+
 function useTlBalances(refreshKey: number) {
   const { tls } = useTlsForMyWd();
   const [balances, setBalances] = useState<Map<string, TlBalance>>(new Map());
@@ -111,6 +237,20 @@ function TlAllocationPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const { balances, loading: balLoading } = useTlBalances(refreshKey);
   const { refresh: refreshWdStock } = useWdStock();
+  const activity = useTlActivity(tls, refreshKey);
+  const [reasonFor, setReasonFor] = useState<TlOption | null>(null);
+
+  const inactiveCount = useMemo(() => {
+    let n = 0;
+    for (const t of tls) {
+      const a = activity.get(t.id);
+      if (!a) continue;
+      const inactive = daysSince(a.lastActivityAt) >= INACTIVITY_DAYS;
+      const marked = reasonIsActive(a.reason);
+      if (inactive && !marked) n++;
+    }
+    return n;
+  }, [tls, activity]);
 
   const bumpAll = async () => {
     setRefreshKey((k) => k + 1);
@@ -132,13 +272,20 @@ function TlAllocationPage() {
               Send stock to TLs · Record returns · Track TL stock
             </p>
           </div>
+          {inactiveCount > 0 && (
+            <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-400">
+              Inactive TLs: {inactiveCount}
+            </span>
+          )}
         </div>
 
         {/* Horizontal TL summary */}
         <TlSummaryStrip
           tls={tls}
           balances={balances}
+          activity={activity}
           loading={tlsLoading || balLoading}
+          onMarkReason={(t) => setReasonFor(t)}
         />
 
         {/* Tabs */}
@@ -180,9 +327,21 @@ function TlAllocationPage() {
           </Link>
         </div>
       </div>
+
+      {reasonFor && (
+        <MarkReasonModal
+          tl={reasonFor}
+          onClose={() => setReasonFor(null)}
+          onSaved={async () => {
+            setReasonFor(null);
+            setRefreshKey((k) => k + 1);
+          }}
+        />
+      )}
     </AppShell>
   );
 }
+
 
 // ───────────────────────── TL label helpers ─────────────────────────
 
@@ -220,11 +379,15 @@ function TlLabel({
 function TlSummaryStrip({
   tls,
   balances,
+  activity,
   loading,
+  onMarkReason,
 }: {
   tls: TlOption[];
   balances: Map<string, TlBalance>;
+  activity: Map<string, TlActivity>;
   loading: boolean;
+  onMarkReason: (tl: TlOption) => void;
 }) {
   if (loading) {
     return (
@@ -247,10 +410,13 @@ function TlSummaryStrip({
         const pending = bal
           ? Array.from(bal.byMat.values()).reduce((s, v) => s + Math.max(v.pending, 0), 0)
           : 0;
+        const a = activity.get(tl.id);
+        const inactive = a ? daysSince(a.lastActivityAt) >= INACTIVITY_DAYS : false;
+        const marked = a ? reasonIsActive(a.reason) : false;
         return (
           <div
             key={tl.id}
-            className="flex min-w-[140px] snap-start flex-col gap-1 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
+            className="flex min-w-[160px] snap-start flex-col gap-1 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <Users size={12} className="text-muted-foreground shrink-0" />
@@ -258,9 +424,162 @@ function TlSummaryStrip({
             </div>
             <p className="text-[10px] uppercase text-muted-foreground">AVAILABLE STOCK WITH TL</p>
             <p className="font-mono text-base font-bold text-primary">{pending}</p>
+            {marked && a?.reason && (
+              <p className="truncate text-[10px] font-semibold text-muted-foreground">
+                {reasonLabel(a.reason)}
+              </p>
+            )}
+            {inactive && !marked && (
+              <div className="flex flex-col gap-1">
+                <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+                  ⚠ No activity for {INACTIVITY_DAYS} days
+                </p>
+                <button
+                  onClick={() => onMarkReason(tl)}
+                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+                >
+                  Mark Reason
+                </button>
+              </div>
+            )}
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ───────────────────────── MARK REASON MODAL ─────────────────────────
+
+const REASON_OPTIONS: { v: "on_leave" | "no_requirement" | "stock_sufficient" | "other"; l: string }[] = [
+  { v: "on_leave", l: "On Leave" },
+  { v: "no_requirement", l: "No requirement" },
+  { v: "stock_sufficient", l: "Stock already sufficient" },
+  { v: "other", l: "Other" },
+];
+
+function MarkReasonModal({
+  tl,
+  onClose,
+  onSaved,
+}: {
+  tl: TlOption;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const { user } = useAuth();
+  const [reason, setReason] = useState<typeof REASON_OPTIONS[number]["v"]>("on_leave");
+  const [leaveUntil, setLeaveUntil] = useState("");
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function save() {
+    if (!user) return;
+    if (reason === "on_leave" && !leaveUntil) {
+      toast.error("Pick a date for leave end");
+      return;
+    }
+    setSubmitting(true);
+    const expires_at =
+      reason === "on_leave"
+        ? null
+        : new Date(Date.now() + INACTIVITY_DAYS * 86400000).toISOString();
+    const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_inactivity_reasons" as any)
+      .insert({
+        wd_tl_id: tl.id,
+        wd_code: tl.wd_code,
+        reason,
+        comment: comment.trim() || null,
+        leave_until: reason === "on_leave" ? leaveUntil : null,
+        expires_at,
+        created_by: user.id,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    setSubmitting(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Reason recorded");
+    await onSaved();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-background p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Mark reason</p>
+            <p className="truncate text-sm font-bold">
+              <TlLabel tl={tl} />
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {REASON_OPTIONS.map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setReason(o.v)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                reason === o.v
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-background text-foreground"
+              }`}
+            >
+              <span className="font-semibold">{o.l}</span>
+              {reason === o.v && <span className="text-xs text-primary">✓</span>}
+            </button>
+          ))}
+        </div>
+
+        {reason === "on_leave" && (
+          <div className="mt-3">
+            <label className="text-[10px] font-bold uppercase text-muted-foreground">
+              On leave till
+            </label>
+            <input
+              type="date"
+              value={leaveUntil}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setLeaveUntil(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+        )}
+
+        <div className="mt-3">
+          <label className="text-[10px] font-bold uppercase text-muted-foreground">
+            Comment (optional)
+          </label>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+
+        <button
+          onClick={save}
+          disabled={submitting}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          Save reason
+        </button>
+      </div>
     </div>
   );
 }
