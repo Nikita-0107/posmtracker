@@ -143,6 +143,7 @@ function WdStockTrackPage() {
             {tab === "update" && (
               <UpdateForm
                 systemStock={systemStock}
+                latest={latestByMaterial}
                 onDone={async () => {
                   await Promise.all([refresh(), refreshStock()]);
                   setTab("history");
