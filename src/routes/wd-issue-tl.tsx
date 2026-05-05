@@ -647,7 +647,7 @@ function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }
           qty: l.qty_issued,
         };
       });
-      const returns: HistEntry[] = ((retRows ?? []) as Array<{
+      const returns: HistEntry[] = ((retRows ?? []) as unknown as Array<{
         id: string;
         wd_tl_id: string;
         material_code: string;
