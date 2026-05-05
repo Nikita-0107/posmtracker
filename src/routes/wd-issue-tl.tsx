@@ -223,9 +223,9 @@ function TlSummaryStrip({
           >
             <div className="flex items-center gap-1.5">
               <Users size={12} className="text-muted-foreground" />
-              <p className="truncate text-xs font-bold text-foreground">{tl.tl_name}</p>
+              <p className="truncate font-bold text-foreground text-sm">{tl.tl_name}</p>
             </div>
-            <p className="text-[10px] uppercase text-muted-foreground">Pending</p>
+            <p className="text-[10px] uppercase text-muted-foreground">AVAILABLE STOCK WITH TL</p>
             <p className="font-mono text-base font-bold text-primary">{pending}</p>
           </div>
         );
