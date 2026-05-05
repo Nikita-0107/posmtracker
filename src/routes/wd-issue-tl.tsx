@@ -782,7 +782,7 @@ function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-bold">
-              {tlMap.get(e.tlId) ?? "—"} · <span className="font-mono">{e.material_code}</span>
+              {tlMap.get(e.tlId) ? <TlLabel tl={tlMap.get(e.tlId)!} /> : "—"} · <span className="font-mono">{e.material_code}</span>
             </p>
             <p className="text-[10px] text-muted-foreground">
               {new Date(e.date + "T00:00:00").toLocaleDateString("en-IN")}
