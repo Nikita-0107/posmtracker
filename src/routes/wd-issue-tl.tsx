@@ -340,79 +340,8 @@ function TlAllocationPage() {
       )}
     </AppShell>
   );
-}
 
-  const bumpAll = async () => {
-    setRefreshKey((k) => k + 1);
-    await refreshWdStock();
-  };
 
-  if (!user) return null;
-
-  return (
-    <AppShell>
-      <div className="mx-auto max-w-2xl space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-            <ArrowLeftRight size={20} className="text-accent" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-heading text-lg font-bold leading-tight">TL Allocation</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Send stock to TLs · Record returns · Track TL stock
-            </p>
-          </div>
-        </div>
-
-        {/* Horizontal TL summary */}
-        <TlSummaryStrip
-          tls={tls}
-          balances={balances}
-          loading={tlsLoading || balLoading}
-        />
-
-        {/* Tabs */}
-        <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
-          {(
-            [
-              { k: "allocate", l: "Allocate", i: <Send size={14} /> },
-              { k: "return", l: "Return", i: <Undo2 size={14} /> },
-              { k: "history", l: "History", i: <History size={14} /> },
-            ] as { k: Tab; l: string; i: React.ReactNode }[]
-          ).map((t) => (
-            <button
-              key={t.k}
-              onClick={() => setTab(t.k)}
-              className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
-                tab === t.k
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {t.i}
-              {t.l}
-            </button>
-          ))}
-        </div>
-
-        {tab === "allocate" && <AllocateTab tls={tls} onDone={bumpAll} />}
-        {tab === "return" && (
-          <ReturnTab tls={tls} balances={balances} onDone={bumpAll} />
-        )}
-        {tab === "history" && <HistoryTab tls={tls} refreshKey={refreshKey} />}
-
-        <div className="pt-2 text-center">
-          <Link
-            to="/wd"
-            className="text-[11px] font-semibold text-muted-foreground underline"
-          >
-            ← Back to WD
-          </Link>
-        </div>
-      </div>
-    </AppShell>
-  );
-}
 
 // ───────────────────────── TL label helpers ─────────────────────────
 
