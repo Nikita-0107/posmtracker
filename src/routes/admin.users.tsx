@@ -355,6 +355,11 @@ function AdminUsersPage() {
                         <span className="font-semibold text-foreground">
                           {row.display_name || row.mobile}
                         </span>
+                        {isRowAdmin && (
+                          <span className="inline-flex items-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            ★ Super Admin
+                          </span>
+                        )}
                         {isPending && (
                           <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
                             Pending
