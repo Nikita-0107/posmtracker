@@ -458,6 +458,42 @@ export type Database = {
           },
         ]
       }
+      tl_returns: {
+        Row: {
+          batch_id: string
+          created_at: string
+          created_by: string
+          id: string
+          material_code: string
+          note: string | null
+          qty: number
+          wd_code: string
+          wd_tl_id: string
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          created_by: string
+          id?: string
+          material_code: string
+          note?: string | null
+          qty: number
+          wd_code: string
+          wd_tl_id: string
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          material_code?: string
+          note?: string | null
+          qty?: number
+          wd_code?: string
+          wd_tl_id?: string
+        }
+        Relationships: []
+      }
       tl_uploads: {
         Row: {
           created_at: string
@@ -1023,6 +1059,10 @@ export type Database = {
           _resolution_note?: string
         }
         Returns: Database["public"]["Enums"]["concern_status"]
+      }
+      return_from_tl: {
+        Args: { _items: Json; _note?: string; _wd_tl_id: string }
+        Returns: string
       }
       submit_stock_concern: {
         Args: {
