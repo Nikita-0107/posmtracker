@@ -565,12 +565,13 @@ function MarkReasonModal({
 
         <div className="mt-3">
           <label className="text-[10px] font-bold uppercase text-muted-foreground">
-            Comment (optional)
+            Comment {reason === "other" ? "(required)" : "(optional)"}
           </label>
           <textarea
             value={comment}
             onChange={(e) => setComment(e.target.value)}
             rows={2}
+            placeholder={reason === "other" ? "Please mention the reason…" : ""}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />
         </div>
