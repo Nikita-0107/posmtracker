@@ -248,16 +248,57 @@ function AllocateTab({
   const [tlId, setTlId] = useState<string>("");
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const { stock, loading: stockLoading } = useWdStock();
+  const { stock, loading: stockLoading, wdCode } = useWdStock();
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+
+  // In-transit = pending outgoing inter-WD transfers from this WD
+  const [inTransit, setInTransit] = useState<Map<string, number>>(new Map());
+  useEffect(() => {
+    if (!wdCode) {
+      setInTransit(new Map());
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { data: trs } = await supabase
+        .from("wd_transfers")
+        .select("id")
+        .eq("from_wd_code", wdCode)
+        .eq("status", "pending");
+      const ids = (trs ?? []).map((r) => r.id);
+      if (ids.length === 0) {
+        if (alive) setInTransit(new Map());
+        return;
+      }
+      const { data: items } = await supabase
+        .from("wd_transfer_items")
+        .select("material_code, qty_requested, item_status")
+        .in("transfer_id", ids);
+      const m = new Map<string, number>();
+      for (const it of items ?? []) {
+        if (it.item_status !== "pending") continue;
+        m.set(it.material_code, (m.get(it.material_code) ?? 0) + it.qty_requested);
+      }
+      if (alive) setInTransit(m);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wdCode]);
 
   const stocked = useMemo(
     () =>
       stock
-        .filter((r) => r.qty > 0)
+        .map((r) => ({
+          material_code: r.material_code,
+          qty: r.qty,
+          inTransit: inTransit.get(r.material_code) ?? 0,
+          available: Math.max(0, r.qty - (inTransit.get(r.material_code) ?? 0)),
+        }))
+        .filter((r) => r.available > 0)
         .sort((a, b) => a.material_code.localeCompare(b.material_code)),
-    [stock],
+    [stock, inTransit],
   );
 
   function pickMaterial(code: string) {
@@ -276,8 +317,8 @@ function AllocateTab({
     lines.length > 0 &&
     lines.every((l) => {
       const n = parseInt(l.qty, 10);
-      const onHand = stocked.find((s) => s.material_code === l.code)?.qty ?? 0;
-      return Number.isFinite(n) && n > 0 && n <= onHand;
+      const avail = stocked.find((s) => s.material_code === l.code)?.available ?? 0;
+      return Number.isFinite(n) && n > 0 && n <= avail;
     });
 
   async function submit() {
@@ -362,7 +403,10 @@ function AllocateTab({
                   <p className="truncate text-[10px] text-muted-foreground" style={{ maxWidth: 140 }}>
                     {matName.get(s.material_code) ?? "—"}
                   </p>
-                  <p className="text-[10px] font-bold text-primary">{s.qty} available</p>
+                  <p className="text-[11px] font-bold text-primary">Available: {s.available}</p>
+                  {s.inTransit > 0 && (
+                    <p className="text-[10px] text-muted-foreground">{s.inTransit} in transit</p>
+                  )}
                 </button>
               );
             })}
@@ -378,9 +422,11 @@ function AllocateTab({
           </p>
           <div className="space-y-1.5">
             {lines.map((l) => {
-              const onHand = stocked.find((s) => s.material_code === l.code)?.qty ?? 0;
+              const row = stocked.find((s) => s.material_code === l.code);
+              const avail = row?.available ?? 0;
+              const transit = row?.inTransit ?? 0;
               const n = parseInt(l.qty, 10);
-              const bad = l.qty !== "" && (!Number.isFinite(n) || n <= 0 || n > onHand);
+              const bad = l.qty !== "" && (!Number.isFinite(n) || n <= 0 || n > avail);
               return (
                 <div
                   key={l.code}
@@ -388,14 +434,17 @@ function AllocateTab({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs font-bold">{l.code}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {onHand} available
+                    <p className="text-[11px] font-bold text-foreground">
+                      Available: {avail}
                     </p>
+                    {transit > 0 && (
+                      <p className="text-[10px] text-muted-foreground">{transit} in transit</p>
+                    )}
                   </div>
                   <input
                     type="number"
                     min={1}
-                    max={onHand}
+                    max={avail}
                     inputMode="numeric"
                     placeholder="Qty"
                     value={l.qty}
