@@ -29,6 +29,132 @@ type TlBalance = {
   byMat: Map<string, { allocated: number; returned: number; pending: number }>;
 };
 
+type TlActivity = {
+  lastActivityAt: string | null; // ISO
+  reason: null | {
+    id: string;
+    reason: "on_leave" | "no_requirement" | "stock_sufficient" | "other";
+    comment: string | null;
+    leave_until: string | null;
+    expires_at: string | null;
+    created_at: string;
+  };
+};
+
+const INACTIVITY_DAYS = 7;
+
+function daysSince(iso: string | null): number {
+  if (!iso) return Infinity;
+  const ms = Date.now() - new Date(iso).getTime();
+  return Math.floor(ms / 86400000);
+}
+
+function reasonIsActive(r: TlActivity["reason"]): boolean {
+  if (!r) return false;
+  const now = Date.now();
+  if (r.leave_until) {
+    return new Date(r.leave_until + "T23:59:59").getTime() >= now;
+  }
+  if (r.expires_at) {
+    return new Date(r.expires_at).getTime() >= now;
+  }
+  // No explicit expiry: valid for INACTIVITY_DAYS from creation
+  return now - new Date(r.created_at).getTime() < INACTIVITY_DAYS * 86400000;
+}
+
+function reasonLabel(r: NonNullable<TlActivity["reason"]>): string {
+  if (r.reason === "on_leave" && r.leave_until) {
+    const d = new Date(r.leave_until + "T00:00:00");
+    return `On Leave (till ${d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })})`;
+  }
+  const map: Record<string, string> = {
+    on_leave: "On Leave",
+    no_requirement: "No requirement",
+    stock_sufficient: "Stock sufficient",
+    other: "No activity (Marked)",
+  };
+  return map[r.reason] ?? "No activity (Marked)";
+}
+
+function useTlActivity(tls: TlOption[], refreshKey: number) {
+  const [activity, setActivity] = useState<Map<string, TlActivity>>(new Map());
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      if (tls.length === 0) {
+        setActivity(new Map());
+        return;
+      }
+      const tlIds = tls.map((t) => t.id);
+      const [{ data: issRows }, retRes, reasonRes] = await Promise.all([
+        supabase
+          .from("tl_issuances")
+          .select("wd_tl_id, created_at")
+          .in("wd_tl_id", tlIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from("tl_returns" as any)
+          .select("wd_tl_id, created_at")
+          .in("wd_tl_id", tlIds)
+          .order("created_at", { ascending: false }),
+        supabase
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .from("tl_inactivity_reasons" as any)
+          .select("id, wd_tl_id, reason, comment, leave_until, expires_at, created_at")
+          .in("wd_tl_id", tlIds)
+          .order("created_at", { ascending: false }),
+      ]);
+
+      const lastBy = new Map<string, string>();
+      for (const r of (issRows ?? []) as { wd_tl_id: string; created_at: string }[]) {
+        const cur = lastBy.get(r.wd_tl_id);
+        if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+      }
+      for (const r of (retRes.data ?? []) as unknown as { wd_tl_id: string; created_at: string }[]) {
+        const cur = lastBy.get(r.wd_tl_id);
+        if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+      }
+
+      const reasonBy = new Map<string, TlActivity["reason"]>();
+      for (const r of (reasonRes.data ?? []) as unknown as Array<{
+        id: string;
+        wd_tl_id: string;
+        reason: TlActivity["reason"] extends null ? never : NonNullable<TlActivity["reason"]>["reason"];
+        comment: string | null;
+        leave_until: string | null;
+        expires_at: string | null;
+        created_at: string;
+      }>) {
+        if (reasonBy.has(r.wd_tl_id)) continue; // first (newest) wins
+        reasonBy.set(r.wd_tl_id, {
+          id: r.id,
+          reason: r.reason,
+          comment: r.comment,
+          leave_until: r.leave_until,
+          expires_at: r.expires_at,
+          created_at: r.created_at,
+        });
+      }
+
+      const out = new Map<string, TlActivity>();
+      for (const t of tls) {
+        out.set(t.id, {
+          lastActivityAt: lastBy.get(t.id) ?? null,
+          reason: reasonBy.get(t.id) ?? null,
+        });
+      }
+      if (alive) setActivity(out);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tls, refreshKey]);
+
+  return activity;
+}
+
 function useTlBalances(refreshKey: number) {
   const { tls } = useTlsForMyWd();
   const [balances, setBalances] = useState<Map<string, TlBalance>>(new Map());
