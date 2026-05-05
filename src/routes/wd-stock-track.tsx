@@ -20,6 +20,7 @@ import { useWdStock } from "@/hooks/use-wd";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { brandFromName, verifyStatus, VERIFY_INTERVAL_DAYS } from "@/lib/brand";
 
 export const Route = createFileRoute("/wd-stock-track")({
   component: WdStockTrackPage,
@@ -45,7 +46,7 @@ type Snapshot = {
   created_at: string;
 };
 
-const STALE_DAYS = 7;
+const STALE_DAYS = VERIFY_INTERVAL_DAYS;
 
 function formatShortDate(iso: string): string {
   const d = new Date(iso);
@@ -142,6 +143,7 @@ function WdStockTrackPage() {
             {tab === "update" && (
               <UpdateForm
                 systemStock={systemStock}
+                latest={latestByMaterial}
                 onDone={async () => {
                   await Promise.all([refresh(), refreshStock()]);
                   setTab("history");
@@ -190,6 +192,14 @@ function TabBtn({
 
 type SystemStockRow = { material_code: string; qty: number };
 
+type BrandGroup = {
+  brand: string;
+  rows: Array<SystemStockRow & { name: string; lastDate: string | null }>;
+  oldestDays: number; // largest daysSince among rows (Infinity if any never counted)
+  hasNever: boolean;
+  status: "overdue" | "due_soon" | "ok" | "never";
+};
+
 function CurrentView({
   systemStock,
   latest,
@@ -202,11 +212,43 @@ function CurrentView({
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
-  const rows = useMemo(() => {
-    return [...systemStock].sort((a, b) => a.material_code.localeCompare(b.material_code));
-  }, [systemStock]);
+  const groups: BrandGroup[] = useMemo(() => {
+    const map = new Map<string, BrandGroup>();
+    for (const r of systemStock) {
+      const name = matMap.get(r.material_code) ?? "";
+      const brand = brandFromName(name);
+      const snap = latest.get(r.material_code);
+      const lastDate = snap ? snap.snapshot_date : null;
+      const g =
+        map.get(brand) ??
+        ({
+          brand,
+          rows: [],
+          oldestDays: -1,
+          hasNever: false,
+          status: "ok",
+        } as BrandGroup);
+      g.rows.push({ ...r, name, lastDate });
+      const vs = verifyStatus(lastDate);
+      if (vs.status === "never") g.hasNever = true;
+      if (vs.daysSince !== null && vs.daysSince > g.oldestDays) g.oldestDays = vs.daysSince;
+      map.set(brand, g);
+    }
+    const arr = Array.from(map.values());
+    for (const g of arr) {
+      g.rows.sort((a, b) => a.material_code.localeCompare(b.material_code));
+      if (g.hasNever) g.status = "never";
+      else if (g.oldestDays >= VERIFY_INTERVAL_DAYS) g.status = "overdue";
+      else if (g.oldestDays >= VERIFY_INTERVAL_DAYS - 3) g.status = "due_soon";
+      else g.status = "ok";
+    }
+    // Surface overdue / never first
+    const rank = { overdue: 0, never: 1, due_soon: 2, ok: 3 } as const;
+    arr.sort((a, b) => rank[a.status] - rank[b.status] || a.brand.localeCompare(b.brand));
+    return arr;
+  }, [systemStock, latest, matMap]);
 
-  if (rows.length === 0) {
+  if (groups.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center">
         <p className="text-sm font-bold text-foreground">No system stock yet</p>
@@ -217,11 +259,14 @@ function CurrentView({
     );
   }
 
+  const overdueCount = groups.filter((g) => g.status === "overdue" || g.status === "never").length;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
         <p className="flex-1 text-[11px] font-bold text-primary">
-          System stock updates live as WSP dispatches arrive. Tap Update Stock for a physical check.
+          Verify physical stock every {VERIFY_INTERVAL_DAYS} days, brand by brand.
+          {overdueCount > 0 && ` ${overdueCount} brand${overdueCount > 1 ? "s" : ""} due now.`}
         </p>
         <button
           onClick={onUpdate}
@@ -230,40 +275,84 @@ function CurrentView({
           Update Stock
         </button>
       </div>
-      {rows.map((r) => {
-        const snap = latest.get(r.material_code);
-        const lastDate = snap ? snap.snapshot_date : null;
-        const stale = lastDate ? daysSince(lastDate) > STALE_DAYS : true;
-        return (
-          <div key={r.material_code} className="rounded-xl border bg-card p-3">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-mono text-xs font-bold text-foreground">{r.material_code}</p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {matMap.get(r.material_code) ?? "—"}
-                </p>
-                <p className="mt-1.5 text-[11px] text-foreground">
-                  Available: <span className="font-bold">{r.qty}</span> units
-                </p>
-                <p className="text-[10px] text-muted-foreground">
-                  Last checked: {lastDate ? formatShortDate(lastDate) : "—"}
-                </p>
-                {stale && (
-                  <p className="mt-1 text-[10px] font-semibold text-muted-foreground">
-                    ⚠ Update recommended
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={onUpdate}
-                className="shrink-0 self-center rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-1.5 text-[10px] font-bold text-primary transition hover:bg-primary/10 active:scale-[0.98]"
-              >
-                Update
-              </button>
-            </div>
+      {groups.map((g) => (
+        <BrandCard key={g.brand} group={g} onUpdate={onUpdate} />
+      ))}
+    </div>
+  );
+}
+
+function BrandCard({ group, onUpdate }: { group: BrandGroup; onUpdate: () => void }) {
+  const [open, setOpen] = useState(group.status === "overdue" || group.status === "never");
+  const badge =
+    group.status === "overdue" ? (
+      <span className="rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive">
+        ⚠ Overdue · {group.oldestDays}d
+      </span>
+    ) : group.status === "never" ? (
+      <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+        Never verified
+      </span>
+    ) : group.status === "due_soon" ? (
+      <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+        Due soon · {group.oldestDays}d
+      </span>
+    ) : (
+      <span className="rounded-md bg-success/15 px-1.5 py-0.5 text-[9px] font-bold text-success">
+        OK · {group.oldestDays >= 0 ? `${group.oldestDays}d` : "—"}
+      </span>
+    );
+  const totalQty = group.rows.reduce((s, r) => s + r.qty, 0);
+  return (
+    <div className="overflow-hidden rounded-xl border bg-card">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+      >
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-sm font-bold text-foreground">{group.brand}</p>
+            {badge}
           </div>
-        );
-      })}
+          <p className="text-[10px] text-muted-foreground">
+            {group.rows.length} item{group.rows.length > 1 ? "s" : ""} · {totalQty} units total
+          </p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdate();
+          }}
+          className="shrink-0 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] font-bold text-primary hover:bg-primary/10"
+        >
+          Verify
+        </button>
+        {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+      </button>
+      {open && (
+        <div className="space-y-1.5 border-t bg-muted/20 p-2">
+          {group.rows.map((r) => {
+            const vs = verifyStatus(r.lastDate);
+            return (
+              <div key={r.material_code} className="rounded-md border bg-card p-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-mono text-[11px] font-bold text-foreground">
+                      {r.material_code}
+                    </p>
+                    <p className="truncate text-[10px] text-muted-foreground">{r.name || "—"}</p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground">
+                      Last checked: {r.lastDate ? formatShortDate(r.lastDate) : "—"}
+                      {vs.daysSince !== null && ` · ${vs.daysSince}d ago`}
+                    </p>
+                  </div>
+                  <p className="shrink-0 font-mono text-sm font-bold text-foreground">{r.qty}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -297,9 +386,11 @@ function ChangeBadge({ change, prev }: { change: number | null; prev: number | n
 
 function UpdateForm({
   systemStock,
+  latest,
   onDone,
 }: {
   systemStock: SystemStockRow[];
+  latest: Map<string, Snapshot>;
   onDone: () => void | Promise<void>;
 }) {
   const { profile } = useAuth();
@@ -387,75 +478,14 @@ function UpdateForm({
         </label>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            Materials in stock ({stockRows.length})
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            {validItems.length} of {stockRows.length} entered
-          </p>
-        </div>
-        {stockRows.map((r) => {
-          const sysQty = r.qty;
-          const raw = qtys[r.material_code] ?? "";
-          const physical = raw === "" ? null : Number(raw);
-          // Used = System - Physical (only when physical <= system)
-          const used =
-            physical !== null && physical <= sysQty ? sysQty - physical : null;
-          const extra =
-            physical !== null && physical > sysQty ? physical - sysQty : null;
-          return (
-            <div key={r.material_code} className="rounded-xl border bg-card p-3">
-              <div className="mb-2 min-w-0">
-                <p className="truncate font-mono text-xs font-bold text-foreground">
-                  {r.material_code}
-                </p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {matMap.get(r.material_code) ?? "—"}
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg bg-muted/40 p-2 text-center">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-                    System
-                  </p>
-                  <p className="font-mono text-base font-bold text-foreground">{sysQty}</p>
-                </div>
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-1.5 text-center">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-primary">
-                    Physical
-                  </p>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    placeholder="—"
-                    value={raw}
-                    onChange={(e) =>
-                      setQtys((prev) => ({ ...prev, [r.material_code]: e.target.value }))
-                    }
-                    className="mt-0.5 w-full bg-transparent text-center font-mono text-base font-bold text-foreground outline-none"
-                  />
-                </div>
-                <div className="rounded-lg bg-success/10 p-2 text-center">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-success">
-                    Used
-                  </p>
-                  <p className="font-mono text-base font-bold text-success">
-                    {used !== null ? used : "—"}
-                  </p>
-                </div>
-              </div>
-              {extra !== null && (
-                <p className="mt-1.5 text-center text-[10px] font-semibold text-muted-foreground">
-                  +{extra} extra found vs system
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <UpdateBrandList
+        stockRows={stockRows}
+        latest={latest}
+        matMap={matMap}
+        qtys={qtys}
+        setQtys={setQtys}
+        validCount={validItems.length}
+      />
 
       <div className="rounded-xl border bg-card p-3 space-y-2">
         <ProofImageUpload
@@ -484,6 +514,168 @@ function UpdateForm({
         {submitting ? <Loader2 size={14} className="animate-spin" /> : <ClipboardCheck size={14} />}
         Save Stock Count
       </button>
+    </div>
+  );
+}
+
+// Brand-grouped list for the Update form. Brands are ordered overdue first
+// so the user naturally walks down the list, brand by brand.
+function UpdateBrandList({
+  stockRows,
+  latest,
+  matMap,
+  qtys,
+  setQtys,
+  validCount,
+}: {
+  stockRows: SystemStockRow[];
+  latest: Map<string, Snapshot>;
+  matMap: Map<string, string>;
+  qtys: Record<string, string>;
+  setQtys: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  validCount: number;
+}) {
+  const groups = useMemo(() => {
+    const m = new Map<
+      string,
+      {
+        brand: string;
+        rows: Array<SystemStockRow & { name: string; lastDate: string | null }>;
+        oldest: number;
+        hasNever: boolean;
+      }
+    >();
+    for (const r of stockRows) {
+      const name = matMap.get(r.material_code) ?? "";
+      const brand = brandFromName(name);
+      const snap = latest.get(r.material_code);
+      const lastDate = snap ? snap.snapshot_date : null;
+      const g = m.get(brand) ?? { brand, rows: [], oldest: -1, hasNever: false };
+      g.rows.push({ ...r, name, lastDate });
+      const vs = verifyStatus(lastDate);
+      if (vs.status === "never") g.hasNever = true;
+      if (vs.daysSince !== null && vs.daysSince > g.oldest) g.oldest = vs.daysSince;
+      m.set(brand, g);
+    }
+    const arr = Array.from(m.values());
+    arr.sort((a, b) => {
+      const ar = a.hasNever || a.oldest >= VERIFY_INTERVAL_DAYS ? 0 : 1;
+      const br = b.hasNever || b.oldest >= VERIFY_INTERVAL_DAYS ? 0 : 1;
+      if (ar !== br) return ar - br;
+      return b.oldest - a.oldest || a.brand.localeCompare(b.brand);
+    });
+    return arr;
+  }, [stockRows, latest, matMap]);
+
+  const [openBrand, setOpenBrand] = useState<string | null>(groups[0]?.brand ?? null);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          By brand ({groups.length})
+        </p>
+        <p className="text-[10px] text-muted-foreground">
+          {validCount} of {stockRows.length} entered
+        </p>
+      </div>
+      {groups.map((g) => {
+        const open = openBrand === g.brand;
+        const filled = g.rows.filter((r) => (qtys[r.material_code] ?? "") !== "").length;
+        const overdue = g.hasNever || g.oldest >= VERIFY_INTERVAL_DAYS;
+        return (
+          <div key={g.brand} className="overflow-hidden rounded-xl border bg-card">
+            <button
+              type="button"
+              onClick={() => setOpenBrand(open ? null : g.brand)}
+              className="flex w-full items-center gap-2 px-3 py-2.5 text-left"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-bold text-foreground">{g.brand}</p>
+                  {overdue && (
+                    <span className="rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold text-destructive">
+                      Verify now
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  {filled}/{g.rows.length} entered
+                  {g.oldest >= 0 ? ` · oldest ${g.oldest}d` : ""}
+                </p>
+              </div>
+              {open ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+            {open && (
+              <div className="space-y-2 border-t bg-muted/20 p-2">
+                {g.rows.map((r) => {
+                  const sysQty = r.qty;
+                  const raw = qtys[r.material_code] ?? "";
+                  const physical = raw === "" ? null : Number(raw);
+                  const used =
+                    physical !== null && physical <= sysQty ? sysQty - physical : null;
+                  const extra =
+                    physical !== null && physical > sysQty ? physical - sysQty : null;
+                  return (
+                    <div key={r.material_code} className="rounded-xl border bg-card p-3">
+                      <div className="mb-2 min-w-0">
+                        <p className="truncate font-mono text-xs font-bold text-foreground">
+                          {r.material_code}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {r.name || "—"}
+                        </p>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="rounded-lg bg-muted/40 p-2 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
+                            System
+                          </p>
+                          <p className="font-mono text-base font-bold text-foreground">
+                            {sysQty}
+                          </p>
+                        </div>
+                        <div className="rounded-lg border border-primary/30 bg-primary/5 p-1.5 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-primary">
+                            Physical
+                          </p>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            placeholder="—"
+                            value={raw}
+                            onChange={(e) =>
+                              setQtys((prev) => ({
+                                ...prev,
+                                [r.material_code]: e.target.value,
+                              }))
+                            }
+                            className="mt-0.5 w-full bg-transparent text-center font-mono text-base font-bold text-foreground outline-none"
+                          />
+                        </div>
+                        <div className="rounded-lg bg-success/10 p-2 text-center">
+                          <p className="text-[9px] font-bold uppercase tracking-wide text-success">
+                            Used
+                          </p>
+                          <p className="font-mono text-base font-bold text-success">
+                            {used !== null ? used : "—"}
+                          </p>
+                        </div>
+                      </div>
+                      {extra !== null && (
+                        <p className="mt-1.5 text-center text-[10px] font-semibold text-muted-foreground">
+                          +{extra} extra found vs system
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
