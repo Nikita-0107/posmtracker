@@ -355,6 +355,11 @@ function AdminUsersPage() {
                         <span className="font-semibold text-foreground">
                           {row.display_name || row.mobile}
                         </span>
+                        {isRowAdmin && (
+                          <span className="inline-flex items-center rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            ★ Super Admin
+                          </span>
+                        )}
                         {isPending && (
                           <span className="inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
                             Pending
@@ -380,14 +385,14 @@ function AdminUsersPage() {
                           <option value="tl">TL</option>
                         </select>
                       </label>
-                      <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+                      <label className="flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-bold text-amber-700 dark:text-amber-400">
                         <input
                           type="checkbox"
                           disabled={saving || row.id === user?.id}
                           checked={isRowAdmin}
                           onChange={(e) => toggleAdmin(row.id, e.target.checked)}
                         />
-                        Admin
+                        ★ Super Admin
                       </label>
                       {saving && (
                         <Loader2 className="animate-spin text-muted-foreground" size={14} />
