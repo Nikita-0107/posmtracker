@@ -591,6 +591,7 @@ type LineItemRowProps = {
   item: LineItem;
   materials: Material[];
   stockQty: number;
+  transit: number;
   stockLoading: boolean;
   exceeds: boolean;
   dup: boolean;
