@@ -66,6 +66,34 @@ function WdIssuePage() {
   const { materials } = useMaterials();
   const { stock, refresh, loading: stockLoading } = useStock();
 
+  // In-transit per material = pending/issue dispatch lines from this WSP
+  const [inTransit, setInTransit] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!wsp) {
+      setInTransit({});
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("stock_movements")
+        .select("material_code, qty, item_status")
+        .eq("wsp", wsp)
+        .eq("movement", "dispatch")
+        .in("item_status", ["pending", "issue"]);
+      if (!alive) return;
+      const m: Record<string, number> = {};
+      for (const r of (data ?? []) as { material_code: string; qty: number }[]) {
+        m[r.material_code] = (m[r.material_code] ?? 0) + r.qty;
+      }
+      setInTransit(m);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [wsp]);
+
   // Header
   const [date, setDate] = useState<string>(todayISO());
   const [wd, setWd] = useState("");
@@ -161,7 +189,9 @@ function WdIssuePage() {
   );
 
   const itemValidations = items.map((it) => {
-    const stockQty = it.material ? stock[it.material.code] ?? 0 : 0;
+    const sysQty = it.material ? stock[it.material.code] ?? 0 : 0;
+    const transit = it.material ? inTransit[it.material.code] ?? 0 : 0;
+    const stockQty = Math.max(0, sysQty - transit);
     const qtyNum = Number(it.qty);
     const exceeds = !!it.material && it.qty !== "" && qtyNum > stockQty;
     const dup = !!it.material && dupCodes.has(it.material.code);
@@ -171,7 +201,7 @@ function WdIssuePage() {
       qtyNum > 0 &&
       !exceeds &&
       !dup;
-    return { stockQty, qtyNum, exceeds, dup, ok };
+    return { stockQty, transit, qtyNum, exceeds, dup, ok };
   });
 
   const allItemsValid = itemValidations.length > 0 && itemValidations.every((v) => v.ok);
@@ -414,6 +444,7 @@ function WdIssuePage() {
                       item={it}
                       materials={materials}
                       stockQty={v.stockQty}
+                      transit={v.transit}
                       stockLoading={stockLoading}
                       exceeds={v.exceeds}
                       dup={v.dup}
@@ -560,6 +591,7 @@ type LineItemRowProps = {
   item: LineItem;
   materials: Material[];
   stockQty: number;
+  transit: number;
   stockLoading: boolean;
   exceeds: boolean;
   dup: boolean;
@@ -574,6 +606,7 @@ function LineItemRow({
   item,
   materials,
   stockQty,
+  transit,
   stockLoading,
   exceeds,
   dup,
@@ -690,11 +723,14 @@ function LineItemRow({
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-lg border bg-muted/30 px-2.5 py-2">
           <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Current Stock
+            Available Stock
           </p>
           <p className="font-mono text-sm font-bold text-foreground">
             {item.material ? (stockLoading ? "…" : stockQty) : "—"}
           </p>
+          {item.material && transit > 0 && (
+            <p className="mt-0.5 text-[9px] text-muted-foreground">{transit} in transit</p>
+          )}
         </div>
         <div className="space-y-0.5">
           <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
