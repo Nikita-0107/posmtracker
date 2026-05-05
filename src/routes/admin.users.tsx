@@ -439,7 +439,7 @@ function EditPanel({
         _wsp: role === "wsp" ? wsp || null : null,
         _wd_code: role === "wd" || role === "tl" ? wdCode || null : null,
         _tl_type: role === "tl" ? tlType || null : null,
-      });
+      } as never);
       if (error) throw error;
 
       // Sync allowed WSPs for WD users (Super Admin only)
