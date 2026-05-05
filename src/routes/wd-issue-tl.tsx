@@ -422,9 +422,11 @@ function AllocateTab({
           </p>
           <div className="space-y-1.5">
             {lines.map((l) => {
-              const onHand = stocked.find((s) => s.material_code === l.code)?.qty ?? 0;
+              const row = stocked.find((s) => s.material_code === l.code);
+              const avail = row?.available ?? 0;
+              const transit = row?.inTransit ?? 0;
               const n = parseInt(l.qty, 10);
-              const bad = l.qty !== "" && (!Number.isFinite(n) || n <= 0 || n > onHand);
+              const bad = l.qty !== "" && (!Number.isFinite(n) || n <= 0 || n > avail);
               return (
                 <div
                   key={l.code}
@@ -432,14 +434,17 @@ function AllocateTab({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs font-bold">{l.code}</p>
-                    <p className="text-[10px] text-muted-foreground">
-                      {onHand} available
+                    <p className="text-[11px] font-bold text-foreground">
+                      Available: {avail}
                     </p>
+                    {transit > 0 && (
+                      <p className="text-[10px] text-muted-foreground">{transit} in transit</p>
+                    )}
                   </div>
                   <input
                     type="number"
                     min={1}
-                    max={onHand}
+                    max={avail}
                     inputMode="numeric"
                     placeholder="Qty"
                     value={l.qty}
