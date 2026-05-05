@@ -475,75 +475,14 @@ function UpdateForm({
         </label>
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            Materials in stock ({stockRows.length})
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            {validItems.length} of {stockRows.length} entered
-          </p>
-        </div>
-        {stockRows.map((r) => {
-          const sysQty = r.qty;
-          const raw = qtys[r.material_code] ?? "";
-          const physical = raw === "" ? null : Number(raw);
-          // Used = System - Physical (only when physical <= system)
-          const used =
-            physical !== null && physical <= sysQty ? sysQty - physical : null;
-          const extra =
-            physical !== null && physical > sysQty ? physical - sysQty : null;
-          return (
-            <div key={r.material_code} className="rounded-xl border bg-card p-3">
-              <div className="mb-2 min-w-0">
-                <p className="truncate font-mono text-xs font-bold text-foreground">
-                  {r.material_code}
-                </p>
-                <p className="truncate text-[11px] text-muted-foreground">
-                  {matMap.get(r.material_code) ?? "—"}
-                </p>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="rounded-lg bg-muted/40 p-2 text-center">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-                    System
-                  </p>
-                  <p className="font-mono text-base font-bold text-foreground">{sysQty}</p>
-                </div>
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-1.5 text-center">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-primary">
-                    Physical
-                  </p>
-                  <input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    placeholder="—"
-                    value={raw}
-                    onChange={(e) =>
-                      setQtys((prev) => ({ ...prev, [r.material_code]: e.target.value }))
-                    }
-                    className="mt-0.5 w-full bg-transparent text-center font-mono text-base font-bold text-foreground outline-none"
-                  />
-                </div>
-                <div className="rounded-lg bg-success/10 p-2 text-center">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-success">
-                    Used
-                  </p>
-                  <p className="font-mono text-base font-bold text-success">
-                    {used !== null ? used : "—"}
-                  </p>
-                </div>
-              </div>
-              {extra !== null && (
-                <p className="mt-1.5 text-center text-[10px] font-semibold text-muted-foreground">
-                  +{extra} extra found vs system
-                </p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <UpdateBrandList
+        stockRows={stockRows}
+        latest={latest}
+        matMap={matMap}
+        qtys={qtys}
+        setQtys={setQtys}
+        validCount={validItems.length}
+      />
 
       <div className="rounded-xl border bg-card p-3 space-y-2">
         <ProofImageUpload
