@@ -53,6 +53,15 @@ function needsUpdate(row: Row, primary: PrimaryRole | null, isSuper: boolean): b
   return false;
 }
 
+type PendingTl = {
+  wd_tl_id: string;
+  user_id: string;
+  mobile: string | null;
+  display_name: string | null;
+  legacy_tl_id: number | null;
+  created_at: string;
+};
+
 function AdminUsersPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -60,6 +69,9 @@ function AdminUsersPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingTls, setPendingTls] = useState<PendingTl[]>([]);
+  const [assigningTlId, setAssigningTlId] = useState<string | null>(null);
+  const [assignWd, setAssignWd] = useState<string>("");
 
   useEffect(() => {
     if (authLoading) return;
