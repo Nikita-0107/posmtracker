@@ -482,7 +482,7 @@ function EditPanel({
         _role: role,
         _wsp: isWspKind ? wsp || null : null,
         _wd_code: isWdKind ? wdCode || null : null,
-        _tl_type: role === "tl" ? tlType || null : null,
+        _tl_type: null,
       } as never);
       if (error) throw error;
 
