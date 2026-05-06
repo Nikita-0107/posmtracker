@@ -18,8 +18,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
 
 const tabs = [
-  { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "admin"] as const },
-  { to: "/wd" as const, label: "WD", icon: Truck, roles: ["wd", "admin"] as const },
+  { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "wsp_admin", "admin"] as const },
+  { to: "/wd" as const, label: "WD", icon: Truck, roles: ["wd", "wd_admin", "admin"] as const },
   { to: "/tl" as const, label: "TL", icon: Camera, roles: ["tl", "admin"] as const },
 ];
 
@@ -27,15 +27,16 @@ const tabs = [
 // IMPORTANT: order matters — more specific prefixes MUST come before shorter ones
 // (e.g. "/wd-issue" before "/wd", otherwise "/wd-issue" matches the "/wd" rule).
 const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
-  { prefix: "/wd-issue-tl", roles: ["wd", "admin"] },
-  { prefix: "/wd-issue", roles: ["wsp", "admin"] },
-  { prefix: "/wd", roles: ["wd", "admin"] },
+  { prefix: "/wd-issue-tl", roles: ["wd", "wd_admin", "admin"] },
+  { prefix: "/wd-issue", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/wd", roles: ["wd", "wd_admin", "admin"] },
+  { prefix: "/ae", roles: ["wd_admin", "admin"] },
   { prefix: "/tl", roles: ["tl", "admin"] },
-  { prefix: "/receive", roles: ["wsp", "admin"] },
-  { prefix: "/wsp-issues", roles: ["wsp", "admin"] },
-  { prefix: "/losses", roles: ["wsp", "admin"] },
-  { prefix: "/stock", roles: ["wsp", "admin"] },
-  { prefix: "/movements", roles: ["wsp", "admin"] },
+  { prefix: "/receive", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/wsp-issues", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/losses", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/stock", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/movements", roles: ["wsp", "wsp_admin", "admin"] },
 ];
 
 const PUBLIC_PATHS = ["/login", "/admin"];
@@ -44,8 +45,9 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" {
-  if (roles.includes("admin") || roles.includes("wsp")) return "/";
+function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" | "/ae" {
+  if (roles.includes("admin") || roles.includes("wsp") || roles.includes("wsp_admin")) return "/";
+  if (roles.includes("wd_admin")) return "/ae";
   if (roles.includes("wd")) return "/wd";
   if (roles.includes("tl")) return "/tl";
   return "/";
@@ -55,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { signOut, profile, loading: authLoading, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { roles, isAdmin, loading: rolesLoading, refresh: refreshRoles } = useRoles();
+  const { roles, aeWds, isAdmin, loading: rolesLoading, refresh: refreshRoles } = useRoles();
 
   // Filter tabs by roles
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
@@ -95,10 +97,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Determine if this user has any role-allowed entity assigned at all
   const hasPrimaryRole =
-    isAdmin || roles.includes("wsp") || roles.includes("wd") || roles.includes("tl");
+    isAdmin ||
+    roles.includes("wsp") || roles.includes("wsp_admin") ||
+    roles.includes("wd") || roles.includes("wd_admin") ||
+    roles.includes("tl");
   const hasEntity =
     isAdmin ||
-    (roles.includes("wsp") && !!profile?.wsp) ||
+    ((roles.includes("wsp") || roles.includes("wsp_admin")) && !!profile?.wsp) ||
+    (roles.includes("wd_admin") && aeWds.length > 0) ||
     (roles.includes("wd") && !!profile?.wd_code) ||
     (roles.includes("tl") && !!profile?.wd_code);
 

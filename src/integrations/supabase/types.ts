@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      ae_assignments: {
+        Row: {
+          ae_user_id: string
+          created_at: string
+          id: string
+          wd_code: string
+        }
+        Insert: {
+          ae_user_id: string
+          created_at?: string
+          id?: string
+          wd_code: string
+        }
+        Update: {
+          ae_user_id?: string
+          created_at?: string
+          id?: string
+          wd_code?: string
+        }
+        Relationships: []
+      }
       materials: {
         Row: {
           code: string
@@ -908,6 +929,7 @@ export type Database = {
     Functions: {
       admin_assign_role: {
         Args: {
+          _ae_wds?: string[]
           _role: string
           _target: string
           _tl_type: string
@@ -955,6 +977,7 @@ export type Database = {
         Args: { _items: Json; _wd_tl_id: string }
         Returns: string
       }
+      current_user_ae_wds: { Args: never; Returns: string[] }
       current_user_tl_wd_code: { Args: never; Returns: string }
       current_user_wd: { Args: never; Returns: string }
       current_user_wd_tl_id: { Args: never; Returns: string }
@@ -1023,6 +1046,7 @@ export type Database = {
       list_manageable_users: {
         Args: never
         Returns: {
+          ae_wds: string[]
           allowed_wsps: string[]
           created_at: string
           display_name: string
@@ -1161,6 +1185,7 @@ export type Database = {
       user_admin_scope: {
         Args: { _user_id: string }
         Returns: {
+          ae_wds: string[]
           is_super: boolean
           wd_scope: string
           wsp_scope: Database["public"]["Enums"]["wsp_code"]
