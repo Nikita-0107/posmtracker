@@ -610,17 +610,6 @@ function EditPanel({
         </div>
       )}
 
-      {primary === "tl" && (
-        <label className="block space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">TL Type</span>
-          <select disabled={saving} value={tlType}
-            onChange={(e) => setTlType(e.target.value)}
-            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
-            <option value="">— Select type —</option>
-            {TL_TYPE_OPTIONS.map((t) => (<option key={t} value={t}>{t}</option>))}
-          </select>
-        </label>
-      )}
 
       <div className="flex items-center justify-end gap-2 pt-1">
         <button onClick={onClose} disabled={saving}
