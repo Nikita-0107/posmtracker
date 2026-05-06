@@ -71,11 +71,11 @@ function AdminUsersPage() {
       const { data, error } = await supabase.rpc("user_admin_scope", { _user_id: user.id });
       if (error) {
         console.error(error);
-        setScope({ is_super: false, wsp_scope: null, wd_scope: null });
+        setScope({ is_super: false, wsp_scope: null, wd_scope: null, ae_wds: [] });
         return;
       }
       const r = (data ?? [])[0] as Scope | undefined;
-      setScope(r ?? { is_super: false, wsp_scope: null, wd_scope: null });
+      setScope(r ?? { is_super: false, wsp_scope: null, wd_scope: null, ae_wds: [] });
     })();
   }, [user, authLoading, navigate]);
 
