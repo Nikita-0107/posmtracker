@@ -15,7 +15,7 @@ export const Route = createFileRoute("/admin/users")({
 type WspCode = "CEVL" | "CEVJ" | "CEVY";
 type PrimaryRole = "wsp_admin" | "wd_admin" | "wsp" | "tl";
 const WSP_OPTIONS: WspCode[] = ["CEVL", "CEVJ", "CEVY"];
-const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
+
 
 type Row = {
   id: string;
