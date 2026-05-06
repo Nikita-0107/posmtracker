@@ -255,7 +255,7 @@ function WaitingScreen({
 
   let title = "Account pending approval";
   let body =
-    "Your account was created successfully and is awaiting admin review. An admin will assign your role (WSP, WD, or TL) and the entity you belong to. You'll get access as soon as that's done — usually within a few hours.";
+    "Your account was created successfully and is awaiting admin review. An admin will assign your role (WSP, AE/WD Admin, or TL) and the entity you belong to. You'll get access as soon as that's done — usually within a few hours.";
 
   if (!pending) {
     if (roles.includes("wsp")) {

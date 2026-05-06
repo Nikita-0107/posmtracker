@@ -13,7 +13,7 @@ export const Route = createFileRoute("/admin/users")({
 });
 
 type WspCode = "CEVL" | "CEVJ" | "CEVY";
-type PrimaryRole = "wsp_admin" | "wd_admin" | "wsp" | "wd" | "tl";
+type PrimaryRole = "wsp_admin" | "wd_admin" | "wsp" | "tl";
 const WSP_OPTIONS: WspCode[] = ["CEVL", "CEVJ", "CEVY"];
 const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
 
@@ -40,7 +40,7 @@ function primaryOf(roles: string[]): PrimaryRole | null {
   if (roles.includes("wsp_admin")) return "wsp_admin";
   if (roles.includes("wd_admin")) return "wd_admin";
   if (roles.includes("wsp")) return "wsp";
-  if (roles.includes("wd")) return "wd";
+  if (roles.includes("wd")) return "tl";
   if (roles.includes("tl")) return "tl";
   return null;
 }
@@ -49,7 +49,7 @@ function needsUpdate(row: Row, primary: PrimaryRole | null, isSuper: boolean): b
   if (isSuper) return false;
   if (!primary) return false; // pending — handled separately
   if ((primary === "wsp" || primary === "wsp_admin") && !row.wsp) return true;
-  if ((primary === "wd" || primary === "wd_admin" || primary === "tl") && !row.wd_code) return true;
+  if ((primary === "wd_admin" || primary === "tl") && !row.wd_code) return true;
   return false;
 }
 
@@ -304,7 +304,7 @@ function UserRow({
     ? "All areas"
     : primary === "wsp" || primary === "wsp_admin"
       ? row.wsp ?? "— no WSP —"
-      : primary === "wd" || primary === "wd_admin" || primary === "tl"
+      : primary === "wd_admin" || primary === "tl"
         ? row.wd_code ?? "— no WD —"
         : "Account under setup";
 
@@ -370,9 +370,9 @@ function EditPanel({
   const [saving, setSaving] = useState(false);
 
   const roleChoices: PrimaryRole[] = scope.is_super
-    ? ["wsp_admin", "wd_admin", "wsp", "wd", "tl"]
+    ? ["wsp_admin", "wd_admin", "wsp", "tl"]
     : scope.wsp_scope
-      ? ["wd_admin", "wd", "tl"]
+      ? ["wd_admin", "tl"]
       : ["tl"];
 
   const wdOptions = useMemo(() => {
@@ -382,7 +382,7 @@ function EditPanel({
   }, [scope]);
 
   const isWspKind = primary === "wsp" || primary === "wsp_admin";
-  const isWdKind = primary === "wd" || primary === "wd_admin" || primary === "tl";
+  const isWdKind = primary === "wd_admin" || primary === "tl";
 
   async function save() {
     setSaving(true);
@@ -397,7 +397,7 @@ function EditPanel({
       } as never);
       if (error) throw error;
 
-      if (scope.is_super && (primary === "wd" || primary === "wd_admin") && wdCode) {
+      if (scope.is_super && primary === "wd_admin" && wdCode) {
         const desired = new Set(allowedWsps);
         const current = new Set(row.allowed_wsps);
         const toAdd = [...desired].filter((w) => !current.has(w));
@@ -436,9 +436,8 @@ function EditPanel({
 
   const roleLabel: Record<PrimaryRole, string> = {
     wsp_admin: "WSP Admin (elevated)",
-    wd_admin: "WD Admin (elevated)",
+    wd_admin: "WD Admin (AE)",
     wsp: "WSP User",
-    wd: "WD User",
     tl: "TL User",
   };
 
@@ -495,7 +494,7 @@ function EditPanel({
         </label>
       )}
 
-      {(primary === "wd" || primary === "wd_admin") && wdCode && scope.is_super && (
+      {primary === "wd_admin" && wdCode && scope.is_super && (
         <div className="space-y-1">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Allowed WSPs (which WSPs can dispatch to this WD)
