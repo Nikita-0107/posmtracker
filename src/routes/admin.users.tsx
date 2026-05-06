@@ -32,6 +32,7 @@ type Scope = {
   is_super: boolean;
   wsp_scope: WspCode | null;
   wd_scope: string | null;
+  ae_wds: string[];
 };
 
 // Pick the most "elevated" non-super role for display
