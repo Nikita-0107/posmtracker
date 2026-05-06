@@ -108,8 +108,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     (roles.includes("wd") && !!profile?.wd_code) ||
     (isTl && !tlNeedsSetup && !tlPendingWd);
 
+  // Only pure TL users (no other elevated role) should see the TL setup screen.
+  const hasOtherRole =
+    isAdmin ||
+    roles.includes("wsp") ||
+    roles.includes("wsp_admin") ||
+    roles.includes("wd") ||
+    roles.includes("wd_admin");
   const showTlSetup =
-    !!user && !authLoading && !rolesLoading && isTl && !isAdmin &&
+    !!user && !authLoading && !rolesLoading && isTl && !hasOtherRole &&
     (tlNeedsSetup || tlPendingWd) &&
     !PUBLIC_PATHS.some((p) => location.pathname.startsWith(p));
 
