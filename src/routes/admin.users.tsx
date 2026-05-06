@@ -53,6 +53,15 @@ function needsUpdate(row: Row, primary: PrimaryRole | null, isSuper: boolean): b
   return false;
 }
 
+type PendingTl = {
+  wd_tl_id: string;
+  user_id: string;
+  mobile: string | null;
+  display_name: string | null;
+  legacy_tl_id: number | null;
+  created_at: string;
+};
+
 function AdminUsersPage() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
@@ -60,6 +69,9 @@ function AdminUsersPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [pendingTls, setPendingTls] = useState<PendingTl[]>([]);
+  const [assigningTlId, setAssigningTlId] = useState<string | null>(null);
+  const [assignWd, setAssignWd] = useState<string>("");
 
   useEffect(() => {
     if (authLoading) return;
@@ -100,9 +112,38 @@ function AdminUsersPage() {
     setLoading(false);
   }, []);
 
+  const loadPendingTls = useCallback(async () => {
+    if (!scope?.is_super) return;
+    const { data, error } = await supabase.rpc("list_pending_tl_setups");
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setPendingTls((data ?? []) as PendingTl[]);
+  }, [scope?.is_super]);
+
   useEffect(() => {
-    if (canManageUsers) void loadUsers();
-  }, [canManageUsers, loadUsers]);
+    if (canManageUsers) {
+      void loadUsers();
+      void loadPendingTls();
+    }
+  }, [canManageUsers, loadUsers, loadPendingTls]);
+
+  async function assignWdToTl(wdTlId: string, wdCode: string) {
+    if (!wdCode) return toast.error("Pick a WD");
+    const wd = wdMaster.find((w) => w.wd_code === wdCode);
+    const { error } = await supabase.rpc("admin_assign_wd_to_tl", {
+      _wd_tl_id: wdTlId,
+      _wd_code: wdCode,
+      _wd_name: wd?.wd_name ?? undefined,
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`WD ${wdCode} assigned`);
+    setAssigningTlId(null);
+    setAssignWd("");
+    await loadPendingTls();
+    await loadUsers();
+  }
 
   const sections = useMemo(() => {
     const supers: Row[] = [];
@@ -189,6 +230,54 @@ function AdminUsersPage() {
           </div>
         ) : (
           <div className="space-y-5">
+            {scope.is_super && pendingTls.length > 0 && (
+              <div className="space-y-2">
+                <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-primary">
+                  Pending TL Users
+                  <span className="ml-2 text-[11px] font-semibold text-muted-foreground">({pendingTls.length})</span>
+                </h2>
+                <div className="space-y-2">
+                  {pendingTls.map((p) => (
+                    <div key={p.wd_tl_id} className="rounded-xl border border-primary/40 bg-card p-3 shadow-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-foreground">{p.display_name || p.mobile}</div>
+                          <div className="text-xs text-muted-foreground">+91 {p.mobile} · TL ID {p.legacy_tl_id ?? "—"}</div>
+                        </div>
+                        {assigningTlId !== p.wd_tl_id && (
+                          <button
+                            onClick={() => { setAssigningTlId(p.wd_tl_id); setAssignWd(""); }}
+                            className="rounded-md border bg-background px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted"
+                          >Assign WD</button>
+                        )}
+                      </div>
+                      {assigningTlId === p.wd_tl_id && (
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                          <select
+                            value={assignWd}
+                            onChange={(e) => setAssignWd(e.target.value)}
+                            className="flex-1 rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground"
+                          >
+                            <option value="">— Select WD —</option>
+                            {wdMaster.map((w) => (
+                              <option key={w.wd_code} value={w.wd_code}>{w.wd_code} — {w.wd_name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => assignWdToTl(p.wd_tl_id, assignWd)}
+                            className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:opacity-90"
+                          >Save</button>
+                          <button
+                            onClick={() => { setAssigningTlId(null); setAssignWd(""); }}
+                            className="rounded-md border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                          >Cancel</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {sections.pending.length > 0 && (
               <Section title="Pending Setup" hint="New signups waiting for a role"
                 tone="warn" rows={sections.pending} editingId={editingId}

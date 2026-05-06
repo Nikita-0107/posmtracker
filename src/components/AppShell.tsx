@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { NotificationBell } from "@/components/NotificationBell";
+import { TlSetupScreen } from "@/components/TlSetup";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
 
@@ -56,7 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { signOut, profile, loading: authLoading, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { roles, aeWds, isAdmin, loading: rolesLoading, refresh: refreshRoles } = useRoles();
+  const { roles, aeWds, isAdmin, isTl, tlNeedsSetup, tlPendingWd, loading: rolesLoading, refresh: refreshRoles } = useRoles();
 
   // Filter tabs by roles
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
@@ -105,12 +106,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ((roles.includes("wsp") || roles.includes("wsp_admin")) && !!profile?.wsp) ||
     (roles.includes("wd_admin") && aeWds.length > 0) ||
     (roles.includes("wd") && !!profile?.wd_code) ||
-    (roles.includes("tl") && !!profile?.wd_code);
+    (isTl && !tlNeedsSetup && !tlPendingWd);
+
+  const showTlSetup =
+    !!user && !authLoading && !rolesLoading && isTl && !isAdmin &&
+    (tlNeedsSetup || tlPendingWd) &&
+    !PUBLIC_PATHS.some((p) => location.pathname.startsWith(p));
 
   const showWaitingScreen =
     !!user &&
     !authLoading &&
     !rolesLoading &&
+    !showTlSetup &&
     !PUBLIC_PATHS.some((p) => location.pathname.startsWith(p)) &&
     (!hasPrimaryRole || !hasEntity);
 
@@ -122,6 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !rolesLoading &&
     !onPublicPath &&
     !showWaitingScreen &&
+    !showTlSetup &&
     location.pathname !== homePath;
 
   return (
@@ -179,6 +187,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="animate-spin" size={20} />
           </div>
+        ) : showTlSetup ? (
+          <TlSetupScreen />
         ) : showWaitingScreen ? (
           <WaitingScreen
             mobile={profile?.mobile}
@@ -195,7 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </main>
 
-      {tabsToRender.length > 0 && (
+      {tabsToRender.length > 0 && !showTlSetup && !showWaitingScreen && (
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
           <div
             className="mx-auto grid max-w-md"
