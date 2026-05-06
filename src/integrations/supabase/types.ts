@@ -805,7 +805,7 @@ export type Database = {
           tl_type: string | null
           updated_at: string
           user_id: string | null
-          wd_code: string
+          wd_code: string | null
           wd_name: string | null
         }
         Insert: {
@@ -816,7 +816,7 @@ export type Database = {
           tl_type?: string | null
           updated_at?: string
           user_id?: string | null
-          wd_code: string
+          wd_code?: string | null
           wd_name?: string | null
         }
         Update: {
@@ -827,7 +827,7 @@ export type Database = {
           tl_type?: string | null
           updated_at?: string
           user_id?: string | null
-          wd_code?: string
+          wd_code?: string | null
           wd_name?: string | null
         }
         Relationships: []
@@ -936,6 +936,10 @@ export type Database = {
           _wd_code: string
           _wsp: Database["public"]["Enums"]["wsp_code"]
         }
+        Returns: undefined
+      }
+      admin_assign_wd_to_tl: {
+        Args: { _wd_code: string; _wd_name?: string; _wd_tl_id: string }
         Returns: undefined
       }
       admin_toggle_super_admin: {
@@ -1056,6 +1060,17 @@ export type Database = {
           tl_type: string
           wd_code: string
           wsp: Database["public"]["Enums"]["wsp_code"]
+        }[]
+      }
+      list_pending_tl_setups: {
+        Args: never
+        Returns: {
+          created_at: string
+          display_name: string
+          legacy_tl_id: number
+          mobile: string
+          user_id: string
+          wd_tl_id: string
         }[]
       }
       receive_material:
@@ -1182,6 +1197,7 @@ export type Database = {
         Args: { _material_code: string; _qty: number }
         Returns: string
       }
+      tl_submit_setup: { Args: { _legacy_tl_id: number }; Returns: string }
       user_admin_scope: {
         Args: { _user_id: string }
         Returns: {
