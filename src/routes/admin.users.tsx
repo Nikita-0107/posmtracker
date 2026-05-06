@@ -483,6 +483,7 @@ function EditPanel({
         _wsp: isWspKind ? wsp || null : null,
         _wd_code: isWdKind ? wdCode || null : null,
         _tl_type: null,
+        _ae_wds: scope.is_super && primary === "wd_admin" && wdCode ? [wdCode] : [],
       } as never);
       if (error) throw error;
 
