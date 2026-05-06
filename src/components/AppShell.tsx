@@ -205,7 +205,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </main>
 
-      {tabsToRender.length > 0 && (
+      {tabsToRender.length > 0 && !showTlSetup && !showWaitingScreen && (
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
           <div
             className="mx-auto grid max-w-md"
