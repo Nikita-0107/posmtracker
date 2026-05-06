@@ -186,6 +186,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-center py-16 text-muted-foreground">
             <Loader2 className="animate-spin" size={20} />
           </div>
+        ) : showTlSetup ? (
+          <TlSetupScreen />
         ) : showWaitingScreen ? (
           <WaitingScreen
             mobile={profile?.mobile}
