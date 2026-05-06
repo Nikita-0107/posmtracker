@@ -1,56 +1,88 @@
-# In-App Notifications Plan
 
-Yes — this is fully possible. We'll add **real-time in-app notifications** for the two cases you described, using a bell icon in the header (with an unread count badge) plus a toast pop-up when the user is actively in the app.
+## Goal
 
-## What the user will see
+Make WD stock a shared pool consumed by TLs (self-serve) and AEs (on-behalf), introduce AE → multiple WDs scope, and keep the login flow + inactivity logic intact. All existing data stays.
 
-**Header (every page):**
-A bell icon next to the Admin/Sign-out buttons, with a red badge showing the unread count.
+---
 
-**When something happens:**
-- A toast slides in at the bottom of the screen ("New issue from WD-XYZ on dispatch #1234")
-- The bell badge increments
-- Clicking the bell opens a dropdown listing recent notifications, each linking to the relevant page (e.g. `/wsp-issues` or `/wd`)
-- Clicking a notification marks it as read and navigates to the page
+## 1. Roles & login
 
-## The two trigger cases
+- Keep the single mobile+password login. No separate flows.
+- Roles: `super_admin`, `wsp_admin`, `wd_admin` (AE), `tl` (already partly in place from previous migrations).
+- After login, route by role:
+  - super_admin → existing admin landing
+  - wsp_admin → WSP screens scoped to assigned WSP(s)
+  - wd_admin (AE) → WD screens scoped to all WDs in `ae_assignments`
+  - tl → simplified TL screen
+  - no role / no assignment → land on `/` with a prominent **"Account under setup. Please contact admin."** banner; nav hidden.
 
-| # | Event | Recipient | Where it links |
-|---|-------|-----------|----------------|
-| 1 | WD marks a dispatch line as "issue" or "partial" (issue portion) | The WSP that owns the dispatch | `/wsp-issues` |
-| 2 | WSP creates a dispatch (allocation) for a distributor | The WD that distributor maps to | `/wd` |
+## 2. New scope table
 
-## How it works (technical)
+- `ae_assignments(id, ae_user_id uuid, wd_code text, created_at)` with unique `(ae_user_id, wd_code)`.
+- Helper: `current_user_ae_wds()` returns `text[]` of WD codes the AE manages.
+- `wd_admin` profile no longer needs a single `wd_code`; scope comes from `ae_assignments`. Existing `profiles.wd_code` stays for legacy WD/TL users (backward compatible).
 
-### 1. Database
-Create a `notifications` table:
-- `id`, `user_id` (recipient), `type` (`'wsp_issue'` \| `'wd_allocation'`), `title`, `body`, `link` (e.g. `/wsp-issues`), `related_id` (the `dispatch_id`), `read_at`, `created_at`
-- RLS: users can only `SELECT`/`UPDATE` their own rows; inserts only via `SECURITY DEFINER` functions
-- Add table to `supabase_realtime` publication so the client gets live pushes
+## 3. RLS updates (additive, non-breaking)
 
-### 2. Backend triggers
-Modify the two existing RPC functions to fan out notifications:
+Add OR clauses so AEs see all data for any WD in their `ae_assignments`:
+- `wd_stock`, `wd_tls`, `tl_issuances`, `tl_issuance_items`, `tl_returns`, `tl_inactivity_reasons`, `wd_transfers`, `wd_transfer_items`, `stock_movements` (dispatches to those WDs).
+- WSP admins keep WSP-scoped access (already in place).
 
-- **`dispatch_materials`** → after inserting dispatch lines, look up which WD users own each `distributor` code (via `profiles.wd_code` + `user_roles`) and insert one notification per recipient.
-- **`confirm_dispatch_item`** → when `_action = 'issue'` or the partial path produces an issue sibling, look up WSP users for `_row.wsp` and insert a notification for each.
+## 4. Shared WD stock pool — TL flow
 
-(Both functions already run as `SECURITY DEFINER`, so they can write to `notifications` directly.)
+- TL screen (`/tl`) becomes:
+  - Header: assigned WD + WD name.
+  - Live **WD stock list** (`wd_stock` filtered by their WD), realtime via Supabase channel so Guna takes 20 → Hanok sees 80 instantly.
+  - **Take Stock**: pick material, qty → `tl_self_take` (already exists; keeps history via `tl_issuances`).
+  - **Return Stock**: pick material from "my pending", qty → `tl_self_return` (already exists).
+  - **My history** tab (own takes/returns only).
+  - No proof image required (per answer).
+- Removed from TL screen: other TLs, admin tools, edit old entries.
 
-### 3. Frontend
-- New hook `useNotifications()` — fetches the latest 20, subscribes to realtime inserts on `notifications` filtered by `user_id`, exposes `unreadCount`, `markRead(id)`, `markAllRead()`
-- New `<NotificationBell />` component in `AppShell` header — bell icon, badge, popover dropdown
-- On every realtime insert: increment count + show a `sonner` toast with the title
-- Clicking a notification: marks it read, navigates to its `link`
+## 5. AE flow (WD Admin)
 
-### Files touched
-- **New SQL migration**: `notifications` table + RLS + realtime + updates to `dispatch_materials` and `confirm_dispatch_item`
-- **New**: `src/hooks/use-notifications.tsx`
-- **New**: `src/components/NotificationBell.tsx`
-- **Edit**: `src/components/AppShell.tsx` (mount the bell)
+- AE dashboard lists all WDs in their scope. Picking a WD scopes the existing WD screens (stock, dispatch verification, transfers, history).
+- AE can also Take/Return on behalf of any TL in their WDs (uses existing `issue_to_tl_v2` / `return_from_tl`).
+- AE manages TLs: add, remove, assign to WD (writes to `wd_tls`, links `user_id` when promoting an existing user to TL).
+- New RPC `ae_set_wd_context(_wd_code)` is unnecessary — UI passes selected WD as a query param; RLS already permits via `ae_assignments`.
 
-## Out of scope (for now)
-- Email / WhatsApp / SMS notifications (you chose in-app only — easy to add later)
-- Browser push notifications when the app is closed (requires service worker setup)
-- Notifications for TL flows (only the two cases you asked for)
+## 6. Super Admin updates (admin.users page)
 
-Approve and I'll implement.
+- Show 4 sections: Pending Setup · ⭐ Super Admins · 🔵 Admins (WSP/WD) · ⚪ Users (TL/WSP/WD users).
+- "Change role" panel: when assigning `wd_admin`, allow multi-select WDs → writes `ae_assignments` rows (replaces existing for that user).
+- Existing `admin_assign_role` RPC extended with `_ae_wds text[]` for AE multi-WD assignment.
+
+## 7. TL inactivity (preserve)
+
+- Keep existing `tl_inactivity_reasons` table and 7-day no-activity alert.
+- Activity = `tl_issuances` (take) OR `tl_returns` (return) by that TL in last 7 days.
+- AE sees inactivity badge per TL on AE dashboard; can mark reason ("On Leave"/"No requirement") with optional date.
+
+## 8. Backward compatibility
+
+- No drop/rename of existing tables, columns, or rows.
+- Existing TLs who use `wd_tls.user_id` linkage continue to work.
+- Old `wsp`/`wd` role values stay valid; UI maps them as "User" tier; admins can upgrade specific people to `wsp_admin` / `wd_admin`.
+- Existing dispatch / transfer / concerns flows untouched.
+
+---
+
+## Technical summary
+
+**DB migration**
+- Create `ae_assignments` + RLS (super_admin manage; AE select own).
+- `current_user_ae_wds()` SECURITY DEFINER.
+- Update RLS on WD-scoped tables to OR-in `wd_code = ANY(current_user_ae_wds())`.
+- Update `admin_assign_role` to accept `_ae_wds text[]` and rewrite assignments atomically.
+- Update `list_manageable_users` to include AE WD list per row.
+- Enable realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE public.wd_stock;` (and `tl_issuances`, `tl_returns` for "my history").
+
+**Frontend**
+- `src/hooks/use-roles.tsx`: add `isSuperAdmin`, `isWspAdmin`, `isAe`, `isTl`; expose `aeWds`.
+- `src/routes/__root.tsx` / `AppShell`: pending-user banner; role-based nav.
+- `src/routes/tl.tsx`: rewrite as simple Take/Return + live WD stock + my history. Subscribe to `wd_stock` realtime channel.
+- New `src/routes/ae.tsx` (AE dashboard with WD picker + TL list + inactivity badges).
+- `src/routes/admin.users.tsx`: AE multi-WD selector; section labels.
+- Keep existing WSP/WD/TL routes; gate via role guard reading `useRoles`.
+
+**No removals.** All existing screens remain accessible to legacy users.
