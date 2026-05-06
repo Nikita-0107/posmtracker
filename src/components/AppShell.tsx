@@ -18,8 +18,8 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
 
 const tabs = [
-  { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "admin"] as const },
-  { to: "/wd" as const, label: "WD", icon: Truck, roles: ["wd", "admin"] as const },
+  { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "wsp_admin", "admin"] as const },
+  { to: "/wd" as const, label: "WD", icon: Truck, roles: ["wd", "wd_admin", "admin"] as const },
   { to: "/tl" as const, label: "TL", icon: Camera, roles: ["tl", "admin"] as const },
 ];
 
@@ -27,15 +27,16 @@ const tabs = [
 // IMPORTANT: order matters — more specific prefixes MUST come before shorter ones
 // (e.g. "/wd-issue" before "/wd", otherwise "/wd-issue" matches the "/wd" rule).
 const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
-  { prefix: "/wd-issue-tl", roles: ["wd", "admin"] },
-  { prefix: "/wd-issue", roles: ["wsp", "admin"] },
-  { prefix: "/wd", roles: ["wd", "admin"] },
+  { prefix: "/wd-issue-tl", roles: ["wd", "wd_admin", "admin"] },
+  { prefix: "/wd-issue", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/wd", roles: ["wd", "wd_admin", "admin"] },
+  { prefix: "/ae", roles: ["wd_admin", "admin"] },
   { prefix: "/tl", roles: ["tl", "admin"] },
-  { prefix: "/receive", roles: ["wsp", "admin"] },
-  { prefix: "/wsp-issues", roles: ["wsp", "admin"] },
-  { prefix: "/losses", roles: ["wsp", "admin"] },
-  { prefix: "/stock", roles: ["wsp", "admin"] },
-  { prefix: "/movements", roles: ["wsp", "admin"] },
+  { prefix: "/receive", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/wsp-issues", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/losses", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/stock", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/movements", roles: ["wsp", "wsp_admin", "admin"] },
 ];
 
 const PUBLIC_PATHS = ["/login", "/admin"];
