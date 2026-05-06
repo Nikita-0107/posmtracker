@@ -135,7 +135,7 @@ function AdminUsersPage() {
     const { error } = await supabase.rpc("admin_assign_wd_to_tl", {
       _wd_tl_id: wdTlId,
       _wd_code: wdCode,
-      _wd_name: wd?.wd_name ?? null,
+      _wd_name: wd?.wd_name ?? undefined,
     });
     if (error) return toast.error(error.message);
     toast.success(`WD ${wdCode} assigned`);
