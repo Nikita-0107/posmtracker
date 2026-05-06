@@ -129,6 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !rolesLoading &&
     !onPublicPath &&
     !showWaitingScreen &&
+    !showTlSetup &&
     location.pathname !== homePath;
 
   return (
