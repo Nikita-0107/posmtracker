@@ -97,10 +97,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Determine if this user has any role-allowed entity assigned at all
   const hasPrimaryRole =
-    isAdmin || roles.includes("wsp") || roles.includes("wd") || roles.includes("tl");
+    isAdmin ||
+    roles.includes("wsp") || roles.includes("wsp_admin") ||
+    roles.includes("wd") || roles.includes("wd_admin") ||
+    roles.includes("tl");
   const hasEntity =
     isAdmin ||
-    (roles.includes("wsp") && !!profile?.wsp) ||
+    ((roles.includes("wsp") || roles.includes("wsp_admin")) && !!profile?.wsp) ||
+    (roles.includes("wd_admin") && aeWds.length > 0) ||
     (roles.includes("wd") && !!profile?.wd_code) ||
     (roles.includes("tl") && !!profile?.wd_code);
 
