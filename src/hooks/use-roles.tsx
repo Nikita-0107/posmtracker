@@ -56,12 +56,17 @@ export function useRoles() {
   }, [user, fetchAll]);
 
   const has = (x: AppRole) => roles.includes(x);
-  // Backward-compat: treat *_admin as also having the base role for legacy gating.
   const isWspLike = has("wsp") || has("wsp_admin");
   const isWdLike = has("wd") || has("wd_admin");
+  const isTl = has("tl");
+  const tlNeedsSetup = isTl && !tlRecord;
+  const tlPendingWd = isTl && !!tlRecord && !tlRecord.wd_code;
   return {
     roles,
     aeWds,
+    tlRecord,
+    tlNeedsSetup,
+    tlPendingWd,
     loading,
     refresh,
     isAdmin: has("admin"),
@@ -70,7 +75,7 @@ export function useRoles() {
     isWdAdmin: has("wd_admin"),
     isWsp: isWspLike,
     isWd: isWdLike,
-    isTl: has("tl"),
+    isTl,
     isAe: has("wd_admin") && (aeWds.length > 0),
   };
 }
