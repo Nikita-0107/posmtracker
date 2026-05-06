@@ -15,7 +15,7 @@ export const Route = createFileRoute("/admin/users")({
 type WspCode = "CEVL" | "CEVJ" | "CEVY";
 type PrimaryRole = "wsp_admin" | "wd_admin" | "wsp" | "tl";
 const WSP_OPTIONS: WspCode[] = ["CEVL", "CEVJ", "CEVY"];
-const TL_TYPE_OPTIONS = ["Merch TL", "Sales TL", "Other"];
+
 
 type Row = {
   id: string;
@@ -452,7 +452,7 @@ function EditPanel({
   const [primary, setPrimary] = useState<PrimaryRole | "">(primaryOf(row.roles) ?? "");
   const [wsp, setWsp] = useState<WspCode | "">((row.wsp as WspCode) ?? "");
   const [wdCode, setWdCode] = useState<string>(row.wd_code ?? "");
-  const [tlType, setTlType] = useState<string>(row.tl_type ?? "");
+  
   const [allowedWsps, setAllowedWsps] = useState<WspCode[]>(
     (row.allowed_wsps as WspCode[]) ?? [],
   );
@@ -482,7 +482,7 @@ function EditPanel({
         _role: role,
         _wsp: isWspKind ? wsp || null : null,
         _wd_code: isWdKind ? wdCode || null : null,
-        _tl_type: role === "tl" ? tlType || null : null,
+        _tl_type: null,
       } as never);
       if (error) throw error;
 
@@ -610,17 +610,6 @@ function EditPanel({
         </div>
       )}
 
-      {primary === "tl" && (
-        <label className="block space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">TL Type</span>
-          <select disabled={saving} value={tlType}
-            onChange={(e) => setTlType(e.target.value)}
-            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
-            <option value="">— Select type —</option>
-            {TL_TYPE_OPTIONS.map((t) => (<option key={t} value={t}>{t}</option>))}
-          </select>
-        </label>
-      )}
 
       <div className="flex items-center justify-end gap-2 pt-1">
         <button onClick={onClose} disabled={saving}
