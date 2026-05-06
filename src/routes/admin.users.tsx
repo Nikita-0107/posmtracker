@@ -112,9 +112,38 @@ function AdminUsersPage() {
     setLoading(false);
   }, []);
 
+  const loadPendingTls = useCallback(async () => {
+    if (!scope?.is_super) return;
+    const { data, error } = await supabase.rpc("list_pending_tl_setups");
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setPendingTls((data ?? []) as PendingTl[]);
+  }, [scope?.is_super]);
+
   useEffect(() => {
-    if (canManageUsers) void loadUsers();
-  }, [canManageUsers, loadUsers]);
+    if (canManageUsers) {
+      void loadUsers();
+      void loadPendingTls();
+    }
+  }, [canManageUsers, loadUsers, loadPendingTls]);
+
+  async function assignWdToTl(wdTlId: string, wdCode: string) {
+    if (!wdCode) return toast.error("Pick a WD");
+    const wd = wdMaster.find((w) => w.wd_code === wdCode);
+    const { error } = await supabase.rpc("admin_assign_wd_to_tl", {
+      _wd_tl_id: wdTlId,
+      _wd_code: wdCode,
+      _wd_name: wd?.wd_name ?? null,
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`WD ${wdCode} assigned`);
+    setAssigningTlId(null);
+    setAssignWd("");
+    await loadPendingTls();
+    await loadUsers();
+  }
 
   const sections = useMemo(() => {
     const supers: Row[] = [];
