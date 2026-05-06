@@ -168,6 +168,21 @@ function TlPortalPage() {
     void refresh();
   }, [refresh]);
 
+  // Realtime: subscribe to wd_stock changes for this TL's WD so the available
+  // pool updates live when other TLs in the same WD take/return.
+  useEffect(() => {
+    if (!tl?.wd_code) return;
+    const channel = supabase
+      .channel(`wd_stock:${tl.wd_code}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "wd_stock", filter: `wd_code=eq.${tl.wd_code}` },
+        () => { void refresh(); },
+      )
+      .subscribe();
+    return () => { void supabase.removeChannel(channel); };
+  }, [tl?.wd_code, refresh]);
+
   async function handleTake() {
     if (!takeMat) return toast.error("Pick a material");
     const qty = Number(takeQty);
