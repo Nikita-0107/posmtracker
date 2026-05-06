@@ -452,7 +452,7 @@ function EditPanel({
   const [primary, setPrimary] = useState<PrimaryRole | "">(primaryOf(row.roles) ?? "");
   const [wsp, setWsp] = useState<WspCode | "">((row.wsp as WspCode) ?? "");
   const [wdCode, setWdCode] = useState<string>(row.wd_code ?? "");
-  const [tlType, setTlType] = useState<string>(row.tl_type ?? "");
+  
   const [allowedWsps, setAllowedWsps] = useState<WspCode[]>(
     (row.allowed_wsps as WspCode[]) ?? [],
   );
