@@ -45,8 +45,9 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
   return pathname === prefix || pathname.startsWith(`${prefix}/`);
 }
 
-function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" {
-  if (roles.includes("admin") || roles.includes("wsp")) return "/";
+function landingForRoles(roles: AppRole[]): "/" | "/wd" | "/tl" | "/ae" {
+  if (roles.includes("admin") || roles.includes("wsp") || roles.includes("wsp_admin")) return "/";
+  if (roles.includes("wd_admin")) return "/ae";
   if (roles.includes("wd")) return "/wd";
   if (roles.includes("tl")) return "/tl";
   return "/";
