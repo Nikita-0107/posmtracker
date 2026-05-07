@@ -21,7 +21,7 @@ async function assertCallerRole(supabase: ReturnType<typeof import("@supabase/su
 const aeSchema = z.object({
   ae_id: z.string().min(2).max(64),
   ae_name: z.string().min(1).max(255),
-  password: z.string().min(4).max(128).optional(),
+  password: z.string().min(6).max(128).optional(),
 });
 
 export const createAeAccount = createServerFn({ method: "POST" })
@@ -64,7 +64,7 @@ const tlSchema = z.object({
   tl_id: z.string().min(1).max(64),
   tl_name: z.string().min(1).max(255),
   wd_code: z.string().min(1).max(64),
-  password: z.string().min(4).max(128).optional(),
+  password: z.string().min(6).max(128).optional(),
 });
 
 export const createTlAccount = createServerFn({ method: "POST" })
