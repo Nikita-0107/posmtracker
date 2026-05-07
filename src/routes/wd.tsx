@@ -35,6 +35,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd")({
   component: WdHomePage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    wd: typeof s.wd === "string" ? s.wd : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "WD — POSM Tracker" },
@@ -47,19 +50,26 @@ type Section = "in_transit" | "stock" | "assignments";
 
 function WdHomePage() {
   const { profile } = useAuth();
-  const { isAdmin } = useRoles();
+  const { isAdmin, aeId } = useRoles();
+  const { wd: wdParam } = Route.useSearch();
   const [section, setSection] = useState<Section>("in_transit");
   const [downloading, setDownloading] = useState(false);
 
-  const wdLabel = profile?.wd_code
-    ? `${profile.wd_code}${
-        wdMaster.find((w) => w.wd_code === profile.wd_code)?.wd_name
-          ? ` — ${wdMaster.find((w) => w.wd_code === profile.wd_code)!.wd_name}`
+  // Active WD context: URL ?wd= (used by AE selecting from My WDs) takes priority,
+  // falling back to the user's own profile.wd_code (legacy single-WD users).
+  const activeWd = wdParam ?? profile?.wd_code ?? null;
+
+  const wdLabel = activeWd
+    ? `${activeWd}${
+        wdMaster.find((w) => w.wd_code === activeWd)?.wd_name
+          ? ` — ${wdMaster.find((w) => w.wd_code === activeWd)!.wd_name}`
           : ""
       }`
     : isAdmin
       ? "All distributors (admin)"
-      : "No WD assigned";
+      : aeId
+        ? "Pick a WD from My WDs"
+        : "No WD assigned";
 
   async function downloadReport() {
     if (!profile?.wd_code) {
