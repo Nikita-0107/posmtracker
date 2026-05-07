@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ID_DOMAIN = "posm.local";
 const idToEmail = (id: string) => `${id.trim().toLowerCase()}@${ID_DOMAIN}`;
-const DEFAULT_PW = "1234";
+const DEFAULT_PW = "123456";
 
 async function assertCallerRole(supabase: ReturnType<typeof import("@supabase/supabase-js").createClient>, userId: string, role: "admin" | "wd_admin") {
   const { data, error } = await supabase.from("user_roles").select("role").eq("user_id", userId);
