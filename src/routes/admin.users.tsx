@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { createAeAccount, createTlAccount } from "@/server/admin.functions";
+import { createAeAccount, createTlAccount, seedAccountsFromHierarchy } from "@/server/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/users")({
@@ -568,13 +568,13 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
           ae_id: id.trim(), ae_name: name.trim(),
           password: password.trim() || undefined,
         } });
-        toast.success(`AE ${id} created (password: ${password.trim() || "1234"})`);
+        toast.success(`AE ${id} created (password: ${password.trim() || "123456"})`);
       } else {
         await createTlAccount({ data: {
           tl_id: id.trim(), tl_name: name.trim(), wd_code: wdCode,
           password: password.trim() || undefined,
         } });
-        toast.success(`TL ${id} created (password: ${password.trim() || "1234"})`);
+        toast.success(`TL ${id} created (password: ${password.trim() || "123456"})`);
       }
       setId(""); setName(""); setWdCode(""); setPassword("");
       await reload();
@@ -617,18 +617,45 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
           </select>
         )}
         <input value={password} onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password (default 1234)" type="text"
+          placeholder="Password (min 6 chars, default 123456)" type="text"
           className="rounded-md border bg-background px-2 py-1.5 text-sm sm:col-span-2" />
       </div>
-      <button onClick={submit} disabled={submitting}
-        className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60">
-        {submitting && <Loader2 className="animate-spin" size={12} />} Create
-      </button>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button onClick={submit} disabled={submitting}
+          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60">
+          {submitting && <Loader2 className="animate-spin" size={12} />} Create
+        </button>
+        <SeedFromHierarchyButton reload={reload} />
+      </div>
       <p className="mt-1.5 text-[10px] text-muted-foreground">
         {kind === "ae"
           ? "Creates an AE login. WD list is auto-populated from the hierarchy."
           : "Creates a TL login under the chosen WD. The TL ID must exist or will be added to the hierarchy."}
       </p>
     </div>
+  );
+}
+
+function SeedFromHierarchyButton({ reload }: { reload: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    if (!confirm("Create login accounts for every AE and TL in the hierarchy? Existing users are skipped. Default password: 123456")) return;
+    setBusy(true);
+    try {
+      const r = await seedAccountsFromHierarchy({ data: undefined as never });
+      toast.success(`Seeded: ${r.ae_created} AE + ${r.tl_created} TL created, ${r.skipped} skipped${r.errors.length ? `, ${r.errors.length} errors` : ""}`);
+      if (r.errors.length) console.warn("Seed errors:", r.errors);
+      await reload();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button onClick={run} disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 disabled:opacity-60">
+      {busy && <Loader2 className="animate-spin" size={12} />} Seed Accounts from Hierarchy
+    </button>
   );
 }

@@ -1,103 +1,51 @@
-## Phase 1: Restructuring (Login + Hierarchy + Roles + User Management)
+## Issue 1 — Password length
 
-This phase touches login, roles, hierarchy, and user management only. **No changes to stock, dispatch, WD stock, TL issuance, or inactivity logic.** All existing data preserved.
+Supabase Auth's default minimum password length is **6 characters**, not 4. Our code allows 4 (`z.string().min(4)`) and defaults to `"1234"`, so account creation may have appeared to succeed in the UI but `auth.admin.createUser` actually rejected the password — leaving the profile/role rows in place but **no auth user**, which is exactly why login `VIJ003` / `1234` returns "Invalid ID or password".
 
----
+**Fix:**
+- Change `DEFAULT_PW` from `"1234"` to `"123456"` in `src/server/admin.functions.ts`.
+- Change all `z.string().min(4)` password validators to `.min(6)`.
+- Update UI placeholder/help text in `admin.users.tsx` and `wd-admin.users.tsx` from "default 1234" → "default 123456".
 
-### 1. Master Hierarchy (new tables)
+## Issue 2 — Seed accounts from your hierarchy sheet
 
-```text
-hierarchy_ae         (ae_id PK, ae_name, section_id)
-hierarchy_wd         (wd_code PK, wd_name, ae_id FK)
-hierarchy_tl         (tl_id PK, tl_name, wd_code FK, active bool)
-```
+You're right — I should create the accounts from the hierarchy you sent. I'll seed the hierarchy tables AND auto-create auth accounts for every AE and TL in one go, using the data visible in your screenshot.
 
-- `ae_id` and `tl_id` are **strings** (TL IDs include alphanumerics like `35117A`).
-- Source of truth for: which WDs an AE owns, which TLs a WD has, which AE manages a TL.
-- Helper SQL functions:
-  - `ae_wds(ae_id) → text[]`
-  - `wd_ae(wd_code) → text`
-  - `tl_wd(tl_id) → text`
-  - `tl_ae(tl_id) → text`
-- Replace `current_user_ae_wds()` to read from hierarchy (fallback to legacy `ae_assignments` so old RLS keeps working during migration).
+### Data to seed (from the screenshot)
 
-### 2. Login: unified "ID" field
+**AE VIJ003 — Nanaji**
+- VI3180 SRI KALYANI AGENCIES → GUNA 32285, HANOK 31070, 3180 ESWAR RAO 3888, PRUDVI 3989
+- VI3233 SAI VENKATA NARASIMHA ENTERPRISES → BHANU 31272, GOPI 33715, AMIR 30451
+- VI3391 PAVANI ENTERPRISES → SRIKANTH 32629, JAGADESH 31274, JANAKI RAM 31071, MANIKANTA 31776, VINOD 36835
+- VI3465 VASUDAH ASSOCIATES → MURALI_VI3232 4515, JOSEPH 31975, PREM 38653, REHMAN_VI3232 33717, HANUMANTH 31963, SANTOSH 37401
+- VI3799 PIONEER MARKETING → NIKHIL 36452, SHIVA 31275
 
-- Single login page; label changes from **Mobile Number** → **ID**.
-- Keep current `<id>@posm.local` email scheme. Accept any string (mobile / AE ID / TL ID).
-- WSP users continue to log in with mobile (unchanged).
-- AE logs in with `VIJ003`, TL logs in with `32285` (or `35117A`).
-- Default password for admin-created accounts: `1234`.
-- Add **Change Password** option in the app shell (any logged-in user).
+**AE VI1005 — Sai Venu**
+- VI3221 CMK ASSOCIATES → KAPUGANTI PRASANTH KUMAR 37306, CHAKRAMAHANTI GOWRI SANKAR 35117A, KAKINADA RAVI KUMAR 35329, KOLA TEJESWARARAO 33716, KRISHNA 31271
+- VI3434 SREE VAISHNAVI TRADERS → CHAKRAMAHANTI GOWRI SANKAR 35117B, HANUMANSETTI VENKATA NARASIMHA GUPTA 37905, SIVA KUMAR 32108
+- VI3500 SURYA MARKETING → BONU JAYANTH 32616, KALLEMPUDI SRINIVASA RAO 4273, KALLEPALLI SRINU 36339, PALIVELA SRINIVASARAO 37644, RAJARAM GARAKIPATI 37220
+- VI3801 SRI VENKATA SAI ABHAYA ANJANEYA TRADERS → ADARI VAMSI 35116, KANISETTY SATISH 36840
 
-### 3. Roles cleanup
+### How I'll seed it
 
-Final roles: `admin` (Super), `wsp_admin`, `wsp`, `wd_admin` (= AE), `tl`.
+A single new migration that:
+1. Upserts all rows above into `hierarchy_ae`, `hierarchy_wd`, `hierarchy_tl` (idempotent — won't disturb anything else).
+2. Adds a SQL helper `admin_seed_accounts_from_hierarchy()` that, for every AE and active TL in the hierarchy without an auth user yet, creates one via `auth.admin` equivalent. Since SQL can't directly create auth users, I'll instead expose a **server function** `seedAccountsFromHierarchy()` (admin-only) that:
+   - Iterates `hierarchy_ae` → `createUser(<ae_id>@posm.local, "123456")` + profile + `wd_admin` role.
+   - Iterates `hierarchy_tl` → `createUser(<tl_id>@posm.local, "123456")` + profile + `tl` role.
+   - Skips any user that already exists (lookup by email).
 
-- Drop **role assignments** of `wd` from `user_roles` (keep enum value to avoid breaking enum dependents; nothing will reference it).
-- Keep `profiles.wd_code` and existing RLS using `current_user_wd()` intact (so stock/dispatch keep working).
-- Remove the entire **TL setup / pending TL** flow:
-  - Delete `TlSetup.tsx` rendering branch in `AppShell`.
-  - Drop `tlNeedsSetup` / `tlPendingWd` gating.
-  - Keep `wd_tls` table (historical data + stock/issuance FKs), but no longer required for TL login. TL identity comes from hierarchy via `profiles.tl_id` (new column).
+3. Adds a **"Seed Accounts from Hierarchy"** button on `/admin/users` (Super Admin only) that calls the function and shows a toast with `{ae_created, tl_created, skipped}`.
 
-### 4. Profile additions
+### Result
 
-Add to `profiles`:
-- `ae_id text` — set for WD Admin users.
-- `tl_id text` — set for TL users.
+After approval and one click, every AE and TL from your sheet can log in immediately with their ID + password `123456`. WD visibility flows automatically from the hierarchy.
 
-Update `current_user_*` SQL helpers to read from these where applicable.
+### Files touched
 
-### 5. WD Admin (AE) experience
+- `supabase/migrations/<new>.sql` — seed hierarchy rows.
+- `src/server/admin.functions.ts` — bump password validation/default to 6, add `seedAccountsFromHierarchy`.
+- `src/routes/admin.users.tsx` — add "Seed Accounts from Hierarchy" button next to Create Account; update default-password text.
+- `src/routes/wd-admin.users.tsx` — update default-password text.
 
-- After login, AE lands on new **/my-wds** page listing WDs from `hierarchy_wd WHERE ae_id = current AE`.
-- Click a WD → existing WD operations pages, scoped to that WD via a route param or session-selected WD.
-- **Auto-migration** (one-time, in the migration that loads hierarchy): for each existing `wd_admin` user with a `wd_code`, look up their AE via hierarchy and set `profiles.ae_id`. Existing `ae_assignments` rows kept as backup.
-
-### 6. TL User experience
-
-- Login with TL ID + password.
-- System resolves WD and AE from hierarchy via `profiles.tl_id`.
-- No setup screen, no WD assignment, no TL Type selection.
-
-### 7. Super Admin updates
-
-Existing `/admin/users` page kept; add:
-- **Hierarchy import** tab: upload CSV (columns: `AE ID, AE Name, WD Code, WD Name, TL Name, TL ID`) → upserts into 3 hierarchy tables. Server function using `supabaseAdmin`. Idempotent.
-- **Create AE account**: input AE ID + name → creates auth user `<aeid>@posm.local` with password `1234`, role `wd_admin`, `profiles.ae_id` set.
-- **Create TL account**: input TL ID → creates auth user `<tlid>@posm.local` / `1234`, role `tl`, `profiles.tl_id` set. Validates TL ID exists in hierarchy.
-- WSP Admin / WSP creation kept as-is.
-
-### 8. WD Admin user management
-
-New simple page **/wd-admin/users**:
-- Lists TLs under AE's WDs (from hierarchy).
-- **Add TL**: TL ID, TL Name, choose WD (from AE's WDs) → inserts hierarchy_tl row + creates auth user.
-- **Remove TL**: sets `hierarchy_tl.active = false` + revokes auth (or removes role). **No deletion of issuances/returns/stock history.**
-
-### 9. Files touched (code, not DB)
-
-- `src/routes/login.tsx` — relabel field.
-- `src/components/AppShell.tsx` — remove TL setup gate; route AE → `/my-wds`.
-- `src/components/TlSetup.tsx` — delete.
-- `src/hooks/use-roles.tsx` — drop `tlNeedsSetup`/`tlPendingWd`; add `aeId`, `tlId`.
-- `src/routes/my-wds.tsx` (new), `src/routes/wd-admin.users.tsx` (new).
-- `src/routes/admin.users.tsx` — add hierarchy import + AE/TL creation flows; drop manual WD assignment for TLs.
-- `src/components/ChangePassword.tsx` (new) + entry in AppShell menu.
-
-### 10. Migration order (single migration file)
-
-1. Create hierarchy tables + RLS (admin manage; AE/TL/WD read own).
-2. Add `profiles.ae_id`, `profiles.tl_id`.
-3. Update SQL helpers (`current_user_ae_wds`, etc.) to read hierarchy with legacy fallback.
-4. Delete `wd` role assignments from `user_roles`.
-5. Drop `tl_submit_setup` RPC (no longer used).
-
-Hierarchy data itself is loaded by Super Admin via the new import UI — not seeded in the migration.
-
----
-
-### Out of scope (later phases)
-
-Stock logic, WSP dispatch, WD stock, TL issuance, inactivity reasons, WD transfers — all untouched.
+Nothing in the existing `profiles`, `user_roles`, stock, or transaction data is modified or removed.
