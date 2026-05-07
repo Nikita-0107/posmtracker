@@ -72,13 +72,13 @@ function WdHomePage() {
         : "No WD assigned";
 
   async function downloadReport() {
-    if (!profile?.wd_code) {
-      toast.error("No WD assigned");
+    if (!activeWd) {
+      toast.error("No WD selected");
       return;
     }
     setDownloading(true);
     try {
-      const { filename } = await exportWdReport(profile.wd_code);
+      const { filename } = await exportWdReport(activeWd);
       toast.success(`Downloaded ${filename}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to export");
