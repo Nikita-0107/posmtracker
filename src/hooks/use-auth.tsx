@@ -10,13 +10,19 @@ export type Profile = {
   display_name: string | null;
   wsp: WspCode | null;
   wd_code: string | null;
+  ae_id: string | null;
+  tl_id: string | null;
 };
 
-const MOBILE_DOMAIN = "posm.local";
+const ID_DOMAIN = "posm.local";
 
-export function mobileToEmail(mobile: string): string {
-  return `${mobile}@${MOBILE_DOMAIN}`;
+// Normalize any login identifier (mobile / AE ID / TL ID) into the synthetic email
+// used by Supabase auth. Lowercased so login is case-insensitive.
+export function idToEmail(id: string): string {
+  return `${id.trim().toLowerCase()}@${ID_DOMAIN}`;
 }
+// Backwards-compatible alias
+export const mobileToEmail = idToEmail;
 
 type AuthContextValue = {
   session: Session | null;
@@ -24,9 +30,9 @@ type AuthContextValue = {
   profile: Profile | null;
   isAuthenticated: boolean;
   loading: boolean;
-  signIn: (mobile: string, password: string) => Promise<{ error: { message: string } | null }>;
+  signIn: (id: string, password: string) => Promise<{ error: { message: string } | null }>;
   signUp: (
-    mobile: string,
+    id: string,
     password: string,
     displayName?: string,
   ) => Promise<{ error: { message: string } | null }>;
@@ -44,7 +50,7 @@ function useAuthState(): AuthContextValue {
   const loadProfile = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, mobile, display_name, wsp, wd_code")
+      .select("id, mobile, display_name, wsp, wd_code, ae_id, tl_id")
       .eq("id", userId)
       .maybeSingle();
     if (error) {
@@ -56,11 +62,9 @@ function useAuthState(): AuthContextValue {
   }, []);
 
   useEffect(() => {
-    // Auth listener FIRST, then getSession
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       if (newSession?.user) {
-        // defer profile load to avoid deadlocks inside the listener
         setTimeout(() => { void loadProfile(newSession.user.id); }, 0);
       } else {
         setProfile(null);
@@ -76,22 +80,22 @@ function useAuthState(): AuthContextValue {
     return () => subscription.unsubscribe();
   }, [loadProfile]);
 
-  const signIn = useCallback(async (mobile: string, password: string) => {
+  const signIn = useCallback(async (id: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
-      email: mobileToEmail(mobile),
+      email: idToEmail(id),
       password,
     });
     return { error };
   }, []);
 
-  const signUp = useCallback(async (mobile: string, password: string, displayName?: string) => {
+  const signUp = useCallback(async (id: string, password: string, displayName?: string) => {
     const { error } = await supabase.auth.signUp({
-      email: mobileToEmail(mobile),
+      email: idToEmail(id),
       password,
       options: {
         emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined,
         data: {
-          mobile,
+          mobile: id,
           display_name: displayName ?? null,
         },
       },
@@ -124,9 +128,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext);
   if (ctx) return ctx;
-  // Fallback: if provider is missing (e.g., during SSR shell), return a stable
-  // unauthenticated snapshot so consumers don't crash. Real state arrives
-  // once the provider mounts on the client.
   return {
     session: null,
     user: null,
