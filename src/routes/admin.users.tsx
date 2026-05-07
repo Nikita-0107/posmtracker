@@ -1,11 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil } from "lucide-react";
+import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil, UserPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
+import { createAeAccount, createTlAccount } from "@/server/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/users")({
