@@ -100,7 +100,7 @@ function WdHomePage() {
           </div>
           <button
             onClick={downloadReport}
-            disabled={downloading || !profile?.wd_code}
+            disabled={downloading || !activeWd}
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
           >
             {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
