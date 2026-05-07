@@ -635,8 +635,8 @@ function IssuePopup({
 
 // ────────────────────────────────── WD STOCK ──────────────────────────────────
 
-function WdStockSection() {
-  const { stock, loading } = useWdStock();
+function WdStockSection({ wdCode }: { wdCode: string | null }) {
+  const { stock, loading } = useWdStock(wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
   const total = stock.reduce((s, r) => s + r.qty, 0);
