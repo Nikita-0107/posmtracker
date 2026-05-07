@@ -731,8 +731,8 @@ function AssignmentsSection({ wdCode: activeWd }: { wdCode: string | null }) {
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-foreground">Managing WD</span>
           <select
-            value={wdCode}
-            onChange={(e) => setWdCode(e.target.value)}
+            value={adminWd}
+            onChange={(e) => setAdminWd(e.target.value)}
             className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground"
           >
             <option value="">— Select a WD —</option>
