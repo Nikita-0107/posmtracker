@@ -235,11 +235,13 @@ type Tab = "allocate" | "return" | "history";
 
 function TlAllocationPage() {
   const { user } = useAuth();
-  const { tls, loading: tlsLoading } = useTlsForMyWd();
+  const { wd: wdParam } = Route.useSearch();
+  const activeWd = wdParam ?? null;
+  const { tls, loading: tlsLoading } = useTlsForMyWd(activeWd);
   const [tab, setTab] = useState<Tab>("allocate");
   const [refreshKey, setRefreshKey] = useState(0);
-  const { balances, loading: balLoading } = useTlBalances(refreshKey);
-  const { refresh: refreshWdStock } = useWdStock();
+  const { balances, loading: balLoading } = useTlBalances(refreshKey, activeWd);
+  const { refresh: refreshWdStock } = useWdStock(activeWd);
   const activity = useTlActivity(tls, refreshKey);
   const [reasonFor, setReasonFor] = useState<TlOption | null>(null);
 
