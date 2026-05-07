@@ -158,8 +158,8 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
   return activity;
 }
 
-function useTlBalances(refreshKey: number) {
-  const { tls } = useTlsForMyWd();
+function useTlBalances(refreshKey: number, wdCode?: string | null) {
+  const { tls } = useTlsForMyWd(wdCode);
   const [balances, setBalances] = useState<Map<string, TlBalance>>(new Map());
   const [loading, setLoading] = useState(true);
 
