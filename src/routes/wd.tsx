@@ -696,12 +696,11 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
 
 const WSP_OPTIONS = ["CEVL", "CEVJ", "CEVY"] as const;
 
-function AssignmentsSection() {
+function AssignmentsSection({ wdCode: activeWd }: { wdCode: string | null }) {
   const { isAdmin } = useRoles();
-  const { profile } = useAuth();
-  // Admin: pick which WD to manage. WD user: locked to own.
-  const [wdCode, setWdCode] = useState<string>(profile?.wd_code ?? "");
-  const effectiveWd = isAdmin ? wdCode : profile?.wd_code ?? "";
+  // Admin: pick which WD to manage. Otherwise: locked to active WD context.
+  const [adminWd, setAdminWd] = useState<string>(activeWd ?? "");
+  const effectiveWd = isAdmin ? adminWd : activeWd ?? "";
   const { assignments, loading, refresh } = useWdAssignments(effectiveWd || null);
   const [busy, setBusy] = useState(false);
 
