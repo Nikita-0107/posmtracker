@@ -181,6 +181,8 @@ function AdminUsersPage() {
           Users sign up themselves with their mobile number. Assign each new user a role and area below.
         </p>
 
+        {scope.is_super && <CreateAccountPanel reload={loadUsers} />}
+
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground">
             <Loader2 className="animate-spin" size={20} />
