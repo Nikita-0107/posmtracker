@@ -124,9 +124,9 @@ export async function confirmDispatchItem(
 
 export type WdStockRow = { material_code: string; qty: number };
 
-export function useWdStock() {
+export function useWdStock(wdCodeOverride?: string | null) {
   const { profile } = useAuth();
-  const wdCode = profile?.wd_code ?? null;
+  const wdCode = wdCodeOverride ?? profile?.wd_code ?? null;
   const [stock, setStock] = useState<WdStockRow[]>([]);
   const [loading, setLoading] = useState(true);
 
