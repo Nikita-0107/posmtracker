@@ -601,14 +601,16 @@ type LineDraft = { code: string; qty: string };
 function AllocateTab({
   tls,
   onDone,
+  activeWd,
 }: {
   tls: TlOption[];
   onDone: () => Promise<void> | void;
+  activeWd: string | null;
 }) {
   const [tlId, setTlId] = useState<string>("");
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const { stock, loading: stockLoading, wdCode } = useWdStock();
+  const { stock, loading: stockLoading, wdCode } = useWdStock(activeWd);
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
