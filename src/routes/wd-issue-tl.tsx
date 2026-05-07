@@ -11,6 +11,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-issue-tl")({
   component: TlAllocationPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    wd: typeof s.wd === "string" ? s.wd : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "TL Allocation — POSM Tracker" },
@@ -155,8 +158,8 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
   return activity;
 }
 
-function useTlBalances(refreshKey: number) {
-  const { tls } = useTlsForMyWd();
+function useTlBalances(refreshKey: number, wdCode?: string | null) {
+  const { tls } = useTlsForMyWd(wdCode);
   const [balances, setBalances] = useState<Map<string, TlBalance>>(new Map());
   const [loading, setLoading] = useState(true);
 
@@ -232,11 +235,13 @@ type Tab = "allocate" | "return" | "history";
 
 function TlAllocationPage() {
   const { user } = useAuth();
-  const { tls, loading: tlsLoading } = useTlsForMyWd();
+  const { wd: wdParam } = Route.useSearch();
+  const activeWd = wdParam ?? null;
+  const { tls, loading: tlsLoading } = useTlsForMyWd(activeWd);
   const [tab, setTab] = useState<Tab>("allocate");
   const [refreshKey, setRefreshKey] = useState(0);
-  const { balances, loading: balLoading } = useTlBalances(refreshKey);
-  const { refresh: refreshWdStock } = useWdStock();
+  const { balances, loading: balLoading } = useTlBalances(refreshKey, activeWd);
+  const { refresh: refreshWdStock } = useWdStock(activeWd);
   const activity = useTlActivity(tls, refreshKey);
   const [reasonFor, setReasonFor] = useState<TlOption | null>(null);
 
@@ -312,7 +317,7 @@ function TlAllocationPage() {
           ))}
         </div>
 
-        {tab === "allocate" && <AllocateTab tls={tls} onDone={bumpAll} />}
+        {tab === "allocate" && <AllocateTab tls={tls} onDone={bumpAll} activeWd={activeWd} />}
         {tab === "return" && (
           <ReturnTab tls={tls} balances={balances} onDone={bumpAll} />
         )}
@@ -596,14 +601,16 @@ type LineDraft = { code: string; qty: string };
 function AllocateTab({
   tls,
   onDone,
+  activeWd,
 }: {
   tls: TlOption[];
   onDone: () => Promise<void> | void;
+  activeWd: string | null;
 }) {
   const [tlId, setTlId] = useState<string>("");
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const { stock, loading: stockLoading, wdCode } = useWdStock();
+  const { stock, loading: stockLoading, wdCode } = useWdStock(activeWd);
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
