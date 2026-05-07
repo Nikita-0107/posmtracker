@@ -19,7 +19,7 @@ function LoginPage() {
   const navigate = useNavigate();
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [mobile, setMobile] = useState("");
+  const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -30,23 +30,22 @@ function LoginPage() {
     if (!loading && isAuthenticated) navigate({ to: "/" });
   }, [isAuthenticated, loading, navigate]);
 
-  const isValidMobile = /^\d{10}$/.test(mobile);
-  const isValidPassword = password.length >= 6;
-  const canSubmit = isValidMobile && isValidPassword && (mode === "signin" || displayName.trim().length > 0);
+  const isValidId = loginId.trim().length >= 3;
+  const isValidPassword = password.length >= 4;
+  const canSubmit = isValidId && isValidPassword && (mode === "signin" || displayName.trim().length > 0);
 
-  function handleMobileChange(value: string) {
-    const cleaned = value.replace(/\D/g, "").slice(0, 10);
-    setMobile(cleaned);
+  function handleIdChange(value: string) {
+    setLoginId(value.replace(/\s/g, ""));
     if (error) setError(null);
   }
 
   async function handleSubmit() {
-    if (!isValidMobile) {
-      setError("Enter a valid 10-digit mobile number");
+    if (!isValidId) {
+      setError("Enter your ID (mobile / AE ID / TL ID)");
       return;
     }
     if (!isValidPassword) {
-      setError("Password must be at least 6 characters");
+      setError("Password must be at least 4 characters");
       return;
     }
     setError(null);
@@ -54,17 +53,17 @@ function LoginPage() {
     setBusy(true);
 
     if (mode === "signin") {
-      const { error: signInError } = await signIn(mobile, password);
+      const { error: signInError } = await signIn(loginId, password);
       setBusy(false);
       if (signInError) {
         setError(signInError.message.includes("Invalid login")
-          ? "Invalid mobile number or password"
+          ? "Invalid ID or password"
           : signInError.message);
         return;
       }
       navigate({ to: "/" });
     } else {
-      const { error: signUpError } = await signUp(mobile, password, displayName.trim());
+      const { error: signUpError } = await signUp(loginId, password, displayName.trim());
       setBusy(false);
       if (signUpError) {
         setError(signUpError.message);
@@ -136,21 +135,17 @@ function LoginPage() {
             )}
 
             <label className="block space-y-1.5">
-              <span className="text-xs font-semibold text-foreground">Mobile Number</span>
+              <span className="text-xs font-semibold text-foreground">ID</span>
               <div className="relative">
                 <Phone size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <span className="absolute left-9 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                  +91
-                </span>
                 <input
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel"
-                  value={mobile}
-                  onChange={(e) => handleMobileChange(e.target.value)}
-                  placeholder="10-digit mobile number"
-                  maxLength={10}
-                  className={`${inputClass} pl-16 font-mono tracking-wider`}
+                  type="text"
+                  inputMode="text"
+                  autoComplete="username"
+                  value={loginId}
+                  onChange={(e) => handleIdChange(e.target.value)}
+                  placeholder="Mobile / AE ID / TL ID"
+                  className={`${inputClass} pl-9 font-mono tracking-wider`}
                 />
               </div>
             </label>
