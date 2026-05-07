@@ -156,9 +156,9 @@ function WdHomePage() {
           </Link>
         </div>
 
-        {section === "in_transit" && <InTransitSection />}
-        {section === "stock" && <WdStockSection />}
-        {section === "assignments" && <AssignmentsSection />}
+        {section === "in_transit" && <InTransitSection wdCode={activeWd} />}
+        {section === "stock" && <WdStockSection wdCode={activeWd} />}
+        {section === "assignments" && <AssignmentsSection wdCode={activeWd} />}
 
         <div className="pt-2 text-center">
           <Link to="/" className="text-[11px] font-semibold text-muted-foreground underline">
