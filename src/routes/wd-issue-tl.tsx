@@ -317,7 +317,7 @@ function TlAllocationPage() {
           ))}
         </div>
 
-        {tab === "allocate" && <AllocateTab tls={tls} onDone={bumpAll} />}
+        {tab === "allocate" && <AllocateTab tls={tls} onDone={bumpAll} activeWd={activeWd} />}
         {tab === "return" && (
           <ReturnTab tls={tls} balances={balances} onDone={bumpAll} />
         )}
