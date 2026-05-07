@@ -117,6 +117,7 @@ function WdHomePage() {
         <div className="grid grid-cols-2 gap-2">
           <Link
             to="/wd-issue-tl"
+            search={activeWd ? ({ wd: activeWd } as never) : undefined}
             className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
@@ -130,6 +131,7 @@ function WdHomePage() {
           </Link>
           <Link
             to="/wd-stock-track"
+            search={activeWd ? ({ wd: activeWd } as never) : undefined}
             className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
@@ -143,6 +145,7 @@ function WdHomePage() {
           </Link>
           <Link
             to="/wd-transfer"
+            search={activeWd ? ({ wd: activeWd } as never) : undefined}
             className="col-span-2 flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
