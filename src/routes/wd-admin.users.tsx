@@ -64,7 +64,7 @@ function WdAdminUsersPage() {
     setSubmitting(true);
     try {
       await createTlAccount({ data: { tl_id: tlId.trim(), tl_name: tlName.trim(), wd_code: wdCode } });
-      toast.success(`TL ${tlId} added (default password: 1234)`);
+      toast.success(`TL ${tlId} added (default password: 123456)`);
       setTlId(""); setTlName(""); setWdCode("");
       await load();
     } catch (e) {

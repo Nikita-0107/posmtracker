@@ -568,13 +568,13 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
           ae_id: id.trim(), ae_name: name.trim(),
           password: password.trim() || undefined,
         } });
-        toast.success(`AE ${id} created (password: ${password.trim() || "1234"})`);
+        toast.success(`AE ${id} created (password: ${password.trim() || "123456"})`);
       } else {
         await createTlAccount({ data: {
           tl_id: id.trim(), tl_name: name.trim(), wd_code: wdCode,
           password: password.trim() || undefined,
         } });
-        toast.success(`TL ${id} created (password: ${password.trim() || "1234"})`);
+        toast.success(`TL ${id} created (password: ${password.trim() || "123456"})`);
       }
       setId(""); setName(""); setWdCode(""); setPassword("");
       await reload();
