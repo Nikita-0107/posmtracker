@@ -11,6 +11,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-issue-tl")({
   component: TlAllocationPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    wd: typeof s.wd === "string" ? s.wd : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "TL Allocation — POSM Tracker" },
