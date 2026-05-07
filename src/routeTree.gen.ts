@@ -19,12 +19,16 @@ import { Route as WdRouteImport } from './routes/wd'
 import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as MyWdsRouteImport } from './routes/my-wds'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as LossesRouteImport } from './routes/losses'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConcernsRouteImport } from './routes/concerns'
+import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
 
 const WspIssuesRoute = WspIssuesRouteImport.update({
@@ -77,6 +81,11 @@ const ReceiveRoute = ReceiveRouteImport.update({
   path: '/receive',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MyWdsRoute = MyWdsRouteImport.update({
+  id: '/my-wds',
+  path: '/my-wds',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MovementsRoute = MovementsRouteImport.update({
   id: '/movements',
   path: '/movements',
@@ -97,14 +106,29 @@ const ConcernsRoute = ConcernsRouteImport.update({
   path: '/concerns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AccountRoute = AccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WdAdminUsersRoute = WdAdminUsersRouteImport.update({
+  id: '/wd-admin/users',
+  path: '/wd-admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminHierarchyRoute = AdminHierarchyRouteImport.update({
+  id: '/admin/hierarchy',
+  path: '/admin/hierarchy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminConcernsRoute = AdminConcernsRouteImport.update({
@@ -115,10 +139,12 @@ const AdminConcernsRoute = AdminConcernsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
+  '/my-wds': typeof MyWdsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -130,14 +156,18 @@ export interface FileRoutesByFullPath {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
+  '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
+  '/wd-admin/users': typeof WdAdminUsersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
+  '/my-wds': typeof MyWdsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -149,15 +179,19 @@ export interface FileRoutesByTo {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
+  '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
+  '/wd-admin/users': typeof WdAdminUsersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/account': typeof AccountRoute
   '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
+  '/my-wds': typeof MyWdsRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -169,16 +203,20 @@ export interface FileRoutesById {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
+  '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
+  '/wd-admin/users': typeof WdAdminUsersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/account'
     | '/concerns'
     | '/login'
     | '/losses'
     | '/movements'
+    | '/my-wds'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -190,14 +228,18 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
+    | '/admin/hierarchy'
     | '/admin/users'
+    | '/wd-admin/users'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/account'
     | '/concerns'
     | '/login'
     | '/losses'
     | '/movements'
+    | '/my-wds'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -209,14 +251,18 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
+    | '/admin/hierarchy'
     | '/admin/users'
+    | '/wd-admin/users'
   id:
     | '__root__'
     | '/'
+    | '/account'
     | '/concerns'
     | '/login'
     | '/losses'
     | '/movements'
+    | '/my-wds'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -228,15 +274,19 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
+    | '/admin/hierarchy'
     | '/admin/users'
+    | '/wd-admin/users'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AccountRoute: typeof AccountRoute
   ConcernsRoute: typeof ConcernsRoute
   LoginRoute: typeof LoginRoute
   LossesRoute: typeof LossesRoute
   MovementsRoute: typeof MovementsRoute
+  MyWdsRoute: typeof MyWdsRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
@@ -248,7 +298,9 @@ export interface RootRouteChildren {
   WspInTransitRoute: typeof WspInTransitRoute
   WspIssuesRoute: typeof WspIssuesRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
+  AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  WdAdminUsersRoute: typeof WdAdminUsersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -323,6 +375,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReceiveRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/my-wds': {
+      id: '/my-wds'
+      path: '/my-wds'
+      fullPath: '/my-wds'
+      preLoaderRoute: typeof MyWdsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/movements': {
       id: '/movements'
       path: '/movements'
@@ -351,6 +410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConcernsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/account': {
+      id: '/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AccountRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -358,11 +424,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/wd-admin/users': {
+      id: '/wd-admin/users'
+      path: '/wd-admin/users'
+      fullPath: '/wd-admin/users'
+      preLoaderRoute: typeof WdAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/hierarchy': {
+      id: '/admin/hierarchy'
+      path: '/admin/hierarchy'
+      fullPath: '/admin/hierarchy'
+      preLoaderRoute: typeof AdminHierarchyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/concerns': {
@@ -377,10 +457,12 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AccountRoute: AccountRoute,
   ConcernsRoute: ConcernsRoute,
   LoginRoute: LoginRoute,
   LossesRoute: LossesRoute,
   MovementsRoute: MovementsRoute,
+  MyWdsRoute: MyWdsRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
@@ -392,17 +474,10 @@ const rootRouteChildren: RootRouteChildren = {
   WspInTransitRoute: WspInTransitRoute,
   WspIssuesRoute: WspIssuesRoute,
   AdminConcernsRoute: AdminConcernsRoute,
+  AdminHierarchyRoute: AdminHierarchyRoute,
   AdminUsersRoute: AdminUsersRoute,
+  WdAdminUsersRoute: WdAdminUsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
