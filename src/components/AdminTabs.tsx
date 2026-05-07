@@ -1,8 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Users, MessageSquareWarning } from "lucide-react";
+import { Users, MessageSquareWarning, Network } from "lucide-react";
 
 const TABS = [
   { to: "/admin/users" as const, label: "Users", icon: Users },
+  { to: "/admin/hierarchy" as const, label: "Hierarchy", icon: Network },
   { to: "/admin/concerns" as const, label: "Concerns", icon: MessageSquareWarning },
 ];
 

@@ -151,6 +151,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
           )}
           {profile && (
+            <Link
+              to="/account"
+              className="flex items-center gap-1 rounded-lg border border-muted-foreground/20 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+              aria-label="Account"
+            >
+              Account
+            </Link>
+          )}
+          {profile && (
             <button
               onClick={handleSignOut}
               className="flex items-center gap-1 rounded-lg border border-muted-foreground/20 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"

@@ -28,6 +28,7 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
 
 const WspIssuesRoute = WspIssuesRouteImport.update({
@@ -125,6 +126,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminHierarchyRoute = AdminHierarchyRouteImport.update({
+  id: '/admin/hierarchy',
+  path: '/admin/hierarchy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminConcernsRoute = AdminConcernsRouteImport.update({
   id: '/admin/concerns',
   path: '/admin/concerns',
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
+  '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
 }
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
+  '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
 }
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/concerns': typeof AdminConcernsRoute
+  '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
 }
@@ -219,6 +228,7 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
+    | '/admin/hierarchy'
     | '/admin/users'
     | '/wd-admin/users'
   fileRoutesByTo: FileRoutesByTo
@@ -241,6 +251,7 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
+    | '/admin/hierarchy'
     | '/admin/users'
     | '/wd-admin/users'
   id:
@@ -263,6 +274,7 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/concerns'
+    | '/admin/hierarchy'
     | '/admin/users'
     | '/wd-admin/users'
   fileRoutesById: FileRoutesById
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   WspInTransitRoute: typeof WspInTransitRoute
   WspIssuesRoute: typeof WspIssuesRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
+  AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminUsersRoute: typeof AdminUsersRoute
   WdAdminUsersRoute: typeof WdAdminUsersRoute
 }
@@ -425,6 +438,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/hierarchy': {
+      id: '/admin/hierarchy'
+      path: '/admin/hierarchy'
+      fullPath: '/admin/hierarchy'
+      preLoaderRoute: typeof AdminHierarchyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/concerns': {
       id: '/admin/concerns'
       path: '/admin/concerns'
@@ -454,9 +474,19 @@ const rootRouteChildren: RootRouteChildren = {
   WspInTransitRoute: WspInTransitRoute,
   WspIssuesRoute: WspIssuesRoute,
   AdminConcernsRoute: AdminConcernsRoute,
+  AdminHierarchyRoute: AdminHierarchyRoute,
   AdminUsersRoute: AdminUsersRoute,
   WdAdminUsersRoute: WdAdminUsersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
