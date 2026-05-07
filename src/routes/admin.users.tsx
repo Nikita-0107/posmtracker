@@ -50,7 +50,8 @@ function needsUpdate(row: Row, primary: PrimaryRole | null, isSuper: boolean): b
   if (isSuper) return false;
   if (!primary) return false; // pending — handled separately
   if ((primary === "wsp" || primary === "wsp_admin") && !row.wsp) return true;
-  if ((primary === "wd_admin" || primary === "tl") && !row.wd_code) return true;
+  // wd_admin (AE) and tl resolve their WDs from the imported hierarchy,
+  // so a missing wd_code on the profile is no longer a problem.
   return false;
 }
 
