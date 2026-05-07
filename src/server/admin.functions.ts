@@ -140,3 +140,66 @@ export const importHierarchy = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return result as { ae_rows: number; wd_rows: number; tl_rows: number };
   });
+
+// --- Seed accounts from hierarchy ---
+export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertCallerRole(context.supabase as never, context.userId, "admin");
+
+    // Build email -> existing user map (paginated)
+    const emailToUid = new Map<string, string>();
+    let page = 1;
+    while (true) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage: 1000 });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) if (u.email) emailToUid.set(u.email.toLowerCase(), u.id);
+      if (data.users.length < 1000) break;
+      page++;
+      if (page > 50) break;
+    }
+
+    let aeCreated = 0, tlCreated = 0, skipped = 0, errors: string[] = [];
+
+    async function ensureAccount(id: string, name: string, kind: "ae" | "tl") {
+      const email = idToEmail(id);
+      let uid = emailToUid.get(email);
+      if (!uid) {
+        const { data: created, error } = await supabaseAdmin.auth.admin.createUser({
+          email, password: DEFAULT_PW, email_confirm: true,
+          user_metadata: { mobile: id, display_name: name },
+        });
+        if (error) {
+          // race / already exists -> look up
+          const { data: list } = await supabaseAdmin.auth.admin.listUsers();
+          const existing = list.users.find((u) => u.email?.toLowerCase() === email);
+          if (!existing) { errors.push(`${id}: ${error.message}`); return; }
+          uid = existing.id;
+          skipped++;
+        } else {
+          uid = created.user.id;
+          if (kind === "ae") aeCreated++; else tlCreated++;
+        }
+      } else {
+        skipped++;
+      }
+      await supabaseAdmin.from("profiles").upsert({
+        id: uid, mobile: id, display_name: name,
+        ...(kind === "ae" ? { ae_id: id } : { tl_id: id }),
+      }, { onConflict: "id" });
+      await supabaseAdmin.from("user_roles").upsert({
+        user_id: uid, role: (kind === "ae" ? "wd_admin" : "tl") as never,
+      }, { onConflict: "user_id,role" });
+    }
+
+    const { data: aes } = await supabaseAdmin.from("hierarchy_ae").select("ae_id, ae_name");
+    for (const a of (aes ?? []) as { ae_id: string; ae_name: string }[]) {
+      await ensureAccount(a.ae_id, a.ae_name, "ae");
+    }
+    const { data: tls } = await supabaseAdmin.from("hierarchy_tl").select("tl_id, tl_name, active").eq("active", true);
+    for (const t of (tls ?? []) as { tl_id: string; tl_name: string }[]) {
+      await ensureAccount(t.tl_id, t.tl_name, "tl");
+    }
+
+    return { ae_created: aeCreated, tl_created: tlCreated, skipped, errors };
+  });
