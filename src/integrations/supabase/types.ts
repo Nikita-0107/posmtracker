@@ -35,6 +35,97 @@ export type Database = {
         }
         Relationships: []
       }
+      hierarchy_ae: {
+        Row: {
+          ae_id: string
+          ae_name: string
+          created_at: string
+          section_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ae_id: string
+          ae_name: string
+          created_at?: string
+          section_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ae_id?: string
+          ae_name?: string
+          created_at?: string
+          section_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      hierarchy_tl: {
+        Row: {
+          active: boolean
+          created_at: string
+          tl_id: string
+          tl_name: string
+          updated_at: string
+          wd_code: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          tl_id: string
+          tl_name: string
+          updated_at?: string
+          wd_code: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          tl_id?: string
+          tl_name?: string
+          updated_at?: string
+          wd_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hierarchy_tl_wd_code_fkey"
+            columns: ["wd_code"]
+            isOneToOne: false
+            referencedRelation: "hierarchy_wd"
+            referencedColumns: ["wd_code"]
+          },
+        ]
+      }
+      hierarchy_wd: {
+        Row: {
+          ae_id: string
+          created_at: string
+          updated_at: string
+          wd_code: string
+          wd_name: string
+        }
+        Insert: {
+          ae_id: string
+          created_at?: string
+          updated_at?: string
+          wd_code: string
+          wd_name: string
+        }
+        Update: {
+          ae_id?: string
+          created_at?: string
+          updated_at?: string
+          wd_code?: string
+          wd_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hierarchy_wd_ae_id_fkey"
+            columns: ["ae_id"]
+            isOneToOne: false
+            referencedRelation: "hierarchy_ae"
+            referencedColumns: ["ae_id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           code: string
@@ -91,30 +182,36 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ae_id: string | null
           created_at: string
           display_name: string | null
           id: string
           mobile: string
+          tl_id: string | null
           tl_type: string | null
           updated_at: string
           wd_code: string | null
           wsp: Database["public"]["Enums"]["wsp_code"] | null
         }
         Insert: {
+          ae_id?: string | null
           created_at?: string
           display_name?: string | null
           id: string
           mobile: string
+          tl_id?: string | null
           tl_type?: string | null
           updated_at?: string
           wd_code?: string | null
           wsp?: Database["public"]["Enums"]["wsp_code"] | null
         }
         Update: {
+          ae_id?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
           mobile?: string
+          tl_id?: string | null
           tl_type?: string | null
           updated_at?: string
           wd_code?: string | null
@@ -942,6 +1039,7 @@ export type Database = {
         Args: { _wd_code: string; _wd_name?: string; _wd_tl_id: string }
         Returns: undefined
       }
+      admin_import_hierarchy: { Args: { _rows: Json }; Returns: Json }
       admin_toggle_super_admin: {
         Args: { _on: boolean; _target: string }
         Returns: undefined
@@ -1197,7 +1295,6 @@ export type Database = {
         Args: { _material_code: string; _qty: number }
         Returns: string
       }
-      tl_submit_setup: { Args: { _legacy_tl_id: number }; Returns: string }
       user_admin_scope: {
         Args: { _user_id: string }
         Returns: {
