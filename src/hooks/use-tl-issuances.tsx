@@ -162,9 +162,9 @@ export type WdIssuanceHistoryItem = {
 };
 
 /** WD-side: full history of issuances for the current WD. */
-export function useWdIssuanceHistory() {
+export function useWdIssuanceHistory(wdCodeOverride?: string | null) {
   const { profile } = useAuth();
-  const wd = profile?.wd_code ?? null;
+  const wd = wdCodeOverride ?? profile?.wd_code ?? null;
   const [items, setItems] = useState<WdIssuanceHistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
