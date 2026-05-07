@@ -24,9 +24,12 @@ export type InTransitMovement = {
  * Loads dispatch line items destined for the current WD user.
  * Admins see all dispatches.
  */
-export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "all") {
+export function useDispatchesForWd(
+  filter: "in_transit" | "received" | "all" = "all",
+  wdCodeOverride?: string | null,
+) {
   const { profile } = useAuth();
-  const wdCode = profile?.wd_code ?? null;
+  const wdCode = wdCodeOverride ?? profile?.wd_code ?? null;
   const [rows, setRows] = useState<InTransitMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
