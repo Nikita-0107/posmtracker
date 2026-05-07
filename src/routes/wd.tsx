@@ -198,8 +198,8 @@ function SectionBtn({
 
 // ────────────────────────────────── IN TRANSIT ──────────────────────────────────
 
-function InTransitSection() {
-  const { rows, loading, refresh } = useDispatchesForWd("in_transit");
+function InTransitSection({ wdCode }: { wdCode: string | null }) {
+  const { rows, loading, refresh } = useDispatchesForWd("in_transit", wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
