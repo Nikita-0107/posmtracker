@@ -24,9 +24,12 @@ export type InTransitMovement = {
  * Loads dispatch line items destined for the current WD user.
  * Admins see all dispatches.
  */
-export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "all") {
+export function useDispatchesForWd(
+  filter: "in_transit" | "received" | "all" = "all",
+  wdCodeOverride?: string | null,
+) {
   const { profile } = useAuth();
-  const wdCode = profile?.wd_code ?? null;
+  const wdCode = wdCodeOverride ?? profile?.wd_code ?? null;
   const [rows, setRows] = useState<InTransitMovement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -37,11 +40,13 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
 
     if (filter === "in_transit") {
       // Step 1: find every dispatch_id that still has at least one pending or issue line.
-      const { data: openLines, error: openErr } = await supabase
+      let openQ = supabase
         .from("stock_movements")
         .select("dispatch_id")
         .eq("movement", "dispatch")
         .in("item_status", ["pending", "issue"]);
+      if (wdCode) openQ = openQ.eq("distributor", wdCode);
+      const { data: openLines, error: openErr } = await openQ;
       if (openErr) {
         console.error("Failed to load in-transit dispatches", openErr);
         setRows([]);
@@ -57,12 +62,14 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
         return;
       }
       // Step 2: pull ALL rows for those dispatches so received parents + issue siblings render together.
-      const { data, error } = await supabase
+      let q = supabase
         .from("stock_movements")
         .select(select)
         .eq("movement", "dispatch")
         .in("dispatch_id", ids)
         .order("created_at", { ascending: false });
+      if (wdCode) q = q.eq("distributor", wdCode);
+      const { data, error } = await q;
       if (error) {
         console.error("Failed to load dispatches", error);
         setRows([]);
@@ -79,6 +86,7 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
       .select(select)
       .eq("movement", "dispatch")
       .order("created_at", { ascending: false });
+    if (wdCode) query = query.eq("distributor", wdCode);
     if (filter === "received") query = query.eq("item_status", "received");
 
     const { data, error } = await query;
@@ -90,7 +98,7 @@ export function useDispatchesForWd(filter: "in_transit" | "received" | "all" = "
     }
     setRows((data ?? []) as InTransitMovement[]);
     setLoading(false);
-  }, [filter]);
+  }, [filter, wdCode]);
 
   useEffect(() => {
     void refresh();
@@ -116,9 +124,9 @@ export async function confirmDispatchItem(
 
 export type WdStockRow = { material_code: string; qty: number };
 
-export function useWdStock() {
+export function useWdStock(wdCodeOverride?: string | null) {
   const { profile } = useAuth();
-  const wdCode = profile?.wd_code ?? null;
+  const wdCode = wdCodeOverride ?? profile?.wd_code ?? null;
   const [stock, setStock] = useState<WdStockRow[]>([]);
   const [loading, setLoading] = useState(true);
 

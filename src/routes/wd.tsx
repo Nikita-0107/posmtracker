@@ -35,6 +35,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd")({
   component: WdHomePage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    wd: typeof s.wd === "string" ? s.wd : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "WD — POSM Tracker" },
@@ -47,28 +50,35 @@ type Section = "in_transit" | "stock" | "assignments";
 
 function WdHomePage() {
   const { profile } = useAuth();
-  const { isAdmin } = useRoles();
+  const { isAdmin, aeId } = useRoles();
+  const { wd: wdParam } = Route.useSearch();
   const [section, setSection] = useState<Section>("in_transit");
   const [downloading, setDownloading] = useState(false);
 
-  const wdLabel = profile?.wd_code
-    ? `${profile.wd_code}${
-        wdMaster.find((w) => w.wd_code === profile.wd_code)?.wd_name
-          ? ` — ${wdMaster.find((w) => w.wd_code === profile.wd_code)!.wd_name}`
+  // Active WD context: URL ?wd= (used by AE selecting from My WDs) takes priority,
+  // falling back to the user's own profile.wd_code (legacy single-WD users).
+  const activeWd = wdParam ?? profile?.wd_code ?? null;
+
+  const wdLabel = activeWd
+    ? `${activeWd}${
+        wdMaster.find((w) => w.wd_code === activeWd)?.wd_name
+          ? ` — ${wdMaster.find((w) => w.wd_code === activeWd)!.wd_name}`
           : ""
       }`
     : isAdmin
       ? "All distributors (admin)"
-      : "No WD assigned";
+      : aeId
+        ? "Pick a WD from My WDs"
+        : "No WD assigned";
 
   async function downloadReport() {
-    if (!profile?.wd_code) {
-      toast.error("No WD assigned");
+    if (!activeWd) {
+      toast.error("No WD selected");
       return;
     }
     setDownloading(true);
     try {
-      const { filename } = await exportWdReport(profile.wd_code);
+      const { filename } = await exportWdReport(activeWd);
       toast.success(`Downloaded ${filename}`);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to export");
@@ -90,7 +100,7 @@ function WdHomePage() {
           </div>
           <button
             onClick={downloadReport}
-            disabled={downloading || !profile?.wd_code}
+            disabled={downloading || !activeWd}
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
           >
             {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
@@ -107,6 +117,7 @@ function WdHomePage() {
         <div className="grid grid-cols-2 gap-2">
           <Link
             to="/wd-issue-tl"
+            search={activeWd ? ({ wd: activeWd } as never) : undefined}
             className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
@@ -120,6 +131,7 @@ function WdHomePage() {
           </Link>
           <Link
             to="/wd-stock-track"
+            search={activeWd ? ({ wd: activeWd } as never) : undefined}
             className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
@@ -133,6 +145,7 @@ function WdHomePage() {
           </Link>
           <Link
             to="/wd-transfer"
+            search={activeWd ? ({ wd: activeWd } as never) : undefined}
             className="col-span-2 flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
           >
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
@@ -146,9 +159,9 @@ function WdHomePage() {
           </Link>
         </div>
 
-        {section === "in_transit" && <InTransitSection />}
-        {section === "stock" && <WdStockSection />}
-        {section === "assignments" && <AssignmentsSection />}
+        {section === "in_transit" && <InTransitSection wdCode={activeWd} />}
+        {section === "stock" && <WdStockSection wdCode={activeWd} />}
+        {section === "assignments" && <AssignmentsSection wdCode={activeWd} />}
 
         <div className="pt-2 text-center">
           <Link to="/" className="text-[11px] font-semibold text-muted-foreground underline">
@@ -188,8 +201,8 @@ function SectionBtn({
 
 // ────────────────────────────────── IN TRANSIT ──────────────────────────────────
 
-function InTransitSection() {
-  const { rows, loading, refresh } = useDispatchesForWd("in_transit");
+function InTransitSection({ wdCode }: { wdCode: string | null }) {
+  const { rows, loading, refresh } = useDispatchesForWd("in_transit", wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
@@ -625,8 +638,8 @@ function IssuePopup({
 
 // ────────────────────────────────── WD STOCK ──────────────────────────────────
 
-function WdStockSection() {
-  const { stock, loading } = useWdStock();
+function WdStockSection({ wdCode }: { wdCode: string | null }) {
+  const { stock, loading } = useWdStock(wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
   const total = stock.reduce((s, r) => s + r.qty, 0);
@@ -686,12 +699,11 @@ function WdStockSection() {
 
 const WSP_OPTIONS = ["CEVL", "CEVJ", "CEVY"] as const;
 
-function AssignmentsSection() {
+function AssignmentsSection({ wdCode: activeWd }: { wdCode: string | null }) {
   const { isAdmin } = useRoles();
-  const { profile } = useAuth();
-  // Admin: pick which WD to manage. WD user: locked to own.
-  const [wdCode, setWdCode] = useState<string>(profile?.wd_code ?? "");
-  const effectiveWd = isAdmin ? wdCode : profile?.wd_code ?? "";
+  // Admin: pick which WD to manage. Otherwise: locked to active WD context.
+  const [adminWd, setAdminWd] = useState<string>(activeWd ?? "");
+  const effectiveWd = isAdmin ? adminWd : activeWd ?? "";
   const { assignments, loading, refresh } = useWdAssignments(effectiveWd || null);
   const [busy, setBusy] = useState(false);
 
@@ -722,8 +734,8 @@ function AssignmentsSection() {
         <label className="block space-y-1">
           <span className="text-xs font-semibold text-foreground">Managing WD</span>
           <select
-            value={wdCode}
-            onChange={(e) => setWdCode(e.target.value)}
+            value={adminWd}
+            onChange={(e) => setAdminWd(e.target.value)}
             className="w-full rounded-xl border bg-card px-3 py-2.5 text-sm font-medium text-foreground"
           >
             <option value="">— Select a WD —</option>
