@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { createAeAccount, createTlAccount } from "@/server/admin.functions";
+import { createAeAccount, createTlAccount, seedAccountsFromHierarchy } from "@/server/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/users")({
