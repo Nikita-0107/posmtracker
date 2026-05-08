@@ -543,10 +543,12 @@ function EditPanel({
           className="rounded-md border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">
           Cancel
         </button>
-        <button onClick={save} disabled={saving}
-          className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:opacity-90">
-          {saving && <Loader2 className="animate-spin" size={12} />} Save
-        </button>
+        {!isSuperRow && (
+          <button onClick={save} disabled={saving}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:opacity-90">
+            {saving && <Loader2 className="animate-spin" size={12} />} Save
+          </button>
+        )}
       </div>
     </div>
   );
