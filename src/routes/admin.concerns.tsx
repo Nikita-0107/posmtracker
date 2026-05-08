@@ -170,6 +170,7 @@ function AdminConcernsPage() {
                 key={r.id}
                 row={r}
                 acting={actingId === r.id}
+                canAct={isAdmin}
                 onAct={(a) => act(r.id, a)}
               />
             ))}
