@@ -388,7 +388,7 @@ function EditPanel({
   const roleChoices: PrimaryRole[] = scope.is_super
     ? ["wsp_admin", "wd_admin", "wsp", "tl"]
     : scope.wsp_scope
-      ? ["wd_admin", "tl"]
+      ? ["wsp"]
       : ["tl"];
 
   const wdOptions = useMemo(() => {
