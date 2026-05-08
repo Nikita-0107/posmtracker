@@ -24,6 +24,9 @@ import { brandFromName, verifyStatus, VERIFY_INTERVAL_DAYS } from "@/lib/brand";
 
 export const Route = createFileRoute("/wd-stock-track")({
   component: WdStockTrackPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    wd: typeof s.wd === "string" ? s.wd : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Stock Tracking (WD Level) — POSM Tracker" },
@@ -62,11 +65,12 @@ function daysSince(iso: string): number {
 
 function WdStockTrackPage() {
   const { profile } = useAuth();
-  const wdCode = profile?.wd_code ?? null;
+  const { wd: wdParam } = Route.useSearch();
+  const wdCode = wdParam ?? profile?.wd_code ?? null;
   const [tab, setTab] = useState<"current" | "update" | "history">("current");
   const [snapshots, setSnapshots] = useState<Snapshot[]>([]);
   const [loading, setLoading] = useState(true);
-  const { stock: systemStock, loading: stockLoading, refresh: refreshStock } = useWdStock();
+  const { stock: systemStock, loading: stockLoading, refresh: refreshStock } = useWdStock(wdCode);
 
   async function refresh() {
     setLoading(true);

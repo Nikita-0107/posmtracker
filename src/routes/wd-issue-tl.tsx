@@ -34,6 +34,8 @@ type TlBalance = {
 
 type TlActivity = {
   lastActivityAt: string | null; // ISO
+  lastIssueAt: string | null; // ISO of latest issuance
+  issuedThisMonth: number; // sum of qty_issued in current calendar month
   reason: null | {
     id: string;
     reason: "on_leave" | "no_requirement" | "stock_sufficient" | "other";
@@ -90,10 +92,15 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
         return;
       }
       const tlIds = tls.map((t) => t.id);
-      const [{ data: issRows }, retRes, reasonRes] = await Promise.all([
+      const monthStartIso = new Date(
+        new Date().getFullYear(),
+        new Date().getMonth(),
+        1,
+      ).toISOString();
+      const [{ data: issRows }, retRes, reasonRes, monthIss] = await Promise.all([
         supabase
           .from("tl_issuances")
-          .select("wd_tl_id, created_at")
+          .select("id, wd_tl_id, created_at")
           .in("wd_tl_id", tlIds)
           .order("created_at", { ascending: false }),
         supabase
@@ -108,16 +115,44 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
           .select("id, wd_tl_id, reason, comment, leave_until, expires_at, created_at")
           .in("wd_tl_id", tlIds)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("tl_issuances")
+          .select("id, wd_tl_id, created_at")
+          .in("wd_tl_id", tlIds)
+          .gte("created_at", monthStartIso),
       ]);
 
+      // Last activity = max(issuance, return) per TL
       const lastBy = new Map<string, string>();
+      // Last issue specifically
+      const lastIssueBy = new Map<string, string>();
       for (const r of (issRows ?? []) as { wd_tl_id: string; created_at: string }[]) {
         const cur = lastBy.get(r.wd_tl_id);
         if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+        const curI = lastIssueBy.get(r.wd_tl_id);
+        if (!curI || r.created_at > curI) lastIssueBy.set(r.wd_tl_id, r.created_at);
       }
       for (const r of (retRes.data ?? []) as unknown as { wd_tl_id: string; created_at: string }[]) {
         const cur = lastBy.get(r.wd_tl_id);
         if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+      }
+
+      // Monthly issued totals: sum qty_issued from items belonging to this month's issuances
+      const monthIssIds = (monthIss.data ?? []).map((r) => r.id as string);
+      const monthIssToTl = new Map(
+        (monthIss.data ?? []).map((r) => [r.id as string, r.wd_tl_id as string]),
+      );
+      const monthlyBy = new Map<string, number>();
+      if (monthIssIds.length > 0) {
+        const { data: monthItems } = await supabase
+          .from("tl_issuance_items")
+          .select("issuance_id, qty_issued")
+          .in("issuance_id", monthIssIds);
+        for (const it of monthItems ?? []) {
+          const tl = monthIssToTl.get(it.issuance_id as string);
+          if (!tl) continue;
+          monthlyBy.set(tl, (monthlyBy.get(tl) ?? 0) + (it.qty_issued ?? 0));
+        }
       }
 
       const reasonBy = new Map<string, TlActivity["reason"]>();
@@ -130,7 +165,7 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
         expires_at: string | null;
         created_at: string;
       }>) {
-        if (reasonBy.has(r.wd_tl_id)) continue; // first (newest) wins
+        if (reasonBy.has(r.wd_tl_id)) continue;
         reasonBy.set(r.wd_tl_id, {
           id: r.id,
           reason: r.reason,
@@ -145,6 +180,8 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
       for (const t of tls) {
         out.set(t.id, {
           lastActivityAt: lastBy.get(t.id) ?? null,
+          lastIssueAt: lastIssueBy.get(t.id) ?? null,
+          issuedThisMonth: monthlyBy.get(t.id) ?? 0,
           reason: reasonBy.get(t.id) ?? null,
         });
       }
@@ -287,9 +324,8 @@ function TlAllocationPage() {
         {/* Horizontal TL summary */}
         <TlSummaryStrip
           tls={tls}
-          balances={balances}
           activity={activity}
-          loading={tlsLoading || balLoading}
+          loading={tlsLoading}
           onMarkReason={(t) => setReasonFor(t)}
         />
 
@@ -381,15 +417,23 @@ function TlLabel({
 
 // ───────────────────────── horizontal summary strip ─────────────────────────
 
+function fmtRelativeDay(iso: string | null): string {
+  if (!iso) return "Never";
+  const d = daysSince(iso);
+  if (d <= 0) return "Today";
+  if (d === 1) return "Yesterday";
+  if (d < 7) return `${d}d ago`;
+  const dt = new Date(iso);
+  return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
+
 function TlSummaryStrip({
   tls,
-  balances,
   activity,
   loading,
   onMarkReason,
 }: {
   tls: TlOption[];
-  balances: Map<string, TlBalance>;
   activity: Map<string, TlActivity>;
   loading: boolean;
   onMarkReason: (tl: TlOption) => void;
@@ -404,48 +448,51 @@ function TlSummaryStrip({
   if (tls.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-        No TLs linked to your WD yet.
+        No TLs linked to this WD yet.
       </div>
     );
   }
   return (
     <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
       {tls.map((tl) => {
-        const bal = balances.get(tl.id);
-        const pending = bal
-          ? Array.from(bal.byMat.values()).reduce((s, v) => s + Math.max(v.pending, 0), 0)
-          : 0;
         const a = activity.get(tl.id);
         const inactive = a ? daysSince(a.lastActivityAt) >= INACTIVITY_DAYS : false;
         const marked = a ? reasonIsActive(a.reason) : false;
         return (
           <div
             key={tl.id}
-            className="flex min-w-[160px] snap-start flex-col gap-1 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
+            className="flex min-w-[180px] snap-start flex-col gap-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <Users size={12} className="text-muted-foreground shrink-0" />
               <TlLabel tl={tl} nameClass="text-sm text-foreground" metaClass="text-muted-foreground" />
             </div>
-            <p className="text-[10px] uppercase text-muted-foreground">AVAILABLE STOCK WITH TL</p>
-            <p className="font-mono text-base font-bold text-primary">{pending}</p>
+            <div className="space-y-0.5 text-[10px] text-muted-foreground">
+              <div className="flex justify-between gap-2">
+                <span>Last activity</span>
+                <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastActivityAt ?? null)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Last issue</span>
+                <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastIssueAt ?? null)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Issued this month</span>
+                <span className="font-mono font-bold text-primary">{a?.issuedThisMonth ?? 0}</span>
+              </div>
+            </div>
             {marked && a?.reason && (
-              <p className="truncate text-[10px] font-semibold text-muted-foreground">
+              <p className="truncate rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                 {reasonLabel(a.reason)}
               </p>
             )}
             {inactive && !marked && (
-              <div className="flex flex-col gap-1">
-                <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-                  ⚠ No activity for {INACTIVITY_DAYS} days
-                </p>
-                <button
-                  onClick={() => onMarkReason(tl)}
-                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
-                >
-                  Mark Reason
-                </button>
-              </div>
+              <button
+                onClick={() => onMarkReason(tl)}
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+              >
+                ⚠ Inactive {INACTIVITY_DAYS}d · Mark Reason
+              </button>
             )}
           </div>
         );
@@ -960,7 +1007,7 @@ function ReturnTab({
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-xs font-bold">{m.code}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        AVAILABLE STOCK WITH TL: {m.pending}
+                        Pending to return: {m.pending}
                       </p>
                     </div>
                     <input
