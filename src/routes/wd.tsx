@@ -861,3 +861,215 @@ function AssignmentsSection({ wdCode: activeWd }: { wdCode: string | null }) {
     </div>
   );
 }
+
+// ────────────────────────────────── BRAND IMAGES ──────────────────────────────────
+
+const BRANDS = [
+  "Classic",
+  "Gold Flake",
+  "Connect",
+  "Players",
+  "Flake",
+  "AC Farlongs",
+  "Duke",
+  "RWB",
+] as const;
+
+type BrandImage = {
+  id: string;
+  wd_code: string;
+  brand: string;
+  image_path: string;
+  uploaded_at: string;
+  uploaded_by: string;
+};
+
+function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
+  const { isAdmin, isAe } = useRoles();
+  const { user } = useAuth();
+  const canEdit = (isAdmin || isAe) && !!wdCode;
+  const [rows, setRows] = useState<BrandImage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  const refresh = useMemo(
+    () => async () => {
+      if (!wdCode) {
+        setRows([]);
+        setLoading(false);
+        return;
+      }
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("wd_brand_images")
+        .select("id, wd_code, brand, image_path, uploaded_at, uploaded_by")
+        .eq("wd_code", wdCode);
+      if (error) {
+        toast.error(error.message);
+        setRows([]);
+      } else {
+        setRows((data ?? []) as BrandImage[]);
+      }
+      setLoading(false);
+    },
+    [wdCode],
+  );
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  function publicUrl(path: string) {
+    return supabase.storage.from("wd-brand-images").getPublicUrl(path).data.publicUrl;
+  }
+
+  async function handleCapture(brand: string, file: File) {
+    if (!wdCode || !user) return;
+    setUploading(brand);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const path = `${wdCode}/${brand.replace(/\s+/g, "_")}-${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("wd-brand-images")
+        .upload(path, file, { contentType: file.type, upsert: false });
+      if (upErr) {
+        toast.error(upErr.message);
+        return;
+      }
+      const { error: dbErr } = await supabase
+        .from("wd_brand_images")
+        .upsert(
+          {
+            wd_code: wdCode,
+            brand,
+            image_path: path,
+            uploaded_by: user.id,
+            uploaded_at: new Date().toISOString(),
+          },
+          { onConflict: "wd_code,brand" },
+        );
+      if (dbErr) {
+        toast.error(dbErr.message);
+        return;
+      }
+      toast.success(`${brand} image updated`);
+      await refresh();
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  if (!wdCode) {
+    return (
+      <p className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+        Select a WD to manage stock images.
+      </p>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
+        <Loader2 size={14} className="animate-spin" /> Loading images…
+      </div>
+    );
+  }
+
+  const byBrand = new Map(rows.map((r) => [r.brand, r]));
+
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] text-muted-foreground">
+        One photo per brand for visual stock verification. {canEdit ? "Tap a card to capture." : "View only."}
+      </p>
+      <div className="space-y-2">
+        {BRANDS.map((brand) => {
+          const row = byBrand.get(brand);
+          return (
+            <BrandImageCard
+              key={brand}
+              brand={brand}
+              row={row}
+              publicUrl={row ? publicUrl(row.image_path) : null}
+              canEdit={canEdit}
+              uploading={uploading === brand}
+              onCapture={(f) => handleCapture(brand, f)}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function BrandImageCard({
+  brand,
+  row,
+  publicUrl,
+  canEdit,
+  uploading,
+  onCapture,
+}: {
+  brand: string;
+  row: BrandImage | undefined;
+  publicUrl: string | null;
+  canEdit: boolean;
+  uploading: boolean;
+  onCapture: (file: File) => void;
+}) {
+  const inputId = `brand-img-${brand.replace(/\s+/g, "-")}`;
+  return (
+    <div className="rounded-xl border bg-card p-2.5">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="text-sm font-bold text-foreground">{brand}</p>
+        {row ? (
+          <span className="text-[10px] text-muted-foreground">
+            {new Date(row.uploaded_at).toLocaleDateString()}
+          </span>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">No image yet</span>
+        )}
+      </div>
+      {publicUrl ? (
+        <a href={publicUrl} target="_blank" rel="noreferrer" className="block">
+          <img
+            src={publicUrl}
+            alt={brand}
+            className="max-h-48 w-full rounded-lg border object-contain bg-muted"
+          />
+        </a>
+      ) : (
+        <div className="flex h-32 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 bg-muted/20 text-[11px] text-muted-foreground">
+          No photo uploaded
+        </div>
+      )}
+      {canEdit && (
+        <>
+          <input
+            id={inputId}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onCapture(f);
+              e.target.value = "";
+            }}
+          />
+          <label
+            htmlFor={inputId}
+            className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10"
+          >
+            {uploading ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Camera size={14} />
+            )}
+            {row ? "Retake Photo" : "Take Photo"}
+          </label>
+        </>
+      )}
+    </div>
+  );
+}
