@@ -276,6 +276,31 @@ function TlPortalPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
+        {(() => {
+          const lastDate = activity[0]?.date ? new Date(activity[0].date) : null;
+          const daysSince = lastDate
+            ? Math.floor((Date.now() - lastDate.getTime()) / 86400000)
+            : null;
+          const inactive = daysSince === null || daysSince >= 7;
+          if (!inactive) return null;
+          return (
+            <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-50 p-4 shadow-sm dark:bg-amber-950/30">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={24} />
+                <div className="min-w-0">
+                  <h2 className="font-heading text-base font-bold text-amber-900 dark:text-amber-100">
+                    {daysSince === null
+                      ? "No activity detected yet"
+                      : `No activity detected for ${daysSince} days`}
+                  </h2>
+                  <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
+                    Please update your activity (take or return stock) or contact your AE.
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
         {/* Header card */}
         <div className="rounded-2xl border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
