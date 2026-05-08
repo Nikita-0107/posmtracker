@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Truck,
   Boxes,
@@ -59,17 +59,40 @@ function WdHomePage() {
   // falling back to the user's own profile.wd_code (legacy single-WD users).
   const activeWd = wdParam ?? profile?.wd_code ?? null;
 
-  const wdLabel = activeWd
-    ? `${activeWd}${
-        wdMaster.find((w) => w.wd_code === activeWd)?.wd_name
-          ? ` — ${wdMaster.find((w) => w.wd_code === activeWd)!.wd_name}`
-          : ""
-      }`
-    : isAdmin
-      ? "All distributors (admin)"
-      : aeId
-        ? "Pick a WD from My WDs"
-        : "No WD assigned";
+  const wdName = activeWd
+    ? wdMaster.find((w) => w.wd_code === activeWd)?.wd_name ?? null
+    : null;
+
+  // AE name lookup for the WD header (best-effort, not blocking)
+  const [aeName, setAeName] = useState<string | null>(null);
+  useEffect(() => {
+    if (!activeWd) {
+      setAeName(null);
+      return;
+    }
+    let alive = true;
+    void (async () => {
+      const { data: wd } = await supabase
+        .from("hierarchy_wd")
+        .select("ae_id")
+        .eq("wd_code", activeWd)
+        .maybeSingle();
+      const aeIdRow = (wd as { ae_id?: string } | null)?.ae_id ?? null;
+      if (!aeIdRow) {
+        if (alive) setAeName(null);
+        return;
+      }
+      const { data: ae } = await supabase
+        .from("hierarchy_ae")
+        .select("ae_name")
+        .eq("ae_id", aeIdRow)
+        .maybeSingle();
+      if (alive) setAeName((ae as { ae_name?: string } | null)?.ae_name ?? null);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [activeWd]);
 
   async function downloadReport() {
     if (!activeWd) {
@@ -90,73 +113,93 @@ function WdHomePage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-md space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-            <Truck size={20} className="text-accent" />
+        {/* Lightweight WD header */}
+        <div className="rounded-2xl border bg-card p-3 shadow-sm">
+          <div className="flex items-start gap-2">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10">
+              <Truck size={20} className="text-accent" />
+            </div>
+            <div className="min-w-0 flex-1">
+              {activeWd ? (
+                <>
+                  <p className="font-mono text-xs font-bold text-primary">{activeWd}</p>
+                  <h2 className="truncate font-heading text-base font-bold leading-tight text-foreground">
+                    {wdName ?? "WD Operations"}
+                  </h2>
+                  {aeName && (
+                    <p className="truncate text-[11px] text-muted-foreground">AE: {aeName}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h2 className="font-heading text-base font-bold leading-tight text-foreground">
+                    WD Operations
+                  </h2>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {isAdmin
+                      ? "All distributors (admin)"
+                      : aeId
+                        ? "Pick a WD from My WDs"
+                        : "No WD assigned"}
+                  </p>
+                </>
+              )}
+            </div>
+            {aeId && !isAdmin && (
+              <Link
+                to="/my-wds"
+                className="shrink-0 rounded-lg border bg-background px-2 py-1 text-[10px] font-bold text-muted-foreground hover:bg-muted"
+              >
+                Switch
+              </Link>
+            )}
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-heading text-lg font-bold leading-tight">WD Operations</h2>
-            <p className="truncate text-[11px] text-muted-foreground">{wdLabel}</p>
-          </div>
+        </div>
+
+        {/* Compact action tiles */}
+        <div className="grid grid-cols-4 gap-1.5">
+          <ActionTile
+            to="/wd-issue-tl"
+            wd={activeWd}
+            icon={Send}
+            label="TL Allocation"
+            tone="accent"
+          />
+          <ActionTile
+            to="/wd-stock-track"
+            wd={activeWd}
+            icon={Boxes}
+            label="Verify Stock"
+            tone="primary"
+          />
+          <ActionTile
+            to="/wd-transfer"
+            wd={activeWd}
+            icon={ArrowLeftRight}
+            label="Transfer"
+            tone="primary"
+          />
           <button
             onClick={downloadReport}
             disabled={downloading || !activeWd}
-            className="flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-[11px] font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+            className="flex flex-col items-center gap-1 rounded-xl border bg-card p-2 text-center transition hover:bg-muted/40 disabled:opacity-50"
           >
-            {downloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-            Download Report
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+              {downloading ? (
+                <Loader2 size={14} className="animate-spin text-accent" />
+              ) : (
+                <Download size={14} className="text-accent" />
+              )}
+            </div>
+            <span className="text-[10px] font-bold leading-tight text-foreground">Report</span>
           </button>
         </div>
 
+        {/* Section tabs */}
         <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
-          <SectionBtn label="In Transit" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
+          <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
           <SectionBtn label="WD Stock" icon={Boxes} active={section === "stock"} onClick={() => setSection("stock")} />
-          <SectionBtn label="Assignments" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <Link
-            to="/wd-issue-tl"
-            search={activeWd ? ({ wd: activeWd } as never) : undefined}
-            className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10">
-              <Send size={16} className="text-accent" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold leading-tight">Send Stock to TLs</p>
-              <p className="text-[10px] text-muted-foreground">Allocate & track</p>
-            </div>
-            <ChevronRight size={14} className="ml-auto text-muted-foreground" />
-          </Link>
-          <Link
-            to="/wd-stock-track"
-            search={activeWd ? ({ wd: activeWd } as never) : undefined}
-            className="flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <Boxes size={16} className="text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold leading-tight">Stock Tracking</p>
-              <p className="text-[10px] text-muted-foreground">WD-level pilot</p>
-            </div>
-            <ChevronRight size={14} className="ml-auto text-muted-foreground" />
-          </Link>
-          <Link
-            to="/wd-transfer"
-            search={activeWd ? ({ wd: activeWd } as never) : undefined}
-            className="col-span-2 flex items-center gap-2 rounded-xl border bg-card p-3 transition hover:bg-muted/40"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-              <ArrowLeftRight size={16} className="text-primary" />
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs font-bold leading-tight">Inter WD Transfer</p>
-              <p className="text-[10px] text-muted-foreground">Send / receive between WDs</p>
-            </div>
-            <ChevronRight size={14} className="ml-auto text-muted-foreground" />
-          </Link>
+          <SectionBtn label="Verification" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
         </div>
 
         {section === "in_transit" && <InTransitSection wdCode={activeWd} />}
@@ -170,6 +213,34 @@ function WdHomePage() {
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function ActionTile({
+  to,
+  wd,
+  icon: Icon,
+  label,
+  tone,
+}: {
+  to: "/wd-issue-tl" | "/wd-stock-track" | "/wd-transfer";
+  wd: string | null;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  tone: "primary" | "accent";
+}) {
+  const bg = tone === "accent" ? "bg-accent/10 text-accent" : "bg-primary/10 text-primary";
+  return (
+    <Link
+      to={to}
+      search={wd ? ({ wd } as never) : undefined}
+      className="flex flex-col items-center gap-1 rounded-xl border bg-card p-2 text-center transition hover:bg-muted/40"
+    >
+      <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${bg}`}>
+        <Icon size={14} />
+      </div>
+      <span className="text-[10px] font-bold leading-tight text-foreground">{label}</span>
+    </Link>
   );
 }
 
