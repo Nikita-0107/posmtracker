@@ -820,7 +820,8 @@ export type Database = {
         Row: {
           brand: string
           id: string
-          image_path: string
+          image_path: string | null
+          no_stock: boolean
           uploaded_at: string
           uploaded_by: string
           wd_code: string
@@ -828,7 +829,8 @@ export type Database = {
         Insert: {
           brand: string
           id?: string
-          image_path: string
+          image_path?: string | null
+          no_stock?: boolean
           uploaded_at?: string
           uploaded_by: string
           wd_code: string
@@ -836,7 +838,8 @@ export type Database = {
         Update: {
           brand?: string
           id?: string
-          image_path?: string
+          image_path?: string | null
+          no_stock?: boolean
           uploaded_at?: string
           uploaded_by?: string
           wd_code?: string
