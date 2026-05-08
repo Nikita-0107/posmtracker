@@ -197,14 +197,16 @@ function WdHomePage() {
         </div>
 
         {/* Section tabs */}
-        <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
+        <div className="grid grid-cols-4 gap-1.5 rounded-xl border bg-card p-1">
           <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
           <SectionBtn label="WD Stock" icon={Boxes} active={section === "stock"} onClick={() => setSection("stock")} />
-          <SectionBtn label="Verification" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
+          <SectionBtn label="Stock Images" icon={ImageIcon} active={section === "brand_images"} onClick={() => setSection("brand_images")} />
+          <SectionBtn label="WSPs" icon={Users} active={section === "assignments"} onClick={() => setSection("assignments")} />
         </div>
 
         {section === "in_transit" && <InTransitSection wdCode={activeWd} />}
         {section === "stock" && <WdStockSection wdCode={activeWd} />}
+        {section === "brand_images" && <BrandImagesSection wdCode={activeWd} />}
         {section === "assignments" && <AssignmentsSection wdCode={activeWd} />}
 
         <div className="pt-2 text-center">
