@@ -13,7 +13,6 @@ import {
   ChevronDown,
   ChevronUp,
   Send,
-  ChevronRight,
   ArrowLeftRight,
   Download,
 } from "lucide-react";
