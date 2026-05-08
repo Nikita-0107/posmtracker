@@ -92,15 +92,24 @@ function AdminUsersPage() {
       setLoading(false);
       return;
     }
-    setRows(
-      (data ?? []).map((r: Row & { allowed_wsps: string[] }) => ({
-        ...r,
-        allowed_wsps: r.allowed_wsps ?? [],
-        roles: r.roles ?? [],
-      })),
-    );
+    let mapped: Row[] = (data ?? []).map((r: Row & { allowed_wsps: string[] }) => ({
+      ...r,
+      allowed_wsps: r.allowed_wsps ?? [],
+      roles: r.roles ?? [],
+    }));
+    // WSP Admins only see WSP users (wsp / wsp_admin) within their assigned WSP.
+    // They must NOT see Super Admins, WD Admins, or TL users.
+    if (scope && !scope.is_super && scope.wsp_scope) {
+      mapped = mapped.filter((r) => {
+        if (r.roles.includes("admin")) return false;
+        const isWspKind = r.roles.includes("wsp") || r.roles.includes("wsp_admin");
+        if (!isWspKind) return false;
+        return r.wsp === scope.wsp_scope;
+      });
+    }
+    setRows(mapped);
     setLoading(false);
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     if (canManageUsers) {
