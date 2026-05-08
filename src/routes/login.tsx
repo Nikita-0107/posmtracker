@@ -144,7 +144,7 @@ function LoginPage() {
                   autoComplete="username"
                   value={loginId}
                   onChange={(e) => handleIdChange(e.target.value)}
-                  placeholder="Mobile / AE ID / TL ID"
+                  placeholder="Enter ID"
                   className={`${inputClass} pl-9 font-mono tracking-wider`}
                 />
               </div>
