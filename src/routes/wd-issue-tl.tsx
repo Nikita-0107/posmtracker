@@ -34,6 +34,8 @@ type TlBalance = {
 
 type TlActivity = {
   lastActivityAt: string | null; // ISO
+  lastIssueAt: string | null; // ISO of latest issuance
+  issuedThisMonth: number; // sum of qty_issued in current calendar month
   reason: null | {
     id: string;
     reason: "on_leave" | "no_requirement" | "stock_sufficient" | "other";
@@ -90,10 +92,15 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
         return;
       }
       const tlIds = tls.map((t) => t.id);
-      const [{ data: issRows }, retRes, reasonRes] = await Promise.all([
+      const monthStartIso = new Date(
+        new Date().getFullYear(),
+        new Date().getMonth(),
+        1,
+      ).toISOString();
+      const [{ data: issRows }, retRes, reasonRes, monthIss] = await Promise.all([
         supabase
           .from("tl_issuances")
-          .select("wd_tl_id, created_at")
+          .select("id, wd_tl_id, created_at")
           .in("wd_tl_id", tlIds)
           .order("created_at", { ascending: false }),
         supabase
@@ -108,16 +115,44 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
           .select("id, wd_tl_id, reason, comment, leave_until, expires_at, created_at")
           .in("wd_tl_id", tlIds)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("tl_issuances")
+          .select("id, wd_tl_id, created_at")
+          .in("wd_tl_id", tlIds)
+          .gte("created_at", monthStartIso),
       ]);
 
+      // Last activity = max(issuance, return) per TL
       const lastBy = new Map<string, string>();
+      // Last issue specifically
+      const lastIssueBy = new Map<string, string>();
       for (const r of (issRows ?? []) as { wd_tl_id: string; created_at: string }[]) {
         const cur = lastBy.get(r.wd_tl_id);
         if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+        const curI = lastIssueBy.get(r.wd_tl_id);
+        if (!curI || r.created_at > curI) lastIssueBy.set(r.wd_tl_id, r.created_at);
       }
       for (const r of (retRes.data ?? []) as unknown as { wd_tl_id: string; created_at: string }[]) {
         const cur = lastBy.get(r.wd_tl_id);
         if (!cur || r.created_at > cur) lastBy.set(r.wd_tl_id, r.created_at);
+      }
+
+      // Monthly issued totals: sum qty_issued from items belonging to this month's issuances
+      const monthIssIds = (monthIss.data ?? []).map((r) => r.id as string);
+      const monthIssToTl = new Map(
+        (monthIss.data ?? []).map((r) => [r.id as string, r.wd_tl_id as string]),
+      );
+      const monthlyBy = new Map<string, number>();
+      if (monthIssIds.length > 0) {
+        const { data: monthItems } = await supabase
+          .from("tl_issuance_items")
+          .select("issuance_id, qty_issued")
+          .in("issuance_id", monthIssIds);
+        for (const it of monthItems ?? []) {
+          const tl = monthIssToTl.get(it.issuance_id as string);
+          if (!tl) continue;
+          monthlyBy.set(tl, (monthlyBy.get(tl) ?? 0) + (it.qty_issued ?? 0));
+        }
       }
 
       const reasonBy = new Map<string, TlActivity["reason"]>();
@@ -130,7 +165,7 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
         expires_at: string | null;
         created_at: string;
       }>) {
-        if (reasonBy.has(r.wd_tl_id)) continue; // first (newest) wins
+        if (reasonBy.has(r.wd_tl_id)) continue;
         reasonBy.set(r.wd_tl_id, {
           id: r.id,
           reason: r.reason,
@@ -145,6 +180,8 @@ function useTlActivity(tls: TlOption[], refreshKey: number) {
       for (const t of tls) {
         out.set(t.id, {
           lastActivityAt: lastBy.get(t.id) ?? null,
+          lastIssueAt: lastIssueBy.get(t.id) ?? null,
+          issuedThisMonth: monthlyBy.get(t.id) ?? 0,
           reason: reasonBy.get(t.id) ?? null,
         });
       }
