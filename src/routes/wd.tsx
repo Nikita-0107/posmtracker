@@ -865,24 +865,36 @@ function AssignmentsSection({ wdCode: activeWd }: { wdCode: string | null }) {
 // ────────────────────────────────── BRAND IMAGES ──────────────────────────────────
 
 const BRANDS = [
+  "American Club",
+  "Berkeley",
   "Classic",
-  "Gold Flake",
-  "Connect",
-  "Players",
-  "Flake",
-  "AC Farlongs",
   "Duke",
-  "RWB",
+  "Goldflake",
+  "Players",
+  "Wave",
+  "Wills Flake",
+  "Others",
 ] as const;
+
+const VERIFY_DAYS = 15;
 
 type BrandImage = {
   id: string;
   wd_code: string;
   brand: string;
-  image_path: string;
+  image_path: string | null;
   uploaded_at: string;
   uploaded_by: string;
+  no_stock: boolean;
 };
+
+function verifyState(uploadedAt: string | null | undefined) {
+  if (!uploadedAt) return { status: "never" as const, daysSince: null as number | null };
+  const days = Math.floor((Date.now() - new Date(uploadedAt).getTime()) / 86400000);
+  if (days >= VERIFY_DAYS) return { status: "overdue" as const, daysSince: days };
+  if (days >= VERIFY_DAYS - 3) return { status: "due_soon" as const, daysSince: days };
+  return { status: "ok" as const, daysSince: days };
+}
 
 function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
   const { isAdmin, isAe } = useRoles();
