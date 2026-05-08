@@ -24,6 +24,9 @@ import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-transfer")({
   component: WdTransferPage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    wd: typeof s.wd === "string" ? s.wd : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Inter WD Transfer — POSM Tracker" },
@@ -60,7 +63,8 @@ type Tab = "incoming" | "outgoing" | "create" | "history";
 
 function WdTransferPage() {
   const { profile } = useAuth();
-  const wdCode = profile?.wd_code ?? null;
+  const { wd: wdParam } = Route.useSearch();
+  const wdCode = wdParam ?? profile?.wd_code ?? null;
   const [tab, setTab] = useState<Tab>("incoming");
   const [transfers, setTransfers] = useState<TransferRow[]>([]);
   const [items, setItems] = useState<TransferItem[]>([]);
