@@ -132,7 +132,11 @@ function AdminConcernsPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold leading-tight">Concerns to HO</h2>
-            <p className="text-[11px] text-muted-foreground">Review WSP-reported stock concerns</p>
+            <p className="text-[11px] text-muted-foreground">
+              {isAdmin
+                ? "Review WSP-reported stock concerns"
+                : `Track concerns raised under ${wspScope ?? "your WSP"}`}
+            </p>
           </div>
         </div>
 
