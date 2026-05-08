@@ -865,24 +865,36 @@ function AssignmentsSection({ wdCode: activeWd }: { wdCode: string | null }) {
 // ────────────────────────────────── BRAND IMAGES ──────────────────────────────────
 
 const BRANDS = [
+  "American Club",
+  "Berkeley",
   "Classic",
-  "Gold Flake",
-  "Connect",
-  "Players",
-  "Flake",
-  "AC Farlongs",
   "Duke",
-  "RWB",
+  "Goldflake",
+  "Players",
+  "Wave",
+  "Wills Flake",
+  "Others",
 ] as const;
+
+const VERIFY_DAYS = 15;
 
 type BrandImage = {
   id: string;
   wd_code: string;
   brand: string;
-  image_path: string;
+  image_path: string | null;
   uploaded_at: string;
   uploaded_by: string;
+  no_stock: boolean;
 };
+
+function verifyState(uploadedAt: string | null | undefined) {
+  if (!uploadedAt) return { status: "never" as const, daysSince: null as number | null };
+  const days = Math.floor((Date.now() - new Date(uploadedAt).getTime()) / 86400000);
+  if (days >= VERIFY_DAYS) return { status: "overdue" as const, daysSince: days };
+  if (days >= VERIFY_DAYS - 3) return { status: "due_soon" as const, daysSince: days };
+  return { status: "ok" as const, daysSince: days };
+}
 
 function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
   const { isAdmin, isAe } = useRoles();
@@ -902,7 +914,7 @@ function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
       setLoading(true);
       const { data, error } = await supabase
         .from("wd_brand_images")
-        .select("id, wd_code, brand, image_path, uploaded_at, uploaded_by")
+        .select("id, wd_code, brand, image_path, uploaded_at, uploaded_by, no_stock")
         .eq("wd_code", wdCode);
       if (error) {
         toast.error(error.message);
@@ -943,6 +955,7 @@ function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
             wd_code: wdCode,
             brand,
             image_path: path,
+            no_stock: false,
             uploaded_by: user.id,
             uploaded_at: new Date().toISOString(),
           },
@@ -952,7 +965,35 @@ function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
         toast.error(dbErr.message);
         return;
       }
-      toast.success(`${brand} image updated`);
+      toast.success(`${brand} verified`);
+      await refresh();
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function handleNoStock(brand: string) {
+    if (!wdCode || !user) return;
+    setUploading(brand);
+    try {
+      const { error: dbErr } = await supabase
+        .from("wd_brand_images")
+        .upsert(
+          {
+            wd_code: wdCode,
+            brand,
+            image_path: null,
+            no_stock: true,
+            uploaded_by: user.id,
+            uploaded_at: new Date().toISOString(),
+          },
+          { onConflict: "wd_code,brand" },
+        );
+      if (dbErr) {
+        toast.error(dbErr.message);
+        return;
+      }
+      toast.success(`${brand} marked: no stock`);
       await refresh();
     } finally {
       setUploading(null);
@@ -970,17 +1011,26 @@ function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-8 text-xs text-muted-foreground">
-        <Loader2 size={14} className="animate-spin" /> Loading images…
+        <Loader2 size={14} className="animate-spin" /> Loading…
       </div>
     );
   }
 
   const byBrand = new Map(rows.map((r) => [r.brand, r]));
+  const overdueCount = BRANDS.filter((b) => {
+    const r = byBrand.get(b);
+    return verifyState(r?.uploaded_at).status === "overdue" || verifyState(r?.uploaded_at).status === "never";
+  }).length;
 
   return (
     <div className="space-y-2">
+      {overdueCount > 0 && (
+        <div className="rounded-xl border-2 border-amber-400/60 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+          ⚠ {overdueCount} brand{overdueCount > 1 ? "s" : ""} pending verification (15-day cycle).
+        </div>
+      )}
       <p className="text-[11px] text-muted-foreground">
-        One photo per brand for visual stock verification. {canEdit ? "Tap a card to capture." : "View only."}
+        Verify each brand every {VERIFY_DAYS} days. {canEdit ? "Take a photo or mark no stock." : "View only."}
       </p>
       <div className="space-y-2">
         {BRANDS.map((brand) => {
@@ -990,10 +1040,11 @@ function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
               key={brand}
               brand={brand}
               row={row}
-              publicUrl={row ? publicUrl(row.image_path) : null}
+              publicUrl={row?.image_path ? publicUrl(row.image_path) : null}
               canEdit={canEdit}
               uploading={uploading === brand}
               onCapture={(f) => handleCapture(brand, f)}
+              onNoStock={() => handleNoStock(brand)}
             />
           );
         })}
@@ -1009,6 +1060,7 @@ function BrandImageCard({
   canEdit,
   uploading,
   onCapture,
+  onNoStock,
 }: {
   brand: string;
   row: BrandImage | undefined;
@@ -1016,21 +1068,32 @@ function BrandImageCard({
   canEdit: boolean;
   uploading: boolean;
   onCapture: (file: File) => void;
+  onNoStock: () => void;
 }) {
   const inputId = `brand-img-${brand.replace(/\s+/g, "-")}`;
+  const v = verifyState(row?.uploaded_at);
+  const statusBadge =
+    v.status === "never"
+      ? { label: "Pending Verification", cls: "bg-amber-100 text-amber-900 border-amber-300" }
+      : v.status === "overdue"
+        ? { label: `Overdue · ${v.daysSince}d`, cls: "bg-destructive/10 text-destructive border-destructive/30" }
+        : v.status === "due_soon"
+          ? { label: `Due soon · ${v.daysSince}d`, cls: "bg-amber-100 text-amber-900 border-amber-300" }
+          : { label: `Verified · ${v.daysSince}d ago`, cls: "bg-emerald-100 text-emerald-900 border-emerald-300" };
+
   return (
     <div className="rounded-xl border bg-card p-2.5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-sm font-bold text-foreground">{brand}</p>
-        {row ? (
-          <span className="text-[10px] text-muted-foreground">
-            {new Date(row.uploaded_at).toLocaleDateString()}
-          </span>
-        ) : (
-          <span className="text-[10px] text-muted-foreground">No image yet</span>
-        )}
+        <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${statusBadge.cls}`}>
+          {statusBadge.label}
+        </span>
       </div>
-      {publicUrl ? (
+      {row?.no_stock ? (
+        <div className="flex h-20 items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/20 bg-muted/20 text-[11px] font-semibold text-muted-foreground">
+          No stock available · {new Date(row.uploaded_at).toLocaleDateString()}
+        </div>
+      ) : publicUrl ? (
         <a href={publicUrl} target="_blank" rel="noreferrer" className="block">
           <img
             src={publicUrl}
@@ -1057,17 +1120,23 @@ function BrandImageCard({
               e.target.value = "";
             }}
           />
-          <label
-            htmlFor={inputId}
-            className="mt-2 flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10"
-          >
-            {uploading ? (
-              <Loader2 size={14} className="animate-spin" />
-            ) : (
-              <Camera size={14} />
-            )}
-            {row ? "Retake Photo" : "Take Photo"}
-          </label>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <label
+              htmlFor={inputId}
+              className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-primary/40 bg-primary/5 px-3 py-2 text-xs font-bold text-primary hover:bg-primary/10"
+            >
+              {uploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+              {row?.image_path ? "Retake" : "Take Photo"}
+            </label>
+            <button
+              type="button"
+              onClick={onNoStock}
+              disabled={uploading}
+              className="flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 px-3 py-2 text-xs font-bold text-muted-foreground hover:bg-muted/50 disabled:opacity-50"
+            >
+              No stock available
+            </button>
+          </div>
         </>
       )}
     </div>
