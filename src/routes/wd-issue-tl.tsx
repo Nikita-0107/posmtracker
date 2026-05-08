@@ -1007,7 +1007,7 @@ function ReturnTab({
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-xs font-bold">{m.code}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        AVAILABLE STOCK WITH TL: {m.pending}
+                        Pending to return: {m.pending}
                       </p>
                     </div>
                     <input
