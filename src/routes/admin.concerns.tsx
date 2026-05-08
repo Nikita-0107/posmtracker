@@ -296,7 +296,7 @@ function ConcernRow({
         </a>
       )}
 
-      {row.status === "pending" && (
+      {row.status === "pending" && canAct && (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
