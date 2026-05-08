@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { signOut, profile, loading: authLoading, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { roles, aeWds, isAdmin, isTl, tlId, aeId, loading: rolesLoading, refresh: refreshRoles } = useRoles();
+  const { roles, aeWds, isAdmin, isWspAdmin, isTl, tlId, aeId, loading: rolesLoading, refresh: refreshRoles } = useRoles();
 
   // Filter tabs by roles
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
@@ -141,13 +141,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2">
           <WspBadge />
           {user && <NotificationBell />}
-          {isAdmin && (
+          {(isAdmin || isWspAdmin) && (
             <Link
               to="/admin/users"
               className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary transition hover:bg-primary/10"
               aria-label="Admin"
             >
-              <ShieldCheck size={12} /> Admin
+              <ShieldCheck size={12} /> {isAdmin ? "Admin" : "WSP Admin"}
             </Link>
           )}
           {profile && (
