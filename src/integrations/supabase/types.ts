@@ -816,6 +816,33 @@ export type Database = {
         }
         Relationships: []
       }
+      wd_brand_images: {
+        Row: {
+          brand: string
+          id: string
+          image_path: string
+          uploaded_at: string
+          uploaded_by: string
+          wd_code: string
+        }
+        Insert: {
+          brand: string
+          id?: string
+          image_path: string
+          uploaded_at?: string
+          uploaded_by: string
+          wd_code: string
+        }
+        Update: {
+          brand?: string
+          id?: string
+          image_path?: string
+          uploaded_at?: string
+          uploaded_by?: string
+          wd_code?: string
+        }
+        Relationships: []
+      }
       wd_stock: {
         Row: {
           id: string
