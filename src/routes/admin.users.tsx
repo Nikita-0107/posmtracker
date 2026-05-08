@@ -461,45 +461,53 @@ function EditPanel({
         </label>
       )}
 
-      <label className="block space-y-1">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Role</span>
-        <select disabled={saving} value={primary}
-          onChange={(e) => setPrimary((e.target.value || "") as PrimaryRole | "")}
-          className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
-          <option value="">— None (account under setup) —</option>
-          {roleChoices.map((r) => (
-            <option key={r} value={r}>{roleLabel[r]}</option>
-          ))}
-        </select>
-      </label>
+      {isSuperRow ? (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/5 px-2.5 py-2 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+          Super Admins have access to all WSPs and WDs. No assignment is required.
+        </p>
+      ) : (
+        <>
+          <label className="block space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Role</span>
+            <select disabled={saving} value={primary}
+              onChange={(e) => setPrimary((e.target.value || "") as PrimaryRole | "")}
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
+              <option value="">— None (account under setup) —</option>
+              {roleChoices.map((r) => (
+                <option key={r} value={r}>{roleLabel[r]}</option>
+              ))}
+            </select>
+          </label>
 
-      {isWspKind && (
-        <label className="block space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Assign WSP</span>
-          <select disabled={saving || (!scope.is_super && !!scope.wsp_scope)}
-            value={wsp}
-            onChange={(e) => setWsp((e.target.value || "") as WspCode | "")}
-            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
-            <option value="">— Select WSP —</option>
-            {(scope.is_super ? WSP_OPTIONS : [scope.wsp_scope!]).map((w) => (
-              <option key={w} value={w!}>{w}</option>
-            ))}
-          </select>
-        </label>
-      )}
+          {isWspKind && (
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Assign WSP</span>
+              <select disabled={saving || (!scope.is_super && !!scope.wsp_scope)}
+                value={wsp}
+                onChange={(e) => setWsp((e.target.value || "") as WspCode | "")}
+                className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
+                <option value="">— Select WSP —</option>
+                {(scope.is_super ? WSP_OPTIONS : [scope.wsp_scope!]).map((w) => (
+                  <option key={w} value={w!}>{w}</option>
+                ))}
+              </select>
+            </label>
+          )}
 
-      {isWdKind && (
-        <label className="block space-y-1">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Assign WD</span>
-          <select disabled={saving} value={wdCode}
-            onChange={(e) => setWdCode(e.target.value)}
-            className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
-            <option value="">— Select WD —</option>
-            {wdOptions.map((w) => (
-              <option key={w.wd_code} value={w.wd_code}>{w.wd_code} — {w.wd_name}</option>
-            ))}
-          </select>
-        </label>
+          {isWdKind && (
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Assign WD</span>
+              <select disabled={saving} value={wdCode}
+                onChange={(e) => setWdCode(e.target.value)}
+                className="w-full rounded-md border bg-background px-2 py-1.5 text-xs font-bold text-foreground">
+                <option value="">— Select WD —</option>
+                {wdOptions.map((w) => (
+                  <option key={w.wd_code} value={w.wd_code}>{w.wd_code} — {w.wd_name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+        </>
       )}
 
       {primary === "wd_admin" && wdCode && scope.is_super && (
@@ -535,10 +543,12 @@ function EditPanel({
           className="rounded-md border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">
           Cancel
         </button>
-        <button onClick={save} disabled={saving}
-          className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:opacity-90">
-          {saving && <Loader2 className="animate-spin" size={12} />} Save
-        </button>
+        {!isSuperRow && (
+          <button onClick={save} disabled={saving}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:opacity-90">
+            {saving && <Loader2 className="animate-spin" size={12} />} Save
+          </button>
+        )}
       </div>
     </div>
   );

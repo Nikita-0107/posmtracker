@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send, MessageSquareWarning } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { useAuth } from "@/hooks/use-auth";
+import { SuperAdminWspSwitcher } from "@/components/SuperAdminWspSwitcher";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
 import { useLossesSummary } from "@/hooks/use-losses";
 
@@ -100,10 +101,9 @@ const toneClasses: Record<Tone, string> = {
 };
 
 function WspOperationsPage() {
-  const { profile } = useAuth();
+  const { wsp, isSuperAdmin } = useEffectiveWsp();
   const { count: openIssuesCount } = useOpenIssuesCount();
   const { totalQty: lossQty, count: lossCount } = useLossesSummary();
-  const wsp = profile?.wsp;
 
   return (
     <AppShell>
@@ -115,10 +115,19 @@ function WspOperationsPage() {
           <div>
             <h2 className="font-heading text-lg font-bold leading-tight">WSP Operations</h2>
             <p className="text-[11px] text-muted-foreground">
-              {wsp ? <>Active WSP: <strong className="text-primary">{wsp}</strong></> : "No WSP assigned"}
+              {wsp ? (
+                <>
+                  Active WSP: <strong className="text-primary">{wsp}</strong>
+                  {isSuperAdmin && <span className="ml-1 text-muted-foreground">(viewing)</span>}
+                </>
+              ) : (
+                "No WSP assigned"
+              )}
             </p>
           </div>
         </div>
+
+        {isSuperAdmin && <SuperAdminWspSwitcher />}
 
         <section className="space-y-2">
           <h3 className="text-sm font-bold text-foreground">Choose an operation</h3>
