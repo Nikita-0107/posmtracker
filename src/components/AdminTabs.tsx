@@ -1,17 +1,20 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Users, MessageSquareWarning, Network } from "lucide-react";
+import { useRoles } from "@/hooks/use-roles";
 
-const TABS = [
-  { to: "/admin/users" as const, label: "Users", icon: Users },
-  { to: "/admin/hierarchy" as const, label: "Hierarchy", icon: Network },
-  { to: "/admin/concerns" as const, label: "Concerns", icon: MessageSquareWarning },
+const ALL_TABS = [
+  { to: "/admin/users" as const, label: "Users", icon: Users, superOnly: false },
+  { to: "/admin/hierarchy" as const, label: "Hierarchy", icon: Network, superOnly: true },
+  { to: "/admin/concerns" as const, label: "Concerns", icon: MessageSquareWarning, superOnly: false },
 ];
 
 export function AdminTabs() {
   const { pathname } = useLocation();
+  const { isSuperAdmin } = useRoles();
+  const tabs = ALL_TABS.filter((t) => isSuperAdmin || !t.superOnly);
   return (
     <div className="flex gap-1.5 rounded-xl border bg-card p-1">
-      {TABS.map((t) => {
+      {tabs.map((t) => {
         const active = pathname.startsWith(t.to);
         return (
           <Link
