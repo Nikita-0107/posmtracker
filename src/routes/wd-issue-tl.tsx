@@ -418,15 +418,23 @@ function TlLabel({
 
 // ───────────────────────── horizontal summary strip ─────────────────────────
 
+function fmtRelativeDay(iso: string | null): string {
+  if (!iso) return "Never";
+  const d = daysSince(iso);
+  if (d <= 0) return "Today";
+  if (d === 1) return "Yesterday";
+  if (d < 7) return `${d}d ago`;
+  const dt = new Date(iso);
+  return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+}
+
 function TlSummaryStrip({
   tls,
-  balances,
   activity,
   loading,
   onMarkReason,
 }: {
   tls: TlOption[];
-  balances: Map<string, TlBalance>;
   activity: Map<string, TlActivity>;
   loading: boolean;
   onMarkReason: (tl: TlOption) => void;
@@ -441,48 +449,51 @@ function TlSummaryStrip({
   if (tls.length === 0) {
     return (
       <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-        No TLs linked to your WD yet.
+        No TLs linked to this WD yet.
       </div>
     );
   }
   return (
     <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
       {tls.map((tl) => {
-        const bal = balances.get(tl.id);
-        const pending = bal
-          ? Array.from(bal.byMat.values()).reduce((s, v) => s + Math.max(v.pending, 0), 0)
-          : 0;
         const a = activity.get(tl.id);
         const inactive = a ? daysSince(a.lastActivityAt) >= INACTIVITY_DAYS : false;
         const marked = a ? reasonIsActive(a.reason) : false;
         return (
           <div
             key={tl.id}
-            className="flex min-w-[160px] snap-start flex-col gap-1 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
+            className="flex min-w-[180px] snap-start flex-col gap-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
           >
             <div className="flex items-center gap-1.5 min-w-0">
               <Users size={12} className="text-muted-foreground shrink-0" />
               <TlLabel tl={tl} nameClass="text-sm text-foreground" metaClass="text-muted-foreground" />
             </div>
-            <p className="text-[10px] uppercase text-muted-foreground">AVAILABLE STOCK WITH TL</p>
-            <p className="font-mono text-base font-bold text-primary">{pending}</p>
+            <div className="space-y-0.5 text-[10px] text-muted-foreground">
+              <div className="flex justify-between gap-2">
+                <span>Last activity</span>
+                <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastActivityAt ?? null)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Last issue</span>
+                <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastIssueAt ?? null)}</span>
+              </div>
+              <div className="flex justify-between gap-2">
+                <span>Issued this month</span>
+                <span className="font-mono font-bold text-primary">{a?.issuedThisMonth ?? 0}</span>
+              </div>
+            </div>
             {marked && a?.reason && (
-              <p className="truncate text-[10px] font-semibold text-muted-foreground">
+              <p className="truncate rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
                 {reasonLabel(a.reason)}
               </p>
             )}
             {inactive && !marked && (
-              <div className="flex flex-col gap-1">
-                <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-400">
-                  ⚠ No activity for {INACTIVITY_DAYS} days
-                </p>
-                <button
-                  onClick={() => onMarkReason(tl)}
-                  className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
-                >
-                  Mark Reason
-                </button>
-              </div>
+              <button
+                onClick={() => onMarkReason(tl)}
+                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+              >
+                ⚠ Inactive {INACTIVITY_DAYS}d · Mark Reason
+              </button>
             )}
           </div>
         );
