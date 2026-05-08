@@ -190,10 +190,12 @@ function AdminConcernsPage() {
 function ConcernRow({
   row,
   acting,
+  canAct,
   onAct,
 }: {
   row: Row;
   acting: boolean;
+  canAct: boolean;
   onAct: (a: "approve" | "reject") => void;
 }) {
   const [proofUrl, setProofUrl] = useState<string | null>(null);
