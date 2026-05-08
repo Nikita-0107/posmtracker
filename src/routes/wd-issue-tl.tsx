@@ -324,9 +324,8 @@ function TlAllocationPage() {
         {/* Horizontal TL summary */}
         <TlSummaryStrip
           tls={tls}
-          balances={balances}
           activity={activity}
-          loading={tlsLoading || balLoading}
+          loading={tlsLoading}
           onMarkReason={(t) => setReasonFor(t)}
         />
 
