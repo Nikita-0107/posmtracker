@@ -34,9 +34,9 @@ type Row = {
 type Tab = "pending" | "approved" | "rejected";
 
 function AdminConcernsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const [access, setAccess] = useState<{ isAdmin: boolean; isWspAdmin: boolean } | null>(null);
   const [tab, setTab] = useState<Tab>("pending");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,32 +52,39 @@ function AdminConcernsPage() {
       const { data } = await supabase
         .from("user_roles")
         .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-      setIsAdmin(!!data);
+        .eq("user_id", user.id);
+      const r = (data ?? []).map((x: { role: string }) => x.role);
+      setAccess({ isAdmin: r.includes("admin"), isWspAdmin: r.includes("wsp_admin") });
     })();
   }, [user, authLoading, navigate]);
 
+  const isAdmin = access?.isAdmin ?? false;
+  const isWspAdmin = access?.isWspAdmin ?? false;
+  const canView = isAdmin || isWspAdmin;
+  const wspScope = !isAdmin && isWspAdmin ? profile?.wsp ?? null : null;
+
   const load = useCallback(async () => {
-    if (!isAdmin) return;
+    if (!canView) return;
     setLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("stock_concerns")
       .select("*")
       .eq("status", tab)
       .order("created_at", { ascending: false })
       .limit(100);
+    if (wspScope) q = q.eq("wsp", wspScope);
+    const { data, error } = await q;
     if (error) toast.error(error.message);
     setRows((data ?? []) as Row[]);
     setLoading(false);
-  }, [isAdmin, tab]);
+  }, [canView, tab, wspScope]);
 
   useEffect(() => {
     void load();
   }, [load]);
 
   async function act(id: string, action: "approve" | "reject") {
+    if (!isAdmin) return;
     const note = action === "reject" ? window.prompt("Reason for rejection (optional):") ?? undefined : undefined;
     setActingId(id);
     const { error } = await supabase.rpc("resolve_stock_concern", {
@@ -94,7 +101,7 @@ function AdminConcernsPage() {
     void load();
   }
 
-  if (authLoading || isAdmin === null) {
+  if (authLoading || access === null) {
     return (
       <AppShell>
         <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
@@ -104,7 +111,7 @@ function AdminConcernsPage() {
     );
   }
 
-  if (!isAdmin) {
+  if (!canView) {
     return (
       <AppShell>
         <div className="mx-auto max-w-md rounded-xl border bg-destructive/10 p-4 text-center text-sm text-destructive">
