@@ -58,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { signOut, profile, loading: authLoading, user, refreshProfile } = useAuth();
   const navigate = useNavigate();
-  const { roles, aeWds, isAdmin, isTl, tlId, aeId, loading: rolesLoading, refresh: refreshRoles } = useRoles();
+  const { roles, aeWds, isAdmin, isWspAdmin, isTl, tlId, aeId, loading: rolesLoading, refresh: refreshRoles } = useRoles();
 
   // Filter tabs by roles
   const visibleTabs = tabs.filter((t) => t.roles.some((r) => roles.includes(r)));
