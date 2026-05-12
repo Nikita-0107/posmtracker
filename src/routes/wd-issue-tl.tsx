@@ -1322,6 +1322,40 @@ function AllocateTab({
           Send Stock to TL
         </button>
       </SectionCard>
+
+      {/* Sticky operational action bar */}
+      {(tlId || lines.length > 0) && (
+        <div className="sticky bottom-16 z-20 mt-2 -mx-3 border-t border-border/60 bg-card/95 px-3 py-2 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] backdrop-blur sm:bottom-0">
+          <div className="mx-auto flex max-w-3xl items-center gap-2">
+            <div className="min-w-0 flex-1 text-[11px]">
+              <p className="truncate font-bold text-foreground">
+                {selectedTl ? selectedTl.tl_name : "No TL selected"}
+              </p>
+              <p className="truncate text-muted-foreground">
+                {lines.length === 0
+                  ? "No materials added"
+                  : `${lines.length} material${lines.length === 1 ? "" : "s"} ready`}
+              </p>
+            </div>
+            {!valid && lines.length > 0 && (
+              <button
+                onClick={() => setOpenSection("qty")}
+                className="rounded-lg border bg-background px-3 py-2 text-[11px] font-bold text-foreground hover:bg-muted"
+              >
+                Set Qty
+              </button>
+            )}
+            <button
+              onClick={submit}
+              disabled={!valid || submitting}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.97] disabled:opacity-40"
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Send
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
