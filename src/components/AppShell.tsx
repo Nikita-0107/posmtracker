@@ -127,16 +127,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-card px-3 py-2 shadow-sm">
-        <div className="flex min-w-0 flex-col leading-tight">
-          <h1 className="font-heading text-base font-bold tracking-tight text-foreground">
-            📦 POSM Tracker
-          </h1>
-          {profile?.display_name && (
-            <p className="truncate text-sm font-semibold text-foreground/80">
-              Hi {profile.display_name.split(" ")[0]} 👋
-            </p>
-          )}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border/60 bg-card/95 px-3 py-2.5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="flex min-w-0 items-center gap-2.5 leading-tight">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+            <span className="text-base">📦</span>
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <h1 className="font-heading text-[15px] font-bold tracking-tight text-foreground leading-tight">
+              POSM Tracker
+            </h1>
+            {profile?.display_name && (
+              <p className="truncate text-[11px] font-medium text-muted-foreground leading-tight">
+                Hi {profile.display_name.split(" ")[0]} 👋
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <WspBadge />
