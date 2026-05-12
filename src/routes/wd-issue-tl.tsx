@@ -294,6 +294,14 @@ function TlAllocationPage() {
     return n;
   }, [tls, activity]);
 
+  const totalPending = useMemo(() => {
+    let n = 0;
+    for (const b of balances.values()) {
+      for (const v of b.byMat.values()) n += Math.max(v.pending, 0);
+    }
+    return n;
+  }, [balances]);
+
   const bumpAll = async () => {
     setRefreshKey((k) => k + 1);
     await refreshWdStock();
@@ -303,34 +311,29 @@ function TlAllocationPage() {
 
   return (
     <AppShell>
-      <div className="mx-auto max-w-2xl space-y-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
-            <ArrowLeftRight size={20} className="text-accent" />
+      <div className="mx-auto max-w-3xl space-y-4">
+        {/* Hero header */}
+        <div className="overflow-hidden rounded-2xl border bg-gradient-to-br from-accent/10 via-card to-primary/5 p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/15 ring-1 ring-accent/20">
+              <ArrowLeftRight size={20} className="text-accent" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-heading text-lg font-bold leading-tight tracking-tight">TL Allocation</h2>
+              <p className="text-[11px] text-muted-foreground">
+                Send stock · Record returns · Track activity per TL
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="font-heading text-lg font-bold leading-tight">TL Allocation</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Send stock to TLs · Record returns · Track TL stock
-            </p>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <Stat label="TLs linked" value={tls.length} tone="primary" loading={tlsLoading} />
+            <Stat label="Stock with TLs" value={totalPending} tone="accent" loading={balLoading} />
+            <Stat label="Inactive (7d+)" value={inactiveCount} tone={inactiveCount > 0 ? "warn" : "muted"} loading={tlsLoading} />
           </div>
-          {inactiveCount > 0 && (
-            <span className="rounded-full bg-amber-500/10 px-2.5 py-1 text-[10px] font-bold text-amber-700 dark:text-amber-400">
-              Inactive TLs: {inactiveCount}
-            </span>
-          )}
         </div>
 
-        {/* Horizontal TL summary */}
-        <TlSummaryStrip
-          tls={tls}
-          activity={activity}
-          loading={tlsLoading}
-          onMarkReason={(t) => setReasonFor(t)}
-        />
-
         {/* Tabs */}
-        <div className="flex gap-1 rounded-xl bg-muted/40 p-1">
+        <div className="flex gap-1 rounded-xl border bg-card p-1 shadow-sm">
           {(
             [
               { k: "allocate", l: "Send Stock", i: <Send size={14} /> },
@@ -343,8 +346,8 @@ function TlAllocationPage() {
               onClick={() => setTab(t.k)}
               className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
                 tab === t.k
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground"
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:bg-muted/60"
               }`}
             >
               {t.i}
@@ -353,9 +356,20 @@ function TlAllocationPage() {
           ))}
         </div>
 
-        {tab === "allocate" && <AllocateTab tls={tls} onDone={bumpAll} activeWd={activeWd} />}
+        {tab === "allocate" && (
+          <AllocateTab
+            tls={tls}
+            tlsLoading={tlsLoading}
+            balances={balances}
+            activity={activity}
+            onMarkReason={(t) => setReasonFor(t)}
+            onDone={bumpAll}
+            activeWd={activeWd}
+            refreshKey={refreshKey}
+          />
+        )}
         {tab === "return" && (
-          <ReturnTab tls={tls} balances={balances} onDone={bumpAll} />
+          <ReturnTab tls={tls} balances={balances} activity={activity} onDone={bumpAll} />
         )}
         {tab === "history" && <HistoryTab tls={tls} refreshKey={refreshKey} />}
 
@@ -383,6 +397,34 @@ function TlAllocationPage() {
   );
 }
 
+function Stat({
+  label,
+  value,
+  tone,
+  loading,
+}: {
+  label: string;
+  value: number;
+  tone: "primary" | "accent" | "warn" | "muted";
+  loading?: boolean;
+}) {
+  const toneCls =
+    tone === "primary"
+      ? "text-primary"
+      : tone === "accent"
+        ? "text-accent"
+        : tone === "warn"
+          ? "text-amber-600 dark:text-amber-400"
+          : "text-muted-foreground";
+  return (
+    <div className="rounded-xl border bg-background/60 px-3 py-2 backdrop-blur">
+      <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`font-mono text-xl font-bold leading-none ${toneCls}`}>
+        {loading ? "…" : value}
+      </p>
+    </div>
+  );
+}
 
 // ───────────────────────── TL label helpers ─────────────────────────
 
@@ -415,7 +457,7 @@ function TlLabel({
   );
 }
 
-// ───────────────────────── horizontal summary strip ─────────────────────────
+// ───────────────────────── helpers ─────────────────────────
 
 function fmtRelativeDay(iso: string | null): string {
   if (!iso) return "Never";
@@ -425,80 +467,6 @@ function fmtRelativeDay(iso: string | null): string {
   if (d < 7) return `${d}d ago`;
   const dt = new Date(iso);
   return dt.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
-}
-
-function TlSummaryStrip({
-  tls,
-  activity,
-  loading,
-  onMarkReason,
-}: {
-  tls: TlOption[];
-  activity: Map<string, TlActivity>;
-  loading: boolean;
-  onMarkReason: (tl: TlOption) => void;
-}) {
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Loader2 size={12} className="animate-spin" /> Loading TLs…
-      </div>
-    );
-  }
-  if (tls.length === 0) {
-    return (
-      <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
-        No TLs linked to this WD yet.
-      </div>
-    );
-  }
-  return (
-    <div className="-mx-1 flex snap-x snap-mandatory gap-2 overflow-x-auto px-1 pb-1">
-      {tls.map((tl) => {
-        const a = activity.get(tl.id);
-        const inactive = a ? daysSince(a.lastActivityAt) >= INACTIVITY_DAYS : false;
-        const marked = a ? reasonIsActive(a.reason) : false;
-        return (
-          <div
-            key={tl.id}
-            className="flex min-w-[180px] snap-start flex-col gap-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-sm"
-          >
-            <div className="flex items-center gap-1.5 min-w-0">
-              <Users size={12} className="text-muted-foreground shrink-0" />
-              <TlLabel tl={tl} nameClass="text-sm text-foreground" metaClass="text-muted-foreground" />
-            </div>
-            <div className="space-y-0.5 text-[10px] text-muted-foreground">
-              <div className="flex justify-between gap-2">
-                <span>Last activity</span>
-                <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastActivityAt ?? null)}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span>Last issue</span>
-                <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastIssueAt ?? null)}</span>
-              </div>
-              <div className="flex justify-between gap-2">
-                <span>Issued this month</span>
-                <span className="font-mono font-bold text-primary">{a?.issuedThisMonth ?? 0}</span>
-              </div>
-            </div>
-            {marked && a?.reason && (
-              <p className="truncate rounded-md bg-muted/60 px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-                {reasonLabel(a.reason)}
-              </p>
-            )}
-            {inactive && !marked && (
-              <button
-                onClick={() => onMarkReason(tl)}
-                className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
-              >
-                ⚠ Inactive {INACTIVITY_DAYS}d · Mark Reason
-              </button>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
 }
 
 // ───────────────────────── MARK REASON MODAL ─────────────────────────
@@ -641,22 +609,178 @@ function MarkReasonModal({
   );
 }
 
+// ───────────────────────── shared section card ─────────────────────────
+
+function SectionCard({
+  step,
+  title,
+  subtitle,
+  badge,
+  open,
+  onToggle,
+  children,
+}: {
+  step: number;
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm transition">
+      <button
+        onClick={onToggle}
+        className="flex w-full items-center gap-3 px-4 py-3 text-left transition hover:bg-muted/40"
+      >
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 font-mono text-sm font-bold text-primary">
+          {step}
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-bold text-foreground">{title}</p>
+          {subtitle && <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>}
+        </div>
+        {badge}
+        <ChevronDown
+          size={16}
+          className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && <div className="border-t bg-background/50 p-3">{children}</div>}
+    </div>
+  );
+}
+
+// ───────────────────────── TL detail panel ─────────────────────────
+
+function TlDetailPanel({
+  tl,
+  balance,
+  act,
+  onMarkReason,
+}: {
+  tl: TlOption;
+  balance: TlBalance | undefined;
+  act: TlActivity | undefined;
+  onMarkReason: (tl: TlOption) => void;
+}) {
+  const items = useMemo(() => {
+    if (!balance) return [];
+    return Array.from(balance.byMat.entries())
+      .map(([code, v]) => ({ code, ...v }))
+      .filter((x) => x.allocated > 0 || x.returned > 0)
+      .sort((a, b) => b.pending - a.pending || a.code.localeCompare(b.code));
+  }, [balance]);
+  const pendingTotal = items.reduce((s, x) => s + Math.max(x.pending, 0), 0);
+  const inactive = act ? daysSince(act.lastActivityAt) >= INACTIVITY_DAYS : false;
+  const marked = act ? reasonIsActive(act.reason) : false;
+
+  return (
+    <div className="mt-2 space-y-3 rounded-xl border bg-muted/30 p-3">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <MiniStat label="Stock with TL" value={pendingTotal} tone="accent" />
+        <MiniStat label="Last issue" value={fmtRelativeDay(act?.lastIssueAt ?? null)} tone="primary" />
+        <MiniStat label="Last activity" value={fmtRelativeDay(act?.lastActivityAt ?? null)} tone="muted" />
+        <MiniStat label="Issued (month)" value={act?.issuedThisMonth ?? 0} tone="primary" />
+      </div>
+
+      {marked && act?.reason && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-400">
+          {reasonLabel(act.reason)}
+        </div>
+      )}
+      {inactive && !marked && (
+        <button
+          onClick={() => onMarkReason(tl)}
+          className="w-full rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-[11px] font-bold text-amber-700 hover:bg-amber-500/20 dark:text-amber-400"
+        >
+          ⚠ Inactive {INACTIVITY_DAYS}d+ · Mark Reason
+        </button>
+      )}
+
+      <div>
+        <p className="mb-1.5 text-[10px] font-bold uppercase text-muted-foreground">
+          Materials with this TL
+        </p>
+        {items.length === 0 ? (
+          <p className="rounded-md border border-dashed bg-background p-2 text-center text-[11px] text-muted-foreground">
+            No allocations recorded yet.
+          </p>
+        ) : (
+          <div className="divide-y rounded-lg border bg-background">
+            {items.slice(0, 8).map((it) => (
+              <div key={it.code} className="grid grid-cols-4 gap-1 px-2 py-1.5 text-[11px]">
+                <span className="font-mono font-bold">{it.code}</span>
+                <span className="text-right text-muted-foreground">
+                  Issued <span className="font-mono font-bold text-foreground">{it.allocated}</span>
+                </span>
+                <span className="text-right text-muted-foreground">
+                  Ret <span className="font-mono font-bold text-foreground">{it.returned}</span>
+                </span>
+                <span className="text-right text-muted-foreground">
+                  Pending{" "}
+                  <span className={`font-mono font-bold ${it.pending > 0 ? "text-accent" : "text-foreground"}`}>
+                    {it.pending}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MiniStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone: "primary" | "accent" | "muted";
+}) {
+  const cls =
+    tone === "primary" ? "text-primary" : tone === "accent" ? "text-accent" : "text-foreground";
+  return (
+    <div className="rounded-lg border bg-background px-2 py-1.5">
+      <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className={`truncate font-mono text-sm font-bold ${cls}`}>{value}</p>
+    </div>
+  );
+}
+
 // ───────────────────────── ALLOCATE TAB ─────────────────────────
 
 type LineDraft = { code: string; qty: string };
+type OpenSection = "tl" | "mat" | "qty";
 
 function AllocateTab({
   tls,
+  tlsLoading,
+  balances,
+  activity,
+  onMarkReason,
   onDone,
   activeWd,
+  refreshKey,
 }: {
   tls: TlOption[];
+  tlsLoading: boolean;
+  balances: Map<string, TlBalance>;
+  activity: Map<string, TlActivity>;
+  onMarkReason: (tl: TlOption) => void;
   onDone: () => Promise<void> | void;
   activeWd: string | null;
+  refreshKey: number;
 }) {
   const [tlId, setTlId] = useState<string>("");
   const [lines, setLines] = useState<LineDraft[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [openSection, setOpenSection] = useState<OpenSection | null>("tl");
+  const [expandedMat, setExpandedMat] = useState<string | null>(null);
   const { stock, loading: stockLoading, wdCode } = useWdStock(activeWd);
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
@@ -696,6 +820,73 @@ function AllocateTab({
     };
   }, [wdCode]);
 
+  // Aggregate per-material across all TLs (issued / returned / remaining)
+  const matAgg = useMemo(() => {
+    const map = new Map<
+      string,
+      { allocated: number; returned: number; pending: number; perTl: { tlId: string; allocated: number; returned: number; pending: number }[] }
+    >();
+    for (const [tid, bal] of balances) {
+      for (const [code, v] of bal.byMat) {
+        const cur =
+          map.get(code) ?? { allocated: 0, returned: 0, pending: 0, perTl: [] };
+        cur.allocated += v.allocated;
+        cur.returned += v.returned;
+        cur.pending += v.pending;
+        cur.perTl.push({ tlId: tid, allocated: v.allocated, returned: v.returned, pending: v.pending });
+        map.set(code, cur);
+      }
+    }
+    return map;
+  }, [balances]);
+
+  // Recent allocation history (per material on demand) — derived from a single fetch
+  const [recentByMat, setRecentByMat] = useState<Map<string, Array<{ id: string; tlId: string; date: string; qty: number }>>>(new Map());
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      if (tls.length === 0) {
+        setRecentByMat(new Map());
+        return;
+      }
+      const tlIds = tls.map((t) => t.id);
+      const { data: issRows } = await supabase
+        .from("tl_issuances")
+        .select("id, wd_tl_id, issue_date, created_at")
+        .in("wd_tl_id", tlIds)
+        .order("created_at", { ascending: false })
+        .limit(120);
+      const issIds = (issRows ?? []).map((r) => r.id);
+      const head = new Map(
+        (issRows ?? []).map((r) => [r.id, { tlId: r.wd_tl_id as string, date: r.issue_date as string }]),
+      );
+      if (issIds.length === 0) {
+        if (alive) setRecentByMat(new Map());
+        return;
+      }
+      const { data: lines } = await supabase
+        .from("tl_issuance_items")
+        .select("id, issuance_id, material_code, qty_issued")
+        .in("issuance_id", issIds);
+      const out = new Map<string, Array<{ id: string; tlId: string; date: string; qty: number }>>();
+      for (const l of lines ?? []) {
+        const h = head.get(l.issuance_id as string);
+        if (!h) continue;
+        const arr = out.get(l.material_code) ?? [];
+        arr.push({ id: l.id as string, tlId: h.tlId, date: h.date, qty: l.qty_issued as number });
+        out.set(l.material_code, arr);
+      }
+      for (const [k, arr] of out) {
+        arr.sort((a, b) => b.date.localeCompare(a.date));
+        out.set(k, arr.slice(0, 6));
+      }
+      if (alive) setRecentByMat(out);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [tls, refreshKey]);
+
   const stocked = useMemo(
     () =>
       stock
@@ -713,6 +904,7 @@ function AllocateTab({
   function pickMaterial(code: string) {
     if (lines.find((l) => l.code === code)) return;
     setLines((p) => [...p, { code, qty: "" }]);
+    setOpenSection("qty");
   }
   function removeLine(code: string) {
     setLines((p) => p.filter((l) => l.code !== code));
@@ -747,89 +939,295 @@ function AllocateTab({
     toast.success("Stock sent to TL");
     setLines([]);
     setTlId("");
+    setOpenSection("tl");
     await onDone();
   }
 
-  const guidance = !tlId
-    ? "Select a TL to continue"
-    : lines.length === 0
-      ? "Add at least one material"
-      : !valid
-        ? "Fix quantity issues"
-        : "";
+  const selectedTl = tls.find((t) => t.id === tlId) ?? null;
+  const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t])), [tls]);
+
+  function toggle(s: OpenSection) {
+    setOpenSection((cur) => (cur === s ? null : s));
+  }
 
   return (
-    <div className="space-y-3 rounded-2xl border bg-card p-3 shadow-sm">
-      {/* Step 1: pick TL — horizontal chips */}
-      <div>
-        <p className="mb-1.5 text-[10px] font-bold uppercase text-muted-foreground">
-          1. Send to TL
-        </p>
-        <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
-          {tls.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTlId(t.id)}
-              className={`shrink-0 snap-start rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                tlId === t.id
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-background text-foreground"
-              }`}
-            >
-              <TlLabel tl={t} />
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Step 2: materials chips */}
-      <div>
-        <p className="mb-1.5 text-[10px] font-bold uppercase text-muted-foreground">
-          2. Tap material to add
-        </p>
-        {stockLoading ? (
-          <p className="text-xs text-muted-foreground">Loading stock…</p>
-        ) : stocked.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No stock available.</p>
+    <div className="space-y-3">
+      {/* STEP 1: TL */}
+      <SectionCard
+        step={1}
+        title="Choose Team Leader"
+        subtitle={selectedTl ? selectedTl.tl_name : "Tap a TL to view their stock & activity"}
+        open={openSection === "tl"}
+        onToggle={() => toggle("tl")}
+        badge={
+          selectedTl ? (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+              Selected
+            </span>
+          ) : null
+        }
+      >
+        {tlsLoading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 size={12} className="animate-spin" /> Loading TLs…
+          </div>
+        ) : tls.length === 0 ? (
+          <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+            No TLs linked to this WD yet.
+          </p>
         ) : (
-          <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+          <>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {tls.map((t) => {
+                const a = activity.get(t.id);
+                const bal = balances.get(t.id);
+                const pending = bal
+                  ? Array.from(bal.byMat.values()).reduce((s, v) => s + Math.max(v.pending, 0), 0)
+                  : 0;
+                const inactive = a ? daysSince(a.lastActivityAt) >= INACTIVITY_DAYS : false;
+                const marked = a ? reasonIsActive(a.reason) : false;
+                const sel = tlId === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setTlId(sel ? "" : t.id)}
+                    className={`group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition ${
+                      sel
+                        ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/30"
+                        : "border-border bg-card hover:border-primary/50 hover:bg-muted/40"
+                    }`}
+                  >
+                    <div className="flex w-full items-center gap-1.5">
+                      <Users size={11} className="shrink-0 text-muted-foreground" />
+                      <TlLabel tl={t} nameClass="text-[12px] text-foreground" metaClass="text-muted-foreground" />
+                    </div>
+                    <div className="flex w-full items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Last: <span className="font-semibold text-foreground">{fmtRelativeDay(a?.lastActivityAt ?? null)}</span></span>
+                      <span className="font-mono font-bold text-accent">{pending}</span>
+                    </div>
+                    {(inactive && !marked) && (
+                      <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                        ⚠ Inactive
+                      </span>
+                    )}
+                    {marked && (
+                      <span className="rounded-md bg-muted px-1.5 py-0.5 text-[9px] font-bold text-muted-foreground">
+                        Marked
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            {selectedTl && (
+              <TlDetailPanel
+                tl={selectedTl}
+                balance={balances.get(selectedTl.id)}
+                act={activity.get(selectedTl.id)}
+                onMarkReason={onMarkReason}
+              />
+            )}
+          </>
+        )}
+      </SectionCard>
+
+      {/* STEP 2: Materials */}
+      <SectionCard
+        step={2}
+        title="Select Materials"
+        subtitle={
+          lines.length > 0
+            ? `${lines.length} material${lines.length === 1 ? "" : "s"} selected`
+            : "Tap a material to add it · tap again for full breakdown"
+        }
+        open={openSection === "mat"}
+        onToggle={() => toggle("mat")}
+        badge={
+          lines.length > 0 ? (
+            <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-bold text-accent">
+              {lines.length}
+            </span>
+          ) : null
+        }
+      >
+        {stockLoading ? (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 size={12} className="animate-spin" /> Loading stock…
+          </div>
+        ) : stocked.length === 0 ? (
+          <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+            No stock available to allocate.
+          </p>
+        ) : (
+          <div className="space-y-2">
             {stocked.map((s) => {
               const sel = !!lines.find((l) => l.code === s.material_code);
+              const exp = expandedMat === s.material_code;
+              const agg = matAgg.get(s.material_code);
+              const recent = recentByMat.get(s.material_code) ?? [];
               return (
-                <button
+                <div
                   key={s.material_code}
-                  onClick={() => pickMaterial(s.material_code)}
-                  disabled={sel}
-                  className={`shrink-0 snap-start rounded-xl border px-3 py-2 text-left transition ${
-                    sel
-                      ? "border-muted bg-muted/40 opacity-60"
-                      : "border-border bg-background hover:border-primary"
+                  className={`overflow-hidden rounded-xl border transition ${
+                    sel ? "border-primary/40 bg-primary/5" : "border-border bg-card"
                   }`}
                 >
-                  <p className="font-mono text-[11px] font-bold text-foreground">
-                    {s.material_code}
-                  </p>
-                  <p className="truncate text-[10px] text-muted-foreground" style={{ maxWidth: 140 }}>
-                    {matName.get(s.material_code) ?? "—"}
-                  </p>
-                  <p className="text-[11px] font-bold text-primary">Available: {s.available}</p>
-                  {s.inTransit > 0 && (
-                    <p className="text-[10px] text-muted-foreground">{s.inTransit} in transit</p>
+                  <div className="flex items-center gap-2 p-2">
+                    <button
+                      onClick={() => setExpandedMat(exp ? null : s.material_code)}
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-lg p-1 text-left hover:bg-muted/40"
+                    >
+                      <ChevronDown
+                        size={14}
+                        className={`shrink-0 text-muted-foreground transition-transform ${exp ? "rotate-180" : "-rotate-90"}`}
+                      />
+                      <div className="min-w-0">
+                        <p className="font-mono text-[12px] font-bold">{s.material_code}</p>
+                        <p className="truncate text-[10px] text-muted-foreground">
+                          {matName.get(s.material_code) ?? "—"}
+                        </p>
+                      </div>
+                    </button>
+                    <div className="text-right">
+                      <p className="text-[9px] font-bold uppercase text-muted-foreground">Avail</p>
+                      <p className="font-mono text-sm font-bold text-primary">{s.available}</p>
+                      {s.inTransit > 0 && (
+                        <p className="text-[9px] text-muted-foreground">{s.inTransit} in transit</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => (sel ? removeLine(s.material_code) : pickMaterial(s.material_code))}
+                      className={`shrink-0 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+                        sel
+                          ? "bg-muted text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          : "bg-primary text-primary-foreground hover:bg-primary/90"
+                      }`}
+                    >
+                      {sel ? "Remove" : "Add"}
+                    </button>
+                  </div>
+
+                  {exp && (
+                    <div className="space-y-2.5 border-t bg-background/60 p-3">
+                      <div className="grid grid-cols-4 gap-1.5">
+                        <MiniStat label="On hand" value={s.qty} tone="primary" />
+                        <MiniStat label="Issued" value={agg?.allocated ?? 0} tone="muted" />
+                        <MiniStat label="Returned" value={agg?.returned ?? 0} tone="muted" />
+                        <MiniStat label="Remaining" value={agg?.pending ?? 0} tone="accent" />
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">
+                          TL-wise allocation
+                        </p>
+                        {!agg || agg.perTl.filter((p) => p.allocated > 0).length === 0 ? (
+                          <p className="rounded-md border border-dashed bg-muted/20 p-2 text-center text-[11px] text-muted-foreground">
+                            Never allocated.
+                          </p>
+                        ) : (
+                          <div className="divide-y rounded-lg border bg-background">
+                            {agg.perTl
+                              .filter((p) => p.allocated > 0)
+                              .sort((a, b) => b.pending - a.pending)
+                              .slice(0, 6)
+                              .map((p) => {
+                                const t = tlMap.get(p.tlId);
+                                return (
+                                  <div key={p.tlId} className="grid grid-cols-4 gap-1 px-2 py-1.5 text-[11px]">
+                                    <span className="col-span-1 truncate">
+                                      {t ? <TlLabel tl={t} bold={false} /> : "—"}
+                                    </span>
+                                    <span className="text-right text-muted-foreground">
+                                      <span className="font-mono font-bold text-foreground">{p.allocated}</span>
+                                    </span>
+                                    <span className="text-right text-muted-foreground">
+                                      <span className="font-mono font-bold text-foreground">{p.returned}</span>
+                                    </span>
+                                    <span className="text-right">
+                                      <span
+                                        className={`font-mono font-bold ${p.pending > 0 ? "text-accent" : "text-foreground"}`}
+                                      >
+                                        {p.pending}
+                                      </span>
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">
+                          Recent allocations
+                        </p>
+                        {recent.length === 0 ? (
+                          <p className="rounded-md border border-dashed bg-muted/20 p-2 text-center text-[11px] text-muted-foreground">
+                            No recent activity.
+                          </p>
+                        ) : (
+                          <div className="divide-y rounded-lg border bg-background">
+                            {recent.map((r) => {
+                              const t = tlMap.get(r.tlId);
+                              return (
+                                <div
+                                  key={r.id}
+                                  className="flex items-center justify-between gap-2 px-2 py-1.5 text-[11px]"
+                                >
+                                  <span className="min-w-0 truncate">
+                                    {t ? <TlLabel tl={t} bold={false} /> : "—"}
+                                  </span>
+                                  <span className="shrink-0 text-muted-foreground">
+                                    {new Date(r.date + "T00:00:00").toLocaleDateString("en-IN", {
+                                      day: "2-digit",
+                                      month: "short",
+                                    })}
+                                  </span>
+                                  <span className="shrink-0 font-mono font-bold text-primary">
+                                    +{r.qty}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </button>
+                </div>
               );
             })}
           </div>
         )}
-      </div>
+      </SectionCard>
 
-      {/* Step 3: selected lines (vertical for inputs) */}
-      {lines.length > 0 && (
-        <div>
-          <p className="mb-1.5 text-[10px] font-bold uppercase text-muted-foreground">
-            3. Quantities
+      {/* STEP 3: Quantities + submit */}
+      <SectionCard
+        step={3}
+        title="Allocation Details"
+        subtitle={
+          !selectedTl
+            ? "Pick a TL first"
+            : lines.length === 0
+              ? "Pick at least one material"
+              : `Sending to ${selectedTl.tl_name}`
+        }
+        open={openSection === "qty"}
+        onToggle={() => toggle("qty")}
+        badge={
+          valid ? (
+            <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+              Ready
+            </span>
+          ) : null
+        }
+      >
+        {lines.length === 0 ? (
+          <p className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-4 text-center text-xs text-muted-foreground">
+            Select materials in step 2 to set quantities.
           </p>
-          <div className="space-y-1.5">
+        ) : (
+          <div className="space-y-2">
             {lines.map((l) => {
               const row = stocked.find((s) => s.material_code === l.code);
               const avail = row?.available ?? 0;
@@ -843,11 +1241,12 @@ function AllocateTab({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-mono text-xs font-bold">{l.code}</p>
-                    <p className="text-[11px] font-bold text-foreground">
-                      Available: {avail}
+                    <p className="truncate text-[10px] text-muted-foreground">
+                      {matName.get(l.code) ?? "—"}
                     </p>
+                    <p className="text-[10px] font-bold text-primary">Avail: {avail}</p>
                     {transit > 0 && (
-                      <p className="text-[10px] text-muted-foreground">{transit} in transit</p>
+                      <p className="text-[9px] text-muted-foreground">{transit} in transit</p>
                     )}
                   </div>
                   <input
@@ -873,20 +1272,17 @@ function AllocateTab({
               );
             })}
           </div>
-        </div>
-      )}
+        )}
 
-      <button
-        onClick={submit}
-        disabled={!valid || submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
-      >
-        {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-        Send Stock
-      </button>
-      {!valid && guidance && (
-        <p className="text-center text-[10px] text-muted-foreground">{guidance}</p>
-      )}
+        <button
+          onClick={submit}
+          disabled={!valid || submitting}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground shadow-sm transition hover:bg-primary/90 disabled:opacity-50"
+        >
+          {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+          Send Stock to TL
+        </button>
+      </SectionCard>
     </div>
   );
 }
@@ -896,10 +1292,12 @@ function AllocateTab({
 function ReturnTab({
   tls,
   balances,
+  activity,
   onDone,
 }: {
   tls: TlOption[];
   balances: Map<string, TlBalance>;
+  activity: Map<string, TlActivity>;
   onDone: () => Promise<void> | void;
 }) {
   const [tlId, setTlId] = useState<string>("");
@@ -952,42 +1350,53 @@ function ReturnTab({
     await onDone();
   }
 
+  const selectedTl = tls.find((t) => t.id === tlId) ?? null;
+
   return (
-    <div className="space-y-3 rounded-2xl border bg-card p-3 shadow-sm">
-      <div>
-        <p className="mb-1.5 text-[10px] font-bold uppercase text-muted-foreground">
-          1. Return from TL
+    <div className="space-y-3">
+      <div className="rounded-2xl border bg-card p-3 shadow-sm">
+        <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          1. Pick TL to return from
         </p>
-        <div className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {tls.map((t) => {
             const bal = balances.get(t.id);
             const pending = bal
               ? Array.from(bal.byMat.values()).reduce((s, v) => s + Math.max(v.pending, 0), 0)
               : 0;
+            const a = activity.get(t.id);
+            const sel = tlId === t.id;
             return (
               <button
                 key={t.id}
-                onClick={() => setTlId(t.id)}
+                onClick={() => setTlId(sel ? "" : t.id)}
                 disabled={pending === 0}
-                className={`shrink-0 snap-start rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                  tlId === t.id
-                    ? "border-primary bg-primary text-primary-foreground"
+                className={`flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2 text-left transition ${
+                  sel
+                    ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/30"
                     : pending === 0
-                      ? "border-muted bg-muted/40 text-muted-foreground"
-                      : "border-border bg-background text-foreground"
+                      ? "border-muted bg-muted/30 text-muted-foreground"
+                      : "border-border bg-background hover:border-primary/50"
                 }`}
               >
-                <TlLabel tl={t} /> · {pending}
+                <div className="flex w-full items-center gap-1.5">
+                  <Users size={11} className="shrink-0 text-muted-foreground" />
+                  <TlLabel tl={t} nameClass="text-[12px]" />
+                </div>
+                <div className="flex w-full items-center justify-between text-[10px] text-muted-foreground">
+                  <span>Last: {fmtRelativeDay(a?.lastIssueAt ?? null)}</span>
+                  <span className="font-mono font-bold text-accent">{pending}</span>
+                </div>
               </button>
             );
           })}
         </div>
       </div>
 
-      {tlId && (
-        <div>
-          <p className="mb-1.5 text-[10px] font-bold uppercase text-muted-foreground">
-            2. Returned quantities
+      {selectedTl && (
+        <div className="rounded-2xl border bg-card p-3 shadow-sm">
+          <p className="mb-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            2. Returned quantities — {selectedTl.tl_name}
           </p>
           {pendingMats.length === 0 ? (
             <p className="rounded-lg border bg-muted/20 p-3 text-center text-xs text-muted-foreground">
@@ -1007,7 +1416,7 @@ function ReturnTab({
                     <div className="min-w-0 flex-1">
                       <p className="font-mono text-xs font-bold">{m.code}</p>
                       <p className="text-[10px] text-muted-foreground">
-                        Pending to return: {m.pending}
+                        Pending to return: <span className="font-bold text-accent">{m.pending}</span>
                       </p>
                     </div>
                     <input
@@ -1029,17 +1438,17 @@ function ReturnTab({
               })}
             </div>
           )}
+
+          <button
+            onClick={submit}
+            disabled={!valid || submitting}
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+          >
+            {submitting ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
+            Record Return
+          </button>
         </div>
       )}
-
-      <button
-        onClick={submit}
-        disabled={!valid || submitting}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
-      >
-        {submitting ? <Loader2 size={14} className="animate-spin" /> : <Undo2 size={14} />}
-        Record Return
-      </button>
     </div>
   );
 }
@@ -1059,6 +1468,7 @@ function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }
   const tlMap = useMemo(() => new Map(tls.map((t) => [t.id, t])), [tls]);
   const [entries, setEntries] = useState<HistEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterKind, setFilterKind] = useState<"all" | "alloc" | "return">("all");
 
   useEffect(() => {
     let alive = true;
@@ -1131,6 +1541,8 @@ function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }
     };
   }, [tls, refreshKey]);
 
+  const filtered = filterKind === "all" ? entries : entries.filter((e) => e.kind === filterKind);
+
   if (loading) {
     return (
       <div className="flex justify-center py-6 text-xs text-muted-foreground">
@@ -1138,37 +1550,56 @@ function HistoryTab({ tls, refreshKey }: { tls: TlOption[]; refreshKey: number }
       </div>
     );
   }
-  if (entries.length === 0) {
-    return (
-      <div className="rounded-2xl border bg-card p-4 text-center text-xs text-muted-foreground">
-        No history yet.
-      </div>
-    );
-  }
+
   return (
-    <div className="divide-y rounded-2xl border bg-card">
-      {entries.map((e) => (
-        <div key={`${e.kind}-${e.id}`} className="flex items-center gap-2 px-3 py-2">
-          <span
-            className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
-              e.kind === "alloc"
-                ? "bg-primary/10 text-primary"
-                : "bg-accent/10 text-accent"
+    <div className="space-y-3">
+      <div className="flex gap-1 rounded-xl border bg-card p-1">
+        {(["all", "alloc", "return"] as const).map((k) => (
+          <button
+            key={k}
+            onClick={() => setFilterKind(k)}
+            className={`flex-1 rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+              filterKind === k
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted"
             }`}
           >
-            {e.kind === "alloc" ? "OUT" : "IN"}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-xs font-bold">
-              {tlMap.get(e.tlId) ? <TlLabel tl={tlMap.get(e.tlId)!} /> : "—"} · <span className="font-mono">{e.material_code}</span>
-            </p>
-            <p className="text-[10px] text-muted-foreground">
-              {new Date(e.date + "T00:00:00").toLocaleDateString("en-IN")}
-            </p>
-          </div>
-          <p className="font-mono text-sm font-bold">{e.qty}</p>
+            {k === "all" ? "All" : k === "alloc" ? "Sent" : "Returned"}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border bg-card p-4 text-center text-xs text-muted-foreground">
+          No history yet.
         </div>
-      ))}
+      ) : (
+        <div className="divide-y rounded-2xl border bg-card">
+          {filtered.map((e) => (
+            <div key={`${e.kind}-${e.id}`} className="flex items-center gap-2 px-3 py-2">
+              <span
+                className={`rounded-md px-1.5 py-0.5 text-[10px] font-bold ${
+                  e.kind === "alloc"
+                    ? "bg-primary/10 text-primary"
+                    : "bg-accent/10 text-accent"
+                }`}
+              >
+                {e.kind === "alloc" ? "OUT" : "IN"}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-bold">
+                  {tlMap.get(e.tlId) ? <TlLabel tl={tlMap.get(e.tlId)!} /> : "—"} ·{" "}
+                  <span className="font-mono">{e.material_code}</span>
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {new Date(e.date + "T00:00:00").toLocaleDateString("en-IN")}
+                </p>
+              </div>
+              <p className="font-mono text-sm font-bold">{e.qty}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
