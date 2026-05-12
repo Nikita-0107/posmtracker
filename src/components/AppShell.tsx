@@ -127,16 +127,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b bg-card px-3 py-2 shadow-sm">
-        <div className="flex min-w-0 flex-col leading-tight">
-          <h1 className="font-heading text-base font-bold tracking-tight text-foreground">
-            📦 POSM Tracker
-          </h1>
-          {profile?.display_name && (
-            <p className="truncate text-sm font-semibold text-foreground/80">
-              Hi {profile.display_name.split(" ")[0]} 👋
-            </p>
-          )}
+      <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border/60 bg-card/95 px-3 py-2.5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur supports-[backdrop-filter]:bg-card/80">
+        <div className="flex min-w-0 items-center gap-2.5 leading-tight">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground shadow-sm">
+            <span className="text-base">📦</span>
+          </div>
+          <div className="flex min-w-0 flex-col">
+            <h1 className="font-heading text-[15px] font-bold tracking-tight text-foreground leading-tight">
+              POSM Tracker
+            </h1>
+            {profile?.display_name && (
+              <p className="truncate text-[11px] font-medium text-muted-foreground leading-tight">
+                Hi {profile.display_name.split(" ")[0]} 👋
+              </p>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <WspBadge />
@@ -206,7 +211,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       {tabsToRender.length > 0 && !showWaitingScreen && (
-        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.06)]">
+        <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 shadow-[0_-2px_12px_rgba(15,23,42,0.06)] pb-[env(safe-area-inset-bottom)]">
           <div
             className="mx-auto grid max-w-md"
             style={{ gridTemplateColumns: `repeat(${tabsToRender.length}, minmax(0, 1fr))` }}
@@ -226,10 +231,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   key={tab.to}
                   to={tab.to}
-                  className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-medium transition-colors ${
-                    isActive ? "text-primary" : "text-muted-foreground"
+                  className={`relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors active:scale-[0.97] ${
+                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
+                  {isActive && (
+                    <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary" />
+                  )}
                   <tab.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
                   <span>{tab.label}</span>
                 </Link>
