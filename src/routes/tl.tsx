@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
-  Boxes,
   Loader2,
   RefreshCw,
   AlertTriangle,
@@ -13,6 +12,7 @@ import {
   CheckCircle2,
   Package,
   Warehouse,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -65,7 +65,7 @@ function tlMeta(t: TlProfile) {
 
 function fmtDate(d: string | null) {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString();
+  return new Date(d).toLocaleDateString(undefined, { day: "2-digit", month: "short" });
 }
 
 function TlPortalPage() {
@@ -77,14 +77,18 @@ function TlPortalPage() {
   const [matStats, setMatStats] = useState<Record<string, MatStat>>({});
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"wd" | "tl" | "history">("tl");
 
-  const [search, setSearch] = useState("");
+  const [searchTl, setSearchTl] = useState("");
+  const [searchWd, setSearchWd] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState<string | "all" | null>(null);
+
+  // Inline qty state per row
+  const [takeQty, setTakeQty] = useState<Record<string, string>>({});
   const [actionMat, setActionMat] = useState<string | null>(null);
-  const [actionKind, setActionKind] = useState<"take" | "used" | "return" | null>(null);
+  const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
   const [actionQty, setActionQty] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState<string | null>(null);
 
   const matName = useMemo(() => {
     const m = new Map<string, string>();
@@ -114,7 +118,6 @@ function TlPortalPage() {
     }
     const tlInfo = tlRow as TlProfile;
 
-    // Fallback WD name from hierarchy_wd if missing
     if (!tlInfo.wd_name) {
       const { data: wdRow } = await supabase
         .from("hierarchy_wd")
@@ -255,7 +258,21 @@ function TlPortalPage() {
     return () => { void supabase.removeChannel(channel); };
   }, [tl?.wd_code, refresh]);
 
-  function openAction(code: string, kind: "take" | "used" | "return") {
+  async function submitTake(code: string) {
+    const qty = Number(takeQty[code]);
+    const max = wdStock[code] ?? 0;
+    if (!Number.isFinite(qty) || qty <= 0) return toast.error("Enter a quantity");
+    if (qty > max) return toast.error(`WD has only ${max}`);
+    setSubmitting(`take-${code}`);
+    const { error } = await supabase.rpc("tl_self_take", { _material_code: code, _qty: qty });
+    setSubmitting(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Received ${qty} × ${matName.get(code) ?? code}`);
+    setTakeQty((p) => ({ ...p, [code]: "" }));
+    void refresh();
+  }
+
+  function openAction(code: string, kind: "used" | "return") {
     setActionMat(code);
     setActionKind(kind);
     setActionQty("");
@@ -269,37 +286,20 @@ function TlPortalPage() {
   async function submitAction() {
     if (!actionMat || !actionKind) return;
     const qty = Number(actionQty);
+    const max = matStats[actionMat]?.balance ?? 0;
     if (!Number.isFinite(qty) || qty <= 0) return toast.error("Enter a quantity");
-
-    let max = 0;
-    if (actionKind === "take") max = wdStock[actionMat] ?? 0;
-    else max = matStats[actionMat]?.balance ?? 0;
     if (qty > max) return toast.error(`Max allowed: ${max}`);
-
-    setSubmitting(true);
+    setSubmitting("action");
     let error;
-    if (actionKind === "take") {
-      ({ error } = await supabase.rpc("tl_self_take", {
-        _material_code: actionMat,
-        _qty: qty,
-      }));
-    } else if (actionKind === "used") {
+    if (actionKind === "used") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ({ error } = await (supabase.rpc as any)("tl_self_used", {
-        _material_code: actionMat,
-        _qty: qty,
-      }));
+      ({ error } = await (supabase.rpc as any)("tl_self_used", { _material_code: actionMat, _qty: qty }));
     } else {
-      ({ error } = await supabase.rpc("tl_self_return", {
-        _material_code: actionMat,
-        _qty: qty,
-      }));
+      ({ error } = await supabase.rpc("tl_self_return", { _material_code: actionMat, _qty: qty }));
     }
-    setSubmitting(false);
+    setSubmitting(null);
     if (error) return toast.error(error.message);
-    const verb =
-      actionKind === "take" ? "Received" : actionKind === "used" ? "Marked used" : "Returned";
-    toast.success(`${verb} ${qty} × ${matName.get(actionMat) ?? actionMat}`);
+    toast.success(`${actionKind === "used" ? "Marked used" : "Returned"} ${qty} × ${matName.get(actionMat) ?? actionMat}`);
     closeAction();
     void refresh();
   }
@@ -347,60 +347,56 @@ function TlPortalPage() {
     );
   }
 
-  const pendingCount = Object.values(matStats).reduce((a, b) => a + Math.max(0, b.balance), 0);
+  const materialsHeld = Object.values(matStats).filter((m) => m.balance > 0).length;
+  const pendingReturns = Object.values(matStats).reduce((a, b) => a + Math.max(0, b.balance), 0);
   const lastActivityDate = activity[0]?.date ?? null;
 
-  // WD-SOH list (all materials with qty > 0 at WD)
   const wdList = materials
     .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
     .filter((m) => m.qty > 0)
     .filter((m) =>
-      !search ||
-      m.code.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase()),
+      !searchWd ||
+      m.code.toLowerCase().includes(searchWd.toLowerCase()) ||
+      m.name.toLowerCase().includes(searchWd.toLowerCase()),
     )
     .sort((a, b) => a.code.localeCompare(b.code));
 
-  // TL-SOH list — anything ever received
   const tlList = Object.values(matStats)
     .filter((m) => m.received > 0)
     .filter((m) =>
-      !search ||
-      m.code.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase()),
+      !searchTl ||
+      m.code.toLowerCase().includes(searchTl.toLowerCase()) ||
+      m.name.toLowerCase().includes(searchTl.toLowerCase()),
     )
     .sort((a, b) => b.balance - a.balance || a.code.localeCompare(b.code));
 
+  const lastDate = lastActivityDate ? new Date(lastActivityDate) : null;
+  const daysSince = lastDate ? Math.floor((Date.now() - lastDate.getTime()) / 86400000) : null;
+  const inactive = daysSince === null || daysSince >= 7;
+
+  const historyFiltered = historyOpen && historyOpen !== "all"
+    ? activity.filter((a) => a.material_code === historyOpen)
+    : activity;
+
   return (
     <AppShell>
-      <div className="mx-auto max-w-4xl space-y-4">
-        {/* Inactivity banner */}
-        {(() => {
-          const lastDate = lastActivityDate ? new Date(lastActivityDate) : null;
-          const daysSince = lastDate
-            ? Math.floor((Date.now() - lastDate.getTime()) / 86400000)
-            : null;
-          const inactive = daysSince === null || daysSince >= 7;
-          if (!inactive) return null;
-          return (
-            <div className="rounded-2xl border-2 border-amber-500/60 bg-amber-50 p-3 dark:bg-amber-950/30">
-              <div className="flex items-start gap-2.5">
-                <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={20} />
-                <div className="min-w-0 text-xs text-amber-900 dark:text-amber-100">
-                  <strong>
-                    {daysSince === null
-                      ? "No activity yet."
-                      : `No activity for ${daysSince} days.`}
-                  </strong>{" "}
-                  Please update your stock activity or contact your AE.
-                </div>
+      <div className="mx-auto max-w-3xl space-y-4">
+        {inactive && (
+          <div className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 dark:bg-amber-950/30">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={18} />
+              <div className="text-xs text-amber-900 dark:text-amber-100">
+                <strong>
+                  {daysSince === null ? "No activity yet." : `No activity for ${daysSince} days.`}
+                </strong>{" "}
+                Please update your stock or contact your AE.
               </div>
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* Header */}
-        <div className="rounded-2xl border bg-gradient-to-br from-card to-muted/30 p-4 shadow-sm">
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="font-heading text-xl font-bold leading-tight text-foreground">
@@ -419,347 +415,307 @@ function TlPortalPage() {
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => void refresh()}
-                className="rounded-md border bg-card p-1.5 text-muted-foreground hover:bg-muted"
-                aria-label="Refresh"
-              >
-                <RefreshCw size={14} />
-              </button>
-            </div>
+            <button
+              onClick={() => void refresh()}
+              className="rounded-md border bg-card p-1.5 text-muted-foreground hover:bg-muted"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={14} />
+            </button>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <div className="rounded-lg border bg-card p-2.5">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Current Balance
-              </div>
-              <div className="mt-0.5 text-lg font-bold text-primary">{pendingCount}</div>
-            </div>
-            <div className="rounded-lg border bg-card p-2.5">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Materials Held
-              </div>
-              <div className="mt-0.5 text-lg font-bold text-foreground">
-                {Object.values(matStats).filter((m) => m.balance > 0).length}
-              </div>
-            </div>
-            <div className="col-span-2 rounded-lg border bg-card p-2.5 sm:col-span-1">
-              <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                Last Activity
-              </div>
-              <div className="mt-0.5 text-sm font-bold text-foreground">
-                {lastActivityDate ? new Date(lastActivityDate).toLocaleDateString() : "—"}
-              </div>
-            </div>
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
+            <span className="text-muted-foreground">
+              Materials Held: <strong className="text-foreground">{materialsHeld}</strong>
+            </span>
+            <span className="text-muted-foreground">
+              Pending Returns: <strong className="text-foreground">{pendingReturns}</strong>
+            </span>
+            <span className="text-muted-foreground">
+              Last Activity: <strong className="text-foreground">{fmtDate(lastActivityDate)}</strong>
+            </span>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 rounded-xl bg-muted p-1">
-          {([
-            { k: "tl", label: "TL-SOH", icon: Package },
-            { k: "wd", label: "WD-SOH", icon: Warehouse },
-            { k: "history", label: "Stock History", icon: History },
-          ] as const).map(({ k, label, icon: Icon }) => {
-            const active = tab === k;
-            return (
-              <button
-                key={k}
-                onClick={() => { setTab(k); setExpanded(null); }}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold transition ${
-                  active ? "bg-card text-foreground shadow" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <Icon size={14} /> {label}
-              </button>
-            );
-          })}
-        </div>
+        {/* TL-SOH Section */}
+        <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+                <Package size={16} className="text-primary" /> Your Stock
+              </h2>
+              <p className="text-[11px] text-muted-foreground">
+                Stock currently with you. Tap a material for actions.
+              </p>
+            </div>
+            <button
+              onClick={() => setHistoryOpen("all")}
+              className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1 text-xs font-bold text-foreground hover:bg-muted"
+            >
+              <History size={12} /> View History
+            </button>
+          </div>
 
-        {/* Search (for TL/WD tabs) */}
-        {tab !== "history" && (
           <div className="relative">
             <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search material by code or name…"
-              className="w-full rounded-lg border bg-card py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+              value={searchTl}
+              onChange={(e) => setSearchTl(e.target.value)}
+              placeholder="Search material…"
+              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
             />
           </div>
-        )}
 
-        {/* TL-SOH */}
-        {tab === "tl" && (
-          <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
-                  <Package size={16} className="text-primary" /> TL-SOH (Your Stock on Hand)
-                </h2>
-                <p className="text-[11px] text-muted-foreground">
-                  Received − Used − Returned. Tap a row to view details and actions.
-                </p>
-              </div>
-            </div>
-
-            {tlList.length === 0 ? (
-              <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-                You haven't received any materials yet. Check WD-SOH to take stock.
-              </p>
-            ) : (
-              <div className="divide-y rounded-xl border bg-background">
-                {tlList.map((m) => {
-                  const open = expanded === m.code;
-                  return (
-                    <div key={m.code}>
-                      <button
-                        onClick={() => setExpanded(open ? null : m.code)}
-                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/40"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                              {m.code}
-                            </span>
-                            <span className="truncate text-sm font-bold text-foreground">
-                              {m.name}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-muted-foreground">
-                            <span>Recv <strong className="text-foreground">{m.received}</strong></span>
-                            <span>Used <strong className="text-foreground">{m.used}</strong></span>
-                            <span>Ret <strong className="text-foreground">{m.returned}</strong></span>
-                          </div>
-                        </div>
+          {tlList.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+              You haven't received any materials yet. Use the WD section below to take stock.
+            </p>
+          ) : (
+            <div className="divide-y rounded-xl border bg-background">
+              {tlList.map((m) => {
+                const open = expanded === `tl-${m.code}`;
+                const wdAvail = wdStock[m.code] ?? 0;
+                return (
+                  <div key={m.code}>
+                    <button
+                      onClick={() => { setExpanded(open ? null : `tl-${m.code}`); closeAction(); }}
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/40"
+                    >
+                      <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className={`rounded-md px-2 py-1 text-xs font-bold ${
-                            m.balance > 0
-                              ? "bg-primary/10 text-primary"
-                              : "bg-muted text-muted-foreground"
-                          }`}>
-                            Bal {m.balance}
+                          <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                            {m.code}
                           </span>
-                          <ChevronDown
-                            size={14}
-                            className={`text-muted-foreground transition ${open ? "rotate-180" : ""}`}
-                          />
-                        </div>
-                      </button>
-                      {open && (
-                        <div className="space-y-3 border-t bg-muted/20 p-3 text-xs">
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            <Stat label="WD-SOH" value={wdStock[m.code] ?? 0} />
-                            <Stat label="TL-SOH" value={m.balance} accent />
-                            <Stat label="Last received" value={fmtDate(m.lastReceived)} small />
-                            <Stat label="Last used" value={fmtDate(m.lastUsed)} small />
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <ActionBtn
-                              icon={ArrowDownToLine}
-                              label="Take from WD"
-                              disabled={(wdStock[m.code] ?? 0) <= 0}
-                              onClick={() => openAction(m.code, "take")}
-                            />
-                            <ActionBtn
-                              icon={CheckCircle2}
-                              label="Mark Used"
-                              disabled={m.balance <= 0}
-                              onClick={() => openAction(m.code, "used")}
-                              variant="success"
-                            />
-                            <ActionBtn
-                              icon={ArrowUpFromLine}
-                              label="Return Unused"
-                              disabled={m.balance <= 0}
-                              onClick={() => openAction(m.code, "return")}
-                              variant="muted"
-                            />
-                          </div>
-                          {actionMat === m.code && actionKind && (
-                            <ActionInline
-                              kind={actionKind}
-                              qty={actionQty}
-                              setQty={setActionQty}
-                              max={
-                                actionKind === "take"
-                                  ? wdStock[m.code] ?? 0
-                                  : m.balance
-                              }
-                              submitting={submitting}
-                              onCancel={closeAction}
-                              onSubmit={submitAction}
-                            />
-                          )}
-                          <div className="text-[10px] text-muted-foreground">
-                            Last returned: {fmtDate(m.lastReturned)}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* WD-SOH */}
-        {tab === "wd" && (
-          <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
-            <div>
-              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
-                <Warehouse size={16} className="text-primary" /> WD-SOH ({tl.wd_code})
-              </h2>
-              <p className="text-[11px] text-muted-foreground">Take material from WD stock.</p>
-            </div>
-            {wdList.length === 0 ? (
-              <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-                Nothing available at your WD right now.
-              </p>
-            ) : (
-              <div className="divide-y rounded-xl border bg-background">
-                {wdList.map((m) => {
-                  const open = expanded === `wd-${m.code}`;
-                  const stat = matStats[m.code];
-                  return (
-                    <div key={m.code}>
-                      <button
-                        onClick={() => setExpanded(open ? null : `wd-${m.code}`)}
-                        className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/40"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                              {m.code}
-                            </span>
-                            <span className="truncate text-sm font-bold text-foreground">
-                              {m.name}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            With you: <strong className="text-foreground">{stat?.balance ?? 0}</strong>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
-                            WD {m.qty}
+                          <span className="truncate text-sm font-bold text-foreground">
+                            {m.name}
                           </span>
-                          <ChevronDown size={14} className={`text-muted-foreground transition ${open ? "rotate-180" : ""}`} />
                         </div>
-                      </button>
-                      {open && (
-                        <div className="space-y-3 border-t bg-muted/20 p-3 text-xs">
-                          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                            <Stat label="WD-SOH" value={m.qty} accent />
-                            <Stat label="TL-SOH" value={stat?.balance ?? 0} />
-                            <Stat label="Last received" value={fmtDate(stat?.lastReceived ?? null)} small />
-                            <Stat label="Last used" value={fmtDate(stat?.lastUsed ?? null)} small />
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            <ActionBtn
-                              icon={ArrowDownToLine}
-                              label="Take from WD"
-                              onClick={() => openAction(m.code, "take")}
-                            />
-                          </div>
-                          {actionMat === m.code && actionKind === "take" && (
-                            <ActionInline
-                              kind="take"
-                              qty={actionQty}
-                              setQty={setActionQty}
-                              max={m.qty}
-                              submitting={submitting}
-                              onCancel={closeAction}
-                              onSubmit={submitAction}
-                            />
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        )}
-
-        {/* History */}
-        {tab === "history" && (
-          <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
-            <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
-              <History size={16} className="text-primary" /> Stock History
-            </h2>
-            {activity.length === 0 ? (
-              <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-                No activity yet.
-              </p>
-            ) : (
-              <ul className="divide-y rounded-lg border bg-background">
-                {activity.slice(0, 50).map((a, i) => {
-                  const meta =
-                    a.kind === "received"
-                      ? { label: "Received from WD", color: "text-primary", bg: "bg-primary/10", sign: "+", Icon: ArrowDownToLine }
-                      : a.kind === "used"
-                        ? { label: "Marked used", color: "text-success", bg: "bg-success/10", sign: "−", Icon: CheckCircle2 }
-                        : { label: "Returned to WD", color: "text-muted-foreground", bg: "bg-muted", sign: "−", Icon: ArrowUpFromLine };
-                  const Icon = meta.Icon;
-                  return (
-                    <li key={i} className="flex items-center justify-between gap-2 px-3 py-2 text-xs">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className={`inline-flex h-7 w-7 items-center justify-center rounded-md ${meta.bg} ${meta.color}`}>
-                          <Icon size={13} />
-                        </span>
-                        <div className="min-w-0">
-                          <div className="truncate text-sm font-bold text-foreground">
-                            {matName.get(a.material_code) ?? a.material_code}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            {meta.label} · {a.date ? new Date(a.date).toLocaleString() : ""}
-                          </div>
+                        <div className="mt-0.5 text-[11px] text-muted-foreground">
+                          Stock With You: <strong className={m.balance > 0 ? "text-primary" : "text-foreground"}>{m.balance}</strong>
                         </div>
                       </div>
-                      <span className={`text-sm font-bold ${meta.color}`}>
-                        {meta.sign}{a.qty}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-        )}
+                      <ChevronDown
+                        size={14}
+                        className={`text-muted-foreground transition ${open ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                    {open && (
+                      <div className="space-y-2.5 border-t bg-muted/20 p-3">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                          <span>WD Available: <strong className="text-foreground">{wdAvail}</strong></span>
+                          <span>Stock With You: <strong className="text-foreground">{m.balance}</strong></span>
+                          <span>Last Received: <strong className="text-foreground">{fmtDate(m.lastReceived)}</strong></span>
+                          <span>Last Used: <strong className="text-foreground">{fmtDate(m.lastUsed)}</strong></span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <ActionBtn
+                            icon={CheckCircle2}
+                            label="Mark Used"
+                            disabled={m.balance <= 0}
+                            onClick={() => openAction(m.code, "used")}
+                            variant="success"
+                          />
+                          <ActionBtn
+                            icon={ArrowUpFromLine}
+                            label="Return Unused"
+                            disabled={m.balance <= 0}
+                            onClick={() => openAction(m.code, "return")}
+                            variant="muted"
+                          />
+                          <button
+                            onClick={() => setHistoryOpen(m.code)}
+                            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
+                          >
+                            <History size={12} /> View History
+                          </button>
+                        </div>
+                        {actionMat === m.code && actionKind && (
+                          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5">
+                            <span className="text-[11px] text-muted-foreground">
+                              Max: <strong className="text-foreground">{m.balance}</strong>
+                            </span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={m.balance}
+                              value={actionQty}
+                              onChange={(e) => setActionQty(e.target.value)}
+                              placeholder="Quantity"
+                              autoFocus
+                              className="w-24 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
+                            />
+                            <button
+                              onClick={submitAction}
+                              disabled={submitting === "action" || !actionQty}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                            >
+                              {submitting === "action" && <Loader2 className="animate-spin" size={12} />}
+                              {actionKind === "used" ? "Confirm Used" : "Confirm Return"}
+                            </button>
+                            <button
+                              onClick={closeAction}
+                              className="rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-        <div className="rounded-xl border border-dashed bg-muted/20 p-3 text-[11px] text-muted-foreground">
-          <Boxes size={12} className="mr-1 inline" />
-          <strong className="text-foreground">Tip:</strong> Used stock permanently reduces your
-          balance and cannot be returned later. Use <em>Return Unused</em> for material you no
-          longer need.
+        {/* WD-SOH Section */}
+        <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
+          <div>
+            <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+              <Warehouse size={16} className="text-primary" /> Receive from WD ({tl.wd_code})
+            </h2>
+            <p className="text-[11px] text-muted-foreground">
+              Available stock at your WD. Enter quantity and take.
+            </p>
+          </div>
+
+          <div className="relative">
+            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchWd}
+              onChange={(e) => setSearchWd(e.target.value)}
+              placeholder="Search material…"
+              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+            />
+          </div>
+
+          {wdList.length === 0 ? (
+            <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+              Nothing available at your WD right now.
+            </p>
+          ) : (
+            <div className="divide-y rounded-xl border bg-background">
+              {wdList.map((m) => {
+                const isSubmitting = submitting === `take-${m.code}`;
+                return (
+                  <div
+                    key={m.code}
+                    className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                          {m.code}
+                        </span>
+                        <span className="truncate text-sm font-bold text-foreground">
+                          {m.name}
+                        </span>
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-muted-foreground">
+                        WD Available: <strong className="text-primary">{m.qty}</strong>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min={1}
+                        max={m.qty}
+                        value={takeQty[m.code] ?? ""}
+                        onChange={(e) => setTakeQty((p) => ({ ...p, [m.code]: e.target.value }))}
+                        placeholder="Qty"
+                        className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
+                      />
+                      <button
+                        onClick={() => submitTake(m.code)}
+                        disabled={isSubmitting || !takeQty[m.code]}
+                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {isSubmitting ? <Loader2 className="animate-spin" size={12} /> : <ArrowDownToLine size={12} />}
+                        Take from WD
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <p className="text-[11px] text-muted-foreground">
+          <strong className="text-foreground">Note:</strong> "Mark Used" permanently reduces your stock and cannot be returned later.
+        </p>
+      </div>
+
+      {/* History modal */}
+      {historyOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
+          onClick={() => setHistoryOpen(null)}
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-t-2xl border bg-card shadow-xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <div>
+                <h3 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+                  <History size={14} className="text-primary" /> Stock History
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  {historyOpen === "all"
+                    ? "All recent activity"
+                    : matName.get(historyOpen) ?? historyOpen}
+                </p>
+              </div>
+              <button
+                onClick={() => setHistoryOpen(null)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto">
+              {historyFiltered.length === 0 ? (
+                <p className="p-6 text-center text-xs text-muted-foreground">No activity yet.</p>
+              ) : (
+                <ul className="divide-y">
+                  {historyFiltered.slice(0, 100).map((a, i) => {
+                    const meta =
+                      a.kind === "received"
+                        ? { label: "Received from WD", color: "text-primary", bg: "bg-primary/10", sign: "+", Icon: ArrowDownToLine }
+                        : a.kind === "used"
+                          ? { label: "Marked used", color: "text-success", bg: "bg-success/10", sign: "−", Icon: CheckCircle2 }
+                          : { label: "Returned to WD", color: "text-muted-foreground", bg: "bg-muted", sign: "−", Icon: ArrowUpFromLine };
+                    const Icon = meta.Icon;
+                    return (
+                      <li key={i} className="flex items-center justify-between gap-2 px-4 py-2.5 text-xs">
+                        <div className="flex min-w-0 items-center gap-2.5">
+                          <span className={`inline-flex h-7 w-7 items-center justify-center rounded-md ${meta.bg} ${meta.color}`}>
+                            <Icon size={13} />
+                          </span>
+                          <div className="min-w-0">
+                            <div className="truncate text-sm font-bold text-foreground">
+                              {matName.get(a.material_code) ?? a.material_code}
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                              {meta.label} · {a.date ? new Date(a.date).toLocaleString() : ""}
+                            </div>
+                          </div>
+                        </div>
+                        <span className={`text-sm font-bold ${meta.color}`}>
+                          {meta.sign}{a.qty}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </AppShell>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  accent,
-  small,
-}: {
-  label: string;
-  value: number | string;
-  accent?: boolean;
-  small?: boolean;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-2">
-      <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={`mt-0.5 ${small ? "text-xs" : "text-base"} font-bold ${accent ? "text-primary" : "text-foreground"}`}>
-        {value}
-      </div>
-    </div>
   );
 }
 
@@ -790,59 +746,5 @@ function ActionBtn({
     >
       <Icon size={12} /> {label}
     </button>
-  );
-}
-
-function ActionInline({
-  kind,
-  qty,
-  setQty,
-  max,
-  submitting,
-  onCancel,
-  onSubmit,
-}: {
-  kind: "take" | "used" | "return";
-  qty: string;
-  setQty: (v: string) => void;
-  max: number;
-  submitting: boolean;
-  onCancel: () => void;
-  onSubmit: () => void;
-}) {
-  const label =
-    kind === "take" ? "Confirm Take" : kind === "used" ? "Confirm Used" : "Confirm Return";
-  return (
-    <div className="rounded-lg border bg-card p-2.5">
-      <div className="mb-2 text-[11px] text-muted-foreground">
-        Max allowed: <strong className="text-foreground">{max}</strong>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <input
-          type="number"
-          min={1}
-          max={max}
-          value={qty}
-          onChange={(e) => setQty(e.target.value)}
-          placeholder="Quantity"
-          autoFocus
-          className="w-24 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
-        />
-        <button
-          onClick={onSubmit}
-          disabled={submitting || !qty}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-        >
-          {submitting && <Loader2 className="animate-spin" size={12} />}
-          {label}
-        </button>
-        <button
-          onClick={onCancel}
-          className="rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted"
-        >
-          Cancel
-        </button>
-      </div>
-    </div>
   );
 }
