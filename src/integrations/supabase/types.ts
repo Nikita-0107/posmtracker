@@ -683,6 +683,39 @@ export type Database = {
           },
         ]
       }
+      tl_usages: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          material_code: string
+          note: string | null
+          qty: number
+          wd_code: string
+          wd_tl_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          material_code: string
+          note?: string | null
+          qty: number
+          wd_code: string
+          wd_tl_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          material_code?: string
+          note?: string | null
+          qty?: number
+          wd_code?: string
+          wd_tl_id?: string
+        }
+        Relationships: []
+      }
       tl_weekly_allocation_items: {
         Row: {
           allocation_id: string
@@ -1323,6 +1356,10 @@ export type Database = {
       }
       tl_self_take: {
         Args: { _material_code: string; _qty: number }
+        Returns: string
+      }
+      tl_self_used: {
+        Args: { _material_code: string; _note?: string; _qty: number }
         Returns: string
       }
       user_admin_scope: {
