@@ -277,6 +277,8 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
   const { rows, loading, refresh } = useDispatchesForWd("in_transit", wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+  const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
+  const [query, setQuery] = useState("");
 
   // Group by dispatch_id
   const groups = useMemo(() => {
@@ -296,6 +298,34 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
       items,
     }));
   }, [rows]);
+
+  const counts = useMemo(() => {
+    let pend = 0, done = 0;
+    for (const g of groups) {
+      const parents = g.items.filter((i) => !i.parent_movement_id);
+      const allDone = parents.every((i) => i.item_status !== "pending");
+      if (allDone) done++; else pend++;
+    }
+    return { all: groups.length, pending: pend, done };
+  }, [groups]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return groups.filter((g) => {
+      const parents = g.items.filter((i) => !i.parent_movement_id);
+      const allDone = parents.every((i) => i.item_status !== "pending");
+      if (filter === "pending" && allDone) return false;
+      if (filter === "done" && !allDone) return false;
+      if (!q) return true;
+      if (g.wsp.toLowerCase().includes(q)) return true;
+      if (g.dispatch_id.toLowerCase().includes(q)) return true;
+      return g.items.some(
+        (it) =>
+          it.material_code.toLowerCase().includes(q) ||
+          (matMap.get(it.material_code) ?? "").toLowerCase().includes(q),
+      );
+    });
+  }, [groups, filter, query, matMap]);
 
   if (loading) {
     return (
@@ -319,9 +349,40 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
 
   return (
     <div className="space-y-2.5">
-      {groups.map((g) => (
-        <DispatchCard key={g.dispatch_id} group={g} matMap={matMap} onChange={refresh} />
-      ))}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {([
+          ["all", "All", counts.all],
+          ["pending", "Pending", counts.pending],
+          ["done", "Done", counts.done],
+        ] as const).map(([k, l, n]) => (
+          <button
+            key={k}
+            onClick={() => setFilter(k)}
+            className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${
+              filter === k
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {l} <span className="ml-1 opacity-70">{n}</span>
+          </button>
+        ))}
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search WSP, material…"
+          className="ml-auto min-w-[140px] flex-1 rounded-full border bg-card px-3 py-1 text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      </div>
+      {visible.length === 0 ? (
+        <p className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-[11px] text-muted-foreground">
+          No dispatches match this filter.
+        </p>
+      ) : (
+        visible.map((g) => (
+          <DispatchCard key={g.dispatch_id} group={g} matMap={matMap} onChange={refresh} />
+        ))
+      )}
     </div>
   );
 }
