@@ -662,34 +662,6 @@ function TlPortalPage() {
         </p>
       </div>
 
-      {/* Sticky operational summary bar */}
-      <div className="sticky bottom-16 z-20 -mx-3 mt-3 border-t border-border/60 bg-card/95 px-3 py-2 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] backdrop-blur">
-        <div className="mx-auto flex max-w-3xl items-center gap-3">
-          <div className="min-w-0 flex-1 text-[11px]">
-            <p className="truncate font-bold text-foreground">
-              {pendingReturns > 0
-                ? `${pendingReturns} unit${pendingReturns === 1 ? "" : "s"} with you`
-                : "No stock with you"}
-            </p>
-            <p className="truncate text-muted-foreground">
-              {materialsHeld} material{materialsHeld === 1 ? "" : "s"} · last activity {fmtDate(lastActivityDate)}
-            </p>
-          </div>
-          <button
-            onClick={() => setHistoryOpen("all")}
-            className="inline-flex items-center gap-1.5 rounded-lg border bg-background px-3 py-2 text-[11px] font-bold text-foreground transition active:scale-[0.97] hover:bg-muted"
-          >
-            <History size={12} /> History
-          </button>
-          <button
-            onClick={() => { setWdOpen(true); setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" }), 50); }}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground shadow-sm transition active:scale-[0.97] hover:bg-primary/90"
-          >
-            <ArrowDownToLine size={12} /> Receive
-          </button>
-        </div>
-      </div>
-
       {/* History modal */}
       {historyOpen && (
         <div
