@@ -277,6 +277,8 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
   const { rows, loading, refresh } = useDispatchesForWd("in_transit", wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+  const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
+  const [query, setQuery] = useState("");
 
   // Group by dispatch_id
   const groups = useMemo(() => {
@@ -296,6 +298,34 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
       items,
     }));
   }, [rows]);
+
+  const counts = useMemo(() => {
+    let pend = 0, done = 0;
+    for (const g of groups) {
+      const parents = g.items.filter((i) => !i.parent_movement_id);
+      const allDone = parents.every((i) => i.item_status !== "pending");
+      if (allDone) done++; else pend++;
+    }
+    return { all: groups.length, pending: pend, done };
+  }, [groups]);
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return groups.filter((g) => {
+      const parents = g.items.filter((i) => !i.parent_movement_id);
+      const allDone = parents.every((i) => i.item_status !== "pending");
+      if (filter === "pending" && allDone) return false;
+      if (filter === "done" && !allDone) return false;
+      if (!q) return true;
+      if (g.wsp.toLowerCase().includes(q)) return true;
+      if (g.dispatch_id.toLowerCase().includes(q)) return true;
+      return g.items.some(
+        (it) =>
+          it.material_code.toLowerCase().includes(q) ||
+          (matMap.get(it.material_code) ?? "").toLowerCase().includes(q),
+      );
+    });
+  }, [groups, filter, query, matMap]);
 
   if (loading) {
     return (
@@ -319,9 +349,40 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
 
   return (
     <div className="space-y-2.5">
-      {groups.map((g) => (
-        <DispatchCard key={g.dispatch_id} group={g} matMap={matMap} onChange={refresh} />
-      ))}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {([
+          ["all", "All", counts.all],
+          ["pending", "Pending", counts.pending],
+          ["done", "Done", counts.done],
+        ] as const).map(([k, l, n]) => (
+          <button
+            key={k}
+            onClick={() => setFilter(k)}
+            className={`rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${
+              filter === k
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-card text-muted-foreground hover:bg-muted"
+            }`}
+          >
+            {l} <span className="ml-1 opacity-70">{n}</span>
+          </button>
+        ))}
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search WSP, material…"
+          className="ml-auto min-w-[140px] flex-1 rounded-full border bg-card px-3 py-1 text-[11px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+        />
+      </div>
+      {visible.length === 0 ? (
+        <p className="rounded-lg border border-dashed bg-muted/20 p-4 text-center text-[11px] text-muted-foreground">
+          No dispatches match this filter.
+        </p>
+      ) : (
+        visible.map((g) => (
+          <DispatchCard key={g.dispatch_id} group={g} matMap={matMap} onChange={refresh} />
+        ))
+      )}
     </div>
   );
 }
@@ -343,7 +404,8 @@ function DispatchCard({
   matMap: Map<string, string>;
   onChange: () => Promise<void> | void;
 }) {
-  const [open, setOpen] = useState(true);
+  const hasPending = group.items.some((i) => i.item_status === "pending" && !i.parent_movement_id);
+  const [open, setOpen] = useState(hasPending);
   const status = deriveStatus(group.items);
   const wdName = wdMaster.find((w) => w.wd_code === group.distributor)?.wd_name ?? group.distributor;
 
@@ -714,7 +776,22 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
   const { stock, loading } = useWdStock(wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+  const [query, setQuery] = useState("");
   const total = stock.reduce((s, r) => s + r.qty, 0);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return stock
+      .slice()
+      .sort((a, b) => a.material_code.localeCompare(b.material_code))
+      .filter((r) => {
+        if (!q) return true;
+        return (
+          r.material_code.toLowerCase().includes(q) ||
+          (matMap.get(r.material_code) ?? "").toLowerCase().includes(q)
+        );
+      });
+  }, [stock, query, matMap]);
 
   if (loading) {
     return (
@@ -746,12 +823,20 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
           {total} <span className="text-[10px] text-muted-foreground">units</span>
         </span>
       </div>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search material code or name…"
+        className="w-full rounded-lg border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      />
       <div className="space-y-1.5">
-        {stock
-          .slice()
-          .sort((a, b) => a.material_code.localeCompare(b.material_code))
-          .map((r) => (
-            <div key={r.material_code} className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5">
+        {filtered.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
+            No matching stock.
+          </p>
+        ) : (
+          filtered.map((r) => (
+            <div key={r.material_code} className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 transition active:scale-[0.99]">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-xs font-bold text-foreground">{r.material_code}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{matMap.get(r.material_code) ?? ""}</p>
@@ -761,7 +846,8 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
                 <p className="text-[9px] font-semibold uppercase leading-tight">units</p>
               </div>
             </div>
-          ))}
+          ))
+        )}
       </div>
     </div>
   );

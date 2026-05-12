@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight, ChevronDown, History, Loader2, Send, Undo2, Users, X } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, History, Loader2, Search, Send, Undo2, Users, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
@@ -781,6 +781,8 @@ function AllocateTab({
   const [submitting, setSubmitting] = useState(false);
   const [openSection, setOpenSection] = useState<OpenSection | null>("tl");
   const [expandedMat, setExpandedMat] = useState<string | null>(null);
+  const [tlSearch, setTlSearch] = useState("");
+  const [matSearch, setMatSearch] = useState("");
   const { stock, loading: stockLoading, wdCode } = useWdStock(activeWd);
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
@@ -977,8 +979,27 @@ function AllocateTab({
           </p>
         ) : (
           <>
+            <div className="relative mb-2">
+              <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={tlSearch}
+                onChange={(e) => setTlSearch(e.target.value)}
+                placeholder="Search TL by name or ID…"
+                className="w-full rounded-lg border bg-background py-1.5 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {tls.map((t) => {
+              {tls
+                .filter((t) => {
+                  const q = tlSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    t.tl_name.toLowerCase().includes(q) ||
+                    String(t.legacy_tl_id ?? "").includes(q) ||
+                    (t.tl_type ?? "").toLowerCase().includes(q)
+                  );
+                })
+                .map((t) => {
                 const a = activity.get(t.id);
                 const bal = balances.get(t.id);
                 const pending = bal
@@ -991,7 +1012,7 @@ function AllocateTab({
                   <button
                     key={t.id}
                     onClick={() => setTlId(sel ? "" : t.id)}
-                    className={`group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition ${
+                    className={`group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition active:scale-[0.98] ${
                       sel
                         ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/30"
                         : "border-border bg-card hover:border-primary/50 hover:bg-muted/40"
@@ -1060,7 +1081,25 @@ function AllocateTab({
           </p>
         ) : (
           <div className="space-y-2">
-            {stocked.map((s) => {
+            <div className="relative">
+              <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={matSearch}
+                onChange={(e) => setMatSearch(e.target.value)}
+                placeholder="Search material code or name…"
+                className="w-full rounded-lg border bg-background py-1.5 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            {stocked
+              .filter((s) => {
+                const q = matSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (
+                  s.material_code.toLowerCase().includes(q) ||
+                  (matName.get(s.material_code) ?? "").toLowerCase().includes(q)
+                );
+              })
+              .map((s) => {
               const sel = !!lines.find((l) => l.code === s.material_code);
               const exp = expandedMat === s.material_code;
               const agg = matAgg.get(s.material_code);
@@ -1283,6 +1322,40 @@ function AllocateTab({
           Send Stock to TL
         </button>
       </SectionCard>
+
+      {/* Sticky operational action bar */}
+      {(tlId || lines.length > 0) && (
+        <div className="sticky bottom-16 z-20 mt-2 -mx-3 border-t border-border/60 bg-card/95 px-3 py-2 shadow-[0_-4px_12px_rgba(15,23,42,0.06)] backdrop-blur sm:bottom-0">
+          <div className="mx-auto flex max-w-3xl items-center gap-2">
+            <div className="min-w-0 flex-1 text-[11px]">
+              <p className="truncate font-bold text-foreground">
+                {selectedTl ? selectedTl.tl_name : "No TL selected"}
+              </p>
+              <p className="truncate text-muted-foreground">
+                {lines.length === 0
+                  ? "No materials added"
+                  : `${lines.length} material${lines.length === 1 ? "" : "s"} ready`}
+              </p>
+            </div>
+            {!valid && lines.length > 0 && (
+              <button
+                onClick={() => setOpenSection("qty")}
+                className="rounded-lg border bg-background px-3 py-2 text-[11px] font-bold text-foreground hover:bg-muted"
+              >
+                Set Qty
+              </button>
+            )}
+            <button
+              onClick={submit}
+              disabled={!valid || submitting}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.97] disabled:opacity-40"
+            >
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              Send
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
