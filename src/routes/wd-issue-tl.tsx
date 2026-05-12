@@ -781,6 +781,8 @@ function AllocateTab({
   const [submitting, setSubmitting] = useState(false);
   const [openSection, setOpenSection] = useState<OpenSection | null>("tl");
   const [expandedMat, setExpandedMat] = useState<string | null>(null);
+  const [tlSearch, setTlSearch] = useState("");
+  const [matSearch, setMatSearch] = useState("");
   const { stock, loading: stockLoading, wdCode } = useWdStock(activeWd);
   const { materials } = useMaterials();
   const matName = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
