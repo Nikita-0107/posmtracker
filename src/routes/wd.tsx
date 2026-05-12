@@ -404,7 +404,8 @@ function DispatchCard({
   matMap: Map<string, string>;
   onChange: () => Promise<void> | void;
 }) {
-  const [open, setOpen] = useState(true);
+  const hasPending = group.items.some((i) => i.item_status === "pending" && !i.parent_movement_id);
+  const [open, setOpen] = useState(hasPending);
   const status = deriveStatus(group.items);
   const wdName = wdMaster.find((w) => w.wd_code === group.distributor)?.wd_name ?? group.distributor;
 
