@@ -776,7 +776,22 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
   const { stock, loading } = useWdStock(wdCode);
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+  const [query, setQuery] = useState("");
   const total = stock.reduce((s, r) => s + r.qty, 0);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return stock
+      .slice()
+      .sort((a, b) => a.material_code.localeCompare(b.material_code))
+      .filter((r) => {
+        if (!q) return true;
+        return (
+          r.material_code.toLowerCase().includes(q) ||
+          (matMap.get(r.material_code) ?? "").toLowerCase().includes(q)
+        );
+      });
+  }, [stock, query, matMap]);
 
   if (loading) {
     return (
@@ -808,12 +823,20 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
           {total} <span className="text-[10px] text-muted-foreground">units</span>
         </span>
       </div>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search material code or name…"
+        className="w-full rounded-lg border bg-card px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+      />
       <div className="space-y-1.5">
-        {stock
-          .slice()
-          .sort((a, b) => a.material_code.localeCompare(b.material_code))
-          .map((r) => (
-            <div key={r.material_code} className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5">
+        {filtered.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 p-3 text-center text-[11px] text-muted-foreground">
+            No matching stock.
+          </p>
+        ) : (
+          filtered.map((r) => (
+            <div key={r.material_code} className="flex items-center justify-between gap-2 rounded-xl border bg-card px-3 py-2.5 transition active:scale-[0.99]">
               <div className="min-w-0 flex-1">
                 <p className="truncate font-mono text-xs font-bold text-foreground">{r.material_code}</p>
                 <p className="truncate text-[11px] text-muted-foreground">{matMap.get(r.material_code) ?? ""}</p>
@@ -823,7 +846,8 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
                 <p className="text-[9px] font-semibold uppercase leading-tight">units</p>
               </div>
             </div>
-          ))}
+          ))
+        )}
       </div>
     </div>
   );
