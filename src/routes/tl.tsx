@@ -82,6 +82,7 @@ function TlPortalPage() {
   const [searchWd, setSearchWd] = useState("");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState<string | "all" | null>(null);
+  const [wdOpen, setWdOpen] = useState(false);
 
   // Inline qty state per row
   const [takeQty, setTakeQty] = useState<Record<string, string>>({});
