@@ -1081,7 +1081,25 @@ function AllocateTab({
           </p>
         ) : (
           <div className="space-y-2">
-            {stocked.map((s) => {
+            <div className="relative">
+              <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={matSearch}
+                onChange={(e) => setMatSearch(e.target.value)}
+                placeholder="Search material code or name…"
+                className="w-full rounded-lg border bg-background py-1.5 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            {stocked
+              .filter((s) => {
+                const q = matSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (
+                  s.material_code.toLowerCase().includes(q) ||
+                  (matName.get(s.material_code) ?? "").toLowerCase().includes(q)
+                );
+              })
+              .map((s) => {
               const sel = !!lines.find((l) => l.code === s.material_code);
               const exp = expandedMat === s.material_code;
               const agg = matAgg.get(s.material_code);
