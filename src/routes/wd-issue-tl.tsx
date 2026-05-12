@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeftRight, ChevronDown, History, Loader2, Send, Undo2, Users, X } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, History, Loader2, Search, Send, Undo2, Users, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials } from "@/hooks/use-stock";
