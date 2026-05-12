@@ -979,8 +979,27 @@ function AllocateTab({
           </p>
         ) : (
           <>
+            <div className="relative mb-2">
+              <Search size={12} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <input
+                value={tlSearch}
+                onChange={(e) => setTlSearch(e.target.value)}
+                placeholder="Search TL by name or ID…"
+                className="w-full rounded-lg border bg-background py-1.5 pl-7 pr-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {tls.map((t) => {
+              {tls
+                .filter((t) => {
+                  const q = tlSearch.trim().toLowerCase();
+                  if (!q) return true;
+                  return (
+                    t.tl_name.toLowerCase().includes(q) ||
+                    String(t.legacy_tl_id ?? "").includes(q) ||
+                    (t.tl_type ?? "").toLowerCase().includes(q)
+                  );
+                })
+                .map((t) => {
                 const a = activity.get(t.id);
                 const bal = balances.get(t.id);
                 const pending = bal
@@ -993,7 +1012,7 @@ function AllocateTab({
                   <button
                     key={t.id}
                     onClick={() => setTlId(sel ? "" : t.id)}
-                    className={`group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition ${
+                    className={`group relative flex flex-col items-start gap-1 rounded-xl border px-3 py-2 text-left transition active:scale-[0.98] ${
                       sel
                         ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/30"
                         : "border-border bg-card hover:border-primary/50 hover:bg-muted/40"
