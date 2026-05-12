@@ -569,75 +569,90 @@ function TlPortalPage() {
           )}
         </section>
 
-        {/* WD-SOH Section */}
-        <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
-          <div>
-            <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
-              <Warehouse size={16} className="text-primary" /> Receive from WD ({tl.wd_code})
-            </h2>
-            <p className="text-[11px] text-muted-foreground">
-              Available stock at your WD. Enter quantity and take.
-            </p>
-          </div>
-
-          <div className="relative">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={searchWd}
-              onChange={(e) => setSearchWd(e.target.value)}
-              placeholder="Search material…"
-              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+        {/* WD-SOH Section (collapsible) */}
+        <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+          <button
+            onClick={() => setWdOpen((o) => !o)}
+            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-muted/40"
+          >
+            <div className="min-w-0">
+              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+                <Warehouse size={16} className="text-primary" /> Receive from WD ({tl.wd_code})
+              </h2>
+              <p className="text-[11px] text-muted-foreground">
+                {wdList.length === 0
+                  ? "Nothing available right now"
+                  : `${wdList.length} material${wdList.length === 1 ? "" : "s"} available at your WD`}
+              </p>
+            </div>
+            <ChevronDown
+              size={16}
+              className={`shrink-0 text-muted-foreground transition-transform ${wdOpen ? "rotate-180" : ""}`}
             />
-          </div>
+          </button>
 
-          {wdList.length === 0 ? (
-            <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-              Nothing available at your WD right now.
-            </p>
-          ) : (
-            <div className="divide-y rounded-xl border bg-background">
-              {wdList.map((m) => {
-                const isSubmitting = submitting === `take-${m.code}`;
-                return (
-                  <div
-                    key={m.code}
-                    className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                          {m.code}
-                        </span>
-                        <span className="truncate text-sm font-bold text-foreground">
-                          {m.name}
-                        </span>
-                      </div>
-                      <div className="mt-0.5 text-[11px] text-muted-foreground">
-                        WD Available: <strong className="text-primary">{m.qty}</strong>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="number"
-                        min={1}
-                        max={m.qty}
-                        value={takeQty[m.code] ?? ""}
-                        onChange={(e) => setTakeQty((p) => ({ ...p, [m.code]: e.target.value }))}
-                        placeholder="Qty"
-                        className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
-                      />
-                      <button
-                        onClick={() => submitTake(m.code)}
-                        disabled={isSubmitting || !takeQty[m.code]}
-                        className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          {wdOpen && (
+            <div className="space-y-2 border-t bg-background/50 p-3">
+              <div className="relative">
+                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  value={searchWd}
+                  onChange={(e) => setSearchWd(e.target.value)}
+                  placeholder="Search material…"
+                  className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {wdList.length === 0 ? (
+                <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
+                  Nothing available at your WD right now.
+                </p>
+              ) : (
+                <div className="divide-y rounded-xl border bg-background">
+                  {wdList.map((m) => {
+                    const isSubmitting = submitting === `take-${m.code}`;
+                    return (
+                      <div
+                        key={m.code}
+                        className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5"
                       >
-                        {isSubmitting ? <Loader2 className="animate-spin" size={12} /> : <ArrowDownToLine size={12} />}
-                        Take from WD
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono uppercase text-muted-foreground">
+                              {m.code}
+                            </span>
+                            <span className="truncate text-sm font-bold text-foreground">
+                              {m.name}
+                            </span>
+                          </div>
+                          <div className="mt-0.5 text-[11px] text-muted-foreground">
+                            WD Available: <strong className="text-primary">{m.qty}</strong>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            max={m.qty}
+                            value={takeQty[m.code] ?? ""}
+                            onChange={(e) => setTakeQty((p) => ({ ...p, [m.code]: e.target.value }))}
+                            placeholder="Qty"
+                            className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
+                          />
+                          <button
+                            onClick={() => submitTake(m.code)}
+                            disabled={isSubmitting || !takeQty[m.code]}
+                            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition active:scale-[0.97] hover:bg-primary/90 disabled:opacity-50"
+                          >
+                            {isSubmitting ? <Loader2 className="animate-spin" size={12} /> : <ArrowDownToLine size={12} />}
+                            Take from WD
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </section>
