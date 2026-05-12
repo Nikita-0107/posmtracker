@@ -47,7 +47,7 @@ export const Route = createFileRoute("/wd")({
   }),
 });
 
-type Section = "in_transit" | "stock" | "brand_images" | "assignments";
+type Section = "in_transit" | "stock" | "brand_images";
 
 function WdHomePage() {
   const { profile } = useAuth();
