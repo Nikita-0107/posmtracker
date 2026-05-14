@@ -126,3 +126,44 @@ function WspOperationsPage() {
     </AppShell>
   );
 }
+
+function CompactGroup({
+  title,
+  ops,
+  badge,
+  subDesc,
+}: {
+  title: string;
+  ops: Op[];
+  badge?: (to: OpTo) => React.ReactNode;
+  subDesc?: (to: OpTo, op: Op) => string;
+}) {
+  return (
+    <section className="space-y-1.5">
+      <h3 className="px-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
+      <div className="overflow-hidden rounded-2xl border bg-card divide-y">
+        {ops.map((op) => (
+          <Link
+            key={op.to}
+            to={op.to}
+            className="flex items-center gap-3 px-3 py-3 transition active:bg-muted/60"
+          >
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${op.iconColor}`}>
+              <op.icon size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold leading-tight text-foreground">{op.label}</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {subDesc ? subDesc(op.to, op) : op.desc}
+              </p>
+            </div>
+            {badge?.(op.to)}
+            <span className="text-muted-foreground/50">›</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
