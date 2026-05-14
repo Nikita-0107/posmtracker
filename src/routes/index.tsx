@@ -16,89 +16,40 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Tone = "neutral" | "warning" | "danger";
+type OpTo =
+  | "/receive"
+  | "/wd-issue"
+  | "/wsp-in-transit"
+  | "/stock"
+  | "/movements"
+  | "/wsp-issues"
+  | "/losses"
+  | "/concerns";
 
-const operations: Array<{
-  to: "/receive" | "/wd-issue" | "/wsp-in-transit" | "/stock" | "/movements" | "/wsp-issues" | "/losses" | "/concerns";
+type Op = {
+  to: OpTo;
   label: string;
   desc: string;
   icon: typeof Inbox;
   iconColor: string;
-  tone: Tone;
-}> = [
-  {
-    to: "/receive",
-    label: "Receive Materials",
-    desc: "Add stock",
-    icon: Inbox,
-    iconColor: "bg-accent/10 text-accent",
-    tone: "neutral",
-  },
-  {
-    to: "/wd-issue",
-    label: "Dispatch to WD",
-    desc: "Send POSM",
-    icon: Truck,
-    iconColor: "bg-primary/10 text-primary",
-    tone: "neutral",
-  },
-  {
-    to: "/wsp-in-transit",
-    label: "In Transit to WD",
-    desc: "Awaiting WD confirmation",
-    icon: Send,
-    iconColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-    tone: "warning",
-  },
-  {
-    to: "/stock",
-    label: "SOH",
-    desc: "Current levels",
-    icon: Boxes,
-    iconColor: "bg-success/10 text-success",
-    tone: "neutral",
-  },
-  {
-    to: "/movements",
-    label: "Movement Log",
-    desc: "Recent activity",
-    icon: History,
-    iconColor: "bg-muted text-muted-foreground",
-    tone: "neutral",
-  },
-  {
-    to: "/wsp-issues",
-    label: "Issues from WD",
-    desc: "Resolve disputes",
-    icon: AlertTriangle,
-    iconColor: "bg-destructive/15 text-destructive",
-    tone: "danger",
-  },
-  {
-    to: "/losses",
-    label: "Losses",
-    desc: "Written-off stock",
-    icon: XOctagon,
-    iconColor: "bg-destructive/10 text-destructive",
-    tone: "neutral",
-  },
-  {
-    to: "/concerns",
-    label: "Concerns to HO",
-    desc: "Report stock issues",
-    icon: MessageSquareWarning,
-    iconColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-    tone: "warning",
-  },
+};
+
+const primaryOps: Op[] = [
+  { to: "/receive", label: "Receive", desc: "Add incoming stock", icon: Inbox, iconColor: "bg-accent/15 text-accent-foreground" },
+  { to: "/wd-issue", label: "Dispatch", desc: "Send to WD", icon: Truck, iconColor: "bg-primary/10 text-primary" },
 ];
 
-const toneClasses: Record<Tone, string> = {
-  neutral: "bg-card hover:border-primary/40",
-  warning:
-    "bg-amber-50 border-amber-200 hover:border-amber-400 dark:bg-amber-950/30 dark:border-amber-900/60",
-  danger:
-    "bg-red-50 border-red-200 hover:border-red-400 dark:bg-red-950/30 dark:border-red-900/60",
-};
+const stockOps: Op[] = [
+  { to: "/stock", label: "SOH", desc: "Current levels", icon: Boxes, iconColor: "bg-success/10 text-success" },
+  { to: "/wsp-in-transit", label: "In Transit", desc: "Awaiting WD", icon: Send, iconColor: "bg-warning/15 text-warning-foreground" },
+  { to: "/movements", label: "Movements", desc: "Recent activity", icon: History, iconColor: "bg-muted text-muted-foreground" },
+];
+
+const issueOps: Op[] = [
+  { to: "/wsp-issues", label: "Issues from WD", desc: "Resolve disputes", icon: AlertTriangle, iconColor: "bg-destructive/15 text-destructive" },
+  { to: "/losses", label: "Losses", desc: "Written-off stock", icon: XOctagon, iconColor: "bg-destructive/10 text-destructive" },
+  { to: "/concerns", label: "Concerns to HO", desc: "Report issues", icon: MessageSquareWarning, iconColor: "bg-warning/15 text-warning-foreground" },
+];
 
 function WspOperationsPage() {
   const { wsp, isSuperAdmin } = useEffectiveWsp();
@@ -108,66 +59,111 @@ function WspOperationsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl space-y-5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <Building2 size={20} className="text-primary" />
           </div>
-          <div>
-            <h2 className="font-heading text-lg font-bold leading-tight">WSP Operations</h2>
-            <p className="text-[11px] text-muted-foreground">
+          <div className="min-w-0">
+            <h2 className="font-heading text-base font-bold leading-tight">WSP Operations</h2>
+            <p className="text-[11px] text-muted-foreground leading-tight">
               {wsp ? (
-                <>
-                  Active WSP: <strong className="text-primary">{wsp}</strong>
-                  {isSuperAdmin && <span className="ml-1 text-muted-foreground">(viewing)</span>}
-                </>
-              ) : (
-                "No WSP assigned"
-              )}
+                <>Active WSP: <strong className="text-primary">{wsp}</strong>{isSuperAdmin && <span className="ml-1">(viewing)</span>}</>
+              ) : "No WSP assigned"}
             </p>
           </div>
         </div>
 
         {isSuperAdmin && <SuperAdminWspSwitcher />}
 
-        <section className="space-y-2">
-          <h3 className="text-sm font-bold text-foreground">Choose an operation</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {operations.map((op) => {
-              const showIssueBadge = op.to === "/wsp-issues" && openIssuesCount > 0;
-              const showLossBadge = op.to === "/losses" && lossQty > 0;
-              return (
-                <Link
-                  key={op.label}
-                  to={op.to}
-                  className={`relative flex min-h-[120px] flex-col items-start gap-2 rounded-2xl border p-4 transition active:scale-[0.98] ${toneClasses[op.tone]}`}
-                >
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${op.iconColor}`}>
-                    <op.icon size={22} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                      {op.to === "/losses" && lossCount > 0
-                        ? `${lossQty} units · ${lossCount} ${lossCount === 1 ? "event" : "events"}`
-                        : op.desc}
-                    </p>
-                  </div>
-                  {showIssueBadge ? (
-                    <span className="absolute right-3 top-3 inline-flex min-w-7 items-center justify-center rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
-                      {openIssuesCount > 99 ? "99+" : openIssuesCount}
-                    </span>
-                  ) : null}
-                  {showLossBadge ? (
-                    <span className="absolute right-3 top-3 inline-flex min-w-7 items-center justify-center rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive">
-                      −{lossQty > 999 ? "999+" : lossQty}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </div>
+        {/* Primary daily actions — large, thumb-friendly */}
+        <section className="grid grid-cols-2 gap-3">
+          {primaryOps.map((op) => (
+            <Link
+              key={op.to}
+              to={op.to}
+              className="group relative flex flex-col gap-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] to-card p-4 shadow-sm transition active:scale-[0.98]"
+            >
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${op.iconColor}`}>
+                <op.icon size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
+                <p className="text-[11px] text-muted-foreground leading-snug">{op.desc}</p>
+              </div>
+            </Link>
+          ))}
         </section>
+
+        <CompactGroup title="Stock" ops={stockOps} />
+
+        <CompactGroup
+          title="Issues & exceptions"
+          ops={issueOps}
+          badge={(to) => {
+            if (to === "/wsp-issues" && openIssuesCount > 0) {
+              return (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">
+                  {openIssuesCount > 99 ? "99+" : openIssuesCount}
+                </span>
+              );
+            }
+            if (to === "/losses" && lossQty > 0) {
+              return (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-bold text-destructive">
+                  −{lossQty > 999 ? "999+" : lossQty}
+                </span>
+              );
+            }
+            return null;
+          }}
+          subDesc={(to, op) =>
+            to === "/losses" && lossCount > 0
+              ? `${lossQty} units · ${lossCount} ${lossCount === 1 ? "event" : "events"}`
+              : op.desc
+          }
+        />
       </div>
     </AppShell>
+  );
+}
+
+function CompactGroup({
+  title,
+  ops,
+  badge,
+  subDesc,
+}: {
+  title: string;
+  ops: Op[];
+  badge?: (to: OpTo) => React.ReactNode;
+  subDesc?: (to: OpTo, op: Op) => string;
+}) {
+  return (
+    <section className="space-y-1.5">
+      <h3 className="px-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        {title}
+      </h3>
+      <div className="overflow-hidden rounded-2xl border bg-card divide-y">
+        {ops.map((op) => (
+          <Link
+            key={op.to}
+            to={op.to}
+            className="flex items-center gap-3 px-3 py-3 transition active:bg-muted/60"
+          >
+            <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${op.iconColor}`}>
+              <op.icon size={18} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold leading-tight text-foreground">{op.label}</p>
+              <p className="text-[11px] text-muted-foreground leading-snug">
+                {subDesc ? subDesc(op.to, op) : op.desc}
+              </p>
+            </div>
+            {badge?.(op.to)}
+            <span className="text-muted-foreground/50">›</span>
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
