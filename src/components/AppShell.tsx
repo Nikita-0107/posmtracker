@@ -143,31 +143,35 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <WspBadge />
           {user && <NotificationBell />}
-          {(isAdmin || isWspAdmin) && (
-            <Link
-              to="/admin/users"
-              className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1 text-[10px] font-semibold text-primary transition hover:bg-primary/10"
-              aria-label="Admin"
-            >
-              <ShieldCheck size={12} /> {isAdmin ? "Admin" : "WSP Admin"}
-            </Link>
-          )}
-          {profile && (
-            <Link
-              to="/account"
-              className="flex items-center gap-1 rounded-lg border border-muted-foreground/20 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
-              aria-label="Account"
-            >
-              Account
-            </Link>
+          {(isAdmin || isWspAdmin || profile) && (
+            <div className="flex flex-col gap-1">
+              {(isAdmin || isWspAdmin) && (
+                <Link
+                  to="/admin/users"
+                  className="flex items-center justify-center gap-1 rounded-md border border-primary/30 bg-primary/5 px-2 py-0.5 text-[10px] font-semibold text-primary transition hover:bg-primary/10"
+                  aria-label="Admin"
+                >
+                  <ShieldCheck size={10} /> {isAdmin ? "Admin" : "WSP Admin"}
+                </Link>
+              )}
+              {profile && (
+                <Link
+                  to="/account"
+                  className="flex items-center justify-center rounded-md border border-muted-foreground/20 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+                  aria-label="Account"
+                >
+                  Account
+                </Link>
+              )}
+            </div>
           )}
           {profile && (
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-1 rounded-lg border border-muted-foreground/20 px-2 py-1 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
+              className="flex items-center gap-1 rounded-lg border border-muted-foreground/20 px-2 py-1.5 text-[10px] font-semibold text-muted-foreground transition hover:bg-muted"
               aria-label="Sign out"
             >
               <LogOut size={12} />
