@@ -20,7 +20,7 @@ import { useRoles, type AppRole } from "@/hooks/use-roles";
 const tabs = [
   { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "wsp_admin", "admin"] as const },
   { to: "/my-wds" as const, label: "My WDs", icon: Truck, roles: ["wd_admin", "admin"] as const },
-  { to: "/tl" as const, label: "TL", icon: Camera, roles: ["tl", "admin"] as const },
+  { to: "/tl" as const, label: "TL", icon: Camera, roles: ["tl"] as const },
 ];
 
 // Map URL prefixes to the role(s) that can view them.
