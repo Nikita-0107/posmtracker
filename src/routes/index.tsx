@@ -52,7 +52,7 @@ const operations: Array<{
   },
   {
     to: "/stock",
-    label: "View Stock",
+    label: "SOH",
     desc: "Current levels",
     icon: Boxes,
     iconColor: "bg-success/10 text-success",
