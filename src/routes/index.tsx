@@ -16,89 +16,40 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Tone = "neutral" | "warning" | "danger";
+type OpTo =
+  | "/receive"
+  | "/wd-issue"
+  | "/wsp-in-transit"
+  | "/stock"
+  | "/movements"
+  | "/wsp-issues"
+  | "/losses"
+  | "/concerns";
 
-const operations: Array<{
-  to: "/receive" | "/wd-issue" | "/wsp-in-transit" | "/stock" | "/movements" | "/wsp-issues" | "/losses" | "/concerns";
+type Op = {
+  to: OpTo;
   label: string;
   desc: string;
   icon: typeof Inbox;
   iconColor: string;
-  tone: Tone;
-}> = [
-  {
-    to: "/receive",
-    label: "Receive Materials",
-    desc: "Add stock",
-    icon: Inbox,
-    iconColor: "bg-accent/10 text-accent",
-    tone: "neutral",
-  },
-  {
-    to: "/wd-issue",
-    label: "Dispatch to WD",
-    desc: "Send POSM",
-    icon: Truck,
-    iconColor: "bg-primary/10 text-primary",
-    tone: "neutral",
-  },
-  {
-    to: "/wsp-in-transit",
-    label: "In Transit to WD",
-    desc: "Awaiting WD confirmation",
-    icon: Send,
-    iconColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-    tone: "warning",
-  },
-  {
-    to: "/stock",
-    label: "SOH",
-    desc: "Current levels",
-    icon: Boxes,
-    iconColor: "bg-success/10 text-success",
-    tone: "neutral",
-  },
-  {
-    to: "/movements",
-    label: "Movement Log",
-    desc: "Recent activity",
-    icon: History,
-    iconColor: "bg-muted text-muted-foreground",
-    tone: "neutral",
-  },
-  {
-    to: "/wsp-issues",
-    label: "Issues from WD",
-    desc: "Resolve disputes",
-    icon: AlertTriangle,
-    iconColor: "bg-destructive/15 text-destructive",
-    tone: "danger",
-  },
-  {
-    to: "/losses",
-    label: "Losses",
-    desc: "Written-off stock",
-    icon: XOctagon,
-    iconColor: "bg-destructive/10 text-destructive",
-    tone: "neutral",
-  },
-  {
-    to: "/concerns",
-    label: "Concerns to HO",
-    desc: "Report stock issues",
-    icon: MessageSquareWarning,
-    iconColor: "bg-amber-500/15 text-amber-700 dark:text-amber-400",
-    tone: "warning",
-  },
+};
+
+const primaryOps: Op[] = [
+  { to: "/receive", label: "Receive", desc: "Add incoming stock", icon: Inbox, iconColor: "bg-accent/15 text-accent-foreground" },
+  { to: "/wd-issue", label: "Dispatch", desc: "Send to WD", icon: Truck, iconColor: "bg-primary/10 text-primary" },
 ];
 
-const toneClasses: Record<Tone, string> = {
-  neutral: "bg-card hover:border-primary/40",
-  warning:
-    "bg-amber-50 border-amber-200 hover:border-amber-400 dark:bg-amber-950/30 dark:border-amber-900/60",
-  danger:
-    "bg-red-50 border-red-200 hover:border-red-400 dark:bg-red-950/30 dark:border-red-900/60",
-};
+const stockOps: Op[] = [
+  { to: "/stock", label: "SOH", desc: "Current levels", icon: Boxes, iconColor: "bg-success/10 text-success" },
+  { to: "/wsp-in-transit", label: "In Transit", desc: "Awaiting WD", icon: Send, iconColor: "bg-warning/15 text-warning-foreground" },
+  { to: "/movements", label: "Movements", desc: "Recent activity", icon: History, iconColor: "bg-muted text-muted-foreground" },
+];
+
+const issueOps: Op[] = [
+  { to: "/wsp-issues", label: "Issues from WD", desc: "Resolve disputes", icon: AlertTriangle, iconColor: "bg-destructive/15 text-destructive" },
+  { to: "/losses", label: "Losses", desc: "Written-off stock", icon: XOctagon, iconColor: "bg-destructive/10 text-destructive" },
+  { to: "/concerns", label: "Concerns to HO", desc: "Report issues", icon: MessageSquareWarning, iconColor: "bg-warning/15 text-warning-foreground" },
+];
 
 function WspOperationsPage() {
   const { wsp, isSuperAdmin } = useEffectiveWsp();
