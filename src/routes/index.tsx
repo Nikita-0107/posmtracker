@@ -59,65 +59,69 @@ function WspOperationsPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl space-y-5">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <Building2 size={20} className="text-primary" />
           </div>
-          <div>
-            <h2 className="font-heading text-lg font-bold leading-tight">WSP Operations</h2>
-            <p className="text-[11px] text-muted-foreground">
+          <div className="min-w-0">
+            <h2 className="font-heading text-base font-bold leading-tight">WSP Operations</h2>
+            <p className="text-[11px] text-muted-foreground leading-tight">
               {wsp ? (
-                <>
-                  Active WSP: <strong className="text-primary">{wsp}</strong>
-                  {isSuperAdmin && <span className="ml-1 text-muted-foreground">(viewing)</span>}
-                </>
-              ) : (
-                "No WSP assigned"
-              )}
+                <>Active WSP: <strong className="text-primary">{wsp}</strong>{isSuperAdmin && <span className="ml-1">(viewing)</span>}</>
+              ) : "No WSP assigned"}
             </p>
           </div>
         </div>
 
         {isSuperAdmin && <SuperAdminWspSwitcher />}
 
-        <section className="space-y-2">
-          <h3 className="text-sm font-bold text-foreground">Choose an operation</h3>
-          <div className="grid grid-cols-2 gap-3">
-            {operations.map((op) => {
-              const showIssueBadge = op.to === "/wsp-issues" && openIssuesCount > 0;
-              const showLossBadge = op.to === "/losses" && lossQty > 0;
-              return (
-                <Link
-                  key={op.label}
-                  to={op.to}
-                  className={`relative flex min-h-[120px] flex-col items-start gap-2 rounded-2xl border p-4 transition active:scale-[0.98] ${toneClasses[op.tone]}`}
-                >
-                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${op.iconColor}`}>
-                    <op.icon size={22} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
-                      {op.to === "/losses" && lossCount > 0
-                        ? `${lossQty} units · ${lossCount} ${lossCount === 1 ? "event" : "events"}`
-                        : op.desc}
-                    </p>
-                  </div>
-                  {showIssueBadge ? (
-                    <span className="absolute right-3 top-3 inline-flex min-w-7 items-center justify-center rounded-full bg-destructive px-2 py-0.5 text-xs font-bold text-destructive-foreground">
-                      {openIssuesCount > 99 ? "99+" : openIssuesCount}
-                    </span>
-                  ) : null}
-                  {showLossBadge ? (
-                    <span className="absolute right-3 top-3 inline-flex min-w-7 items-center justify-center rounded-full bg-destructive/15 px-2 py-0.5 text-xs font-bold text-destructive">
-                      −{lossQty > 999 ? "999+" : lossQty}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })}
-          </div>
+        {/* Primary daily actions — large, thumb-friendly */}
+        <section className="grid grid-cols-2 gap-3">
+          {primaryOps.map((op) => (
+            <Link
+              key={op.to}
+              to={op.to}
+              className="group relative flex flex-col gap-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] to-card p-4 shadow-sm transition active:scale-[0.98]"
+            >
+              <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${op.iconColor}`}>
+                <op.icon size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
+                <p className="text-[11px] text-muted-foreground leading-snug">{op.desc}</p>
+              </div>
+            </Link>
+          ))}
         </section>
+
+        <CompactGroup title="Stock" ops={stockOps} />
+
+        <CompactGroup
+          title="Issues & exceptions"
+          ops={issueOps}
+          badge={(to) => {
+            if (to === "/wsp-issues" && openIssuesCount > 0) {
+              return (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-destructive px-1.5 py-0.5 text-[10px] font-bold text-destructive-foreground">
+                  {openIssuesCount > 99 ? "99+" : openIssuesCount}
+                </span>
+              );
+            }
+            if (to === "/losses" && lossQty > 0) {
+              return (
+                <span className="inline-flex min-w-6 items-center justify-center rounded-full bg-destructive/15 px-1.5 py-0.5 text-[10px] font-bold text-destructive">
+                  −{lossQty > 999 ? "999+" : lossQty}
+                </span>
+              );
+            }
+            return null;
+          }}
+          subDesc={(to, op) =>
+            to === "/losses" && lossCount > 0
+              ? `${lossQty} units · ${lossCount} ${lossCount === 1 ? "event" : "events"}`
+              : op.desc
+          }
+        />
       </div>
     </AppShell>
   );
