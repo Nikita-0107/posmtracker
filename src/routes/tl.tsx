@@ -257,7 +257,7 @@ function TlPortalPage() {
       .eq("wd_tl_id", tlInfo.id)
       .order("created_at", { ascending: false })
       .limit(1);
-    const r = (reasonRows ?? [])[0] as
+    const r = ((reasonRows ?? [])[0] ?? undefined) as unknown as
       | { reason: string; leave_until: string | null; expires_at: string | null; comment: string | null; created_at: string }
       | undefined;
     const now = Date.now();
