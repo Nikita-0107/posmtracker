@@ -413,18 +413,56 @@ function TlPortalPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
-        {inactive && (
+        {activeReason ? (
+          <div className="rounded-xl border border-emerald-500/50 bg-emerald-50 p-3 dark:bg-emerald-950/30">
+            <div className="flex items-start gap-2.5">
+              <CalendarClock className="mt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400" size={18} />
+              <div className="min-w-0 flex-1 text-xs text-emerald-900 dark:text-emerald-100">
+                <strong>Reason recorded: {reasonLabel(activeReason.reason)}</strong>
+                {activeReason.leave_until && (
+                  <> · until {new Date(activeReason.leave_until + "T00:00:00").toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</>
+                )}
+                {activeReason.comment && (
+                  <p className="mt-1 text-[11px] opacity-80">"{activeReason.comment}"</p>
+                )}
+              </div>
+              <button
+                onClick={() => setReasonModalOpen(true)}
+                className="shrink-0 rounded-md border border-emerald-600/40 bg-background px-2 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300"
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        ) : inactive && (
           <div className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 dark:bg-amber-950/30">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={18} />
-              <div className="text-xs text-amber-900 dark:text-amber-100">
+              <div className="min-w-0 flex-1 text-xs text-amber-900 dark:text-amber-100">
                 <strong>
                   {daysSince === null ? "No activity yet." : `No activity for ${daysSince} days.`}
                 </strong>{" "}
-                Please update your stock or contact your AE.
+                Please update your stock or submit a reason.
               </div>
+              <button
+                onClick={() => setReasonModalOpen(true)}
+                className="shrink-0 rounded-md border border-amber-600/40 bg-background px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 dark:text-amber-300"
+              >
+                Mark Reason
+              </button>
             </div>
           </div>
+        )}
+
+        {reasonModalOpen && tl && (
+          <TlMarkReasonModal
+            tl={tl}
+            onClose={() => setReasonModalOpen(false)}
+            onSaved={async () => {
+              setReasonModalOpen(false);
+              await refresh();
+            }}
+          />
         )}
 
         {/* Header */}
