@@ -248,6 +248,28 @@ function TlPortalPage() {
     }
     acts.sort((a, b) => (a.date < b.date ? 1 : -1));
     setActivity(acts);
+
+    // Load most recent inactivity reason for this TL
+    const { data: reasonRows } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_inactivity_reasons" as any)
+      .select("reason, leave_until, expires_at, comment, created_at")
+      .eq("wd_tl_id", tlInfo.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const r = (reasonRows ?? [])[0] as
+      | { reason: string; leave_until: string | null; expires_at: string | null; comment: string | null; created_at: string }
+      | undefined;
+    const now = Date.now();
+    const stillActive = r
+      ? r.leave_until
+        ? new Date(r.leave_until + "T23:59:59").getTime() >= now
+        : r.expires_at
+          ? new Date(r.expires_at).getTime() >= now
+          : false
+      : false;
+    setActiveReason(stillActive && r ? r : null);
+
     setLoading(false);
   }, [user]);
 
