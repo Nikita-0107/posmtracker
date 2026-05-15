@@ -13,6 +13,7 @@ import {
   Package,
   Warehouse,
   X,
+  CalendarClock,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +84,14 @@ function TlPortalPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState<string | "all" | null>(null);
   const [wdOpen, setWdOpen] = useState(false);
+  const [activeReason, setActiveReason] = useState<{
+    reason: string;
+    leave_until: string | null;
+    expires_at: string | null;
+    comment: string | null;
+    created_at: string;
+  } | null>(null);
+  const [reasonModalOpen, setReasonModalOpen] = useState(false);
 
   // Inline qty state per row
   const [takeQty, setTakeQty] = useState<Record<string, string>>({});
@@ -239,6 +248,28 @@ function TlPortalPage() {
     }
     acts.sort((a, b) => (a.date < b.date ? 1 : -1));
     setActivity(acts);
+
+    // Load most recent inactivity reason for this TL
+    const { data: reasonRows } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_inactivity_reasons" as any)
+      .select("reason, leave_until, expires_at, comment, created_at")
+      .eq("wd_tl_id", tlInfo.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    const r = ((reasonRows ?? [])[0] ?? undefined) as unknown as
+      | { reason: string; leave_until: string | null; expires_at: string | null; comment: string | null; created_at: string }
+      | undefined;
+    const now = Date.now();
+    const stillActive = r
+      ? r.leave_until
+        ? new Date(r.leave_until + "T23:59:59").getTime() >= now
+        : r.expires_at
+          ? new Date(r.expires_at).getTime() >= now
+          : false
+      : false;
+    setActiveReason(stillActive && r ? r : null);
+
     setLoading(false);
   }, [user]);
 
@@ -382,18 +413,56 @@ function TlPortalPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
-        {inactive && (
+        {activeReason ? (
+          <div className="rounded-xl border border-emerald-500/50 bg-emerald-50 p-3 dark:bg-emerald-950/30">
+            <div className="flex items-start gap-2.5">
+              <CalendarClock className="mt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400" size={18} />
+              <div className="min-w-0 flex-1 text-xs text-emerald-900 dark:text-emerald-100">
+                <strong>Reason recorded: {reasonLabel(activeReason.reason)}</strong>
+                {activeReason.leave_until && (
+                  <> · until {new Date(activeReason.leave_until + "T00:00:00").toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</>
+                )}
+                {activeReason.comment && (
+                  <p className="mt-1 text-[11px] opacity-80">"{activeReason.comment}"</p>
+                )}
+              </div>
+              <button
+                onClick={() => setReasonModalOpen(true)}
+                className="shrink-0 rounded-md border border-emerald-600/40 bg-background px-2 py-1 text-[11px] font-bold text-emerald-700 hover:bg-emerald-100 dark:text-emerald-300"
+              >
+                Update
+              </button>
+            </div>
+          </div>
+        ) : inactive && (
           <div className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 dark:bg-amber-950/30">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={18} />
-              <div className="text-xs text-amber-900 dark:text-amber-100">
+              <div className="min-w-0 flex-1 text-xs text-amber-900 dark:text-amber-100">
                 <strong>
                   {daysSince === null ? "No activity yet." : `No activity for ${daysSince} days.`}
                 </strong>{" "}
-                Please update your stock or contact your AE.
+                Please update your stock or submit a reason.
               </div>
+              <button
+                onClick={() => setReasonModalOpen(true)}
+                className="shrink-0 rounded-md border border-amber-600/40 bg-background px-2 py-1 text-[11px] font-bold text-amber-700 hover:bg-amber-100 dark:text-amber-300"
+              >
+                Mark Reason
+              </button>
             </div>
           </div>
+        )}
+
+        {reasonModalOpen && tl && (
+          <TlMarkReasonModal
+            tl={tl}
+            onClose={() => setReasonModalOpen(false)}
+            onSaved={async () => {
+              setReasonModalOpen(false);
+              await refresh();
+            }}
+          />
         )}
 
         {/* Header */}
@@ -762,5 +831,134 @@ function ActionBtn({
     >
       <Icon size={12} /> {label}
     </button>
+  );
+}
+
+// ───────── Inactivity reason (TL self-service) ─────────
+
+const TL_REASON_OPTIONS: { v: "on_leave" | "no_requirement" | "stock_sufficient" | "other"; l: string }[] = [
+  { v: "on_leave", l: "On Leave" },
+  { v: "no_requirement", l: "No requirement" },
+  { v: "stock_sufficient", l: "Stock already sufficient" },
+  { v: "other", l: "Other" },
+];
+
+function reasonLabel(r: string): string {
+  return TL_REASON_OPTIONS.find((o) => o.v === r)?.l ?? r;
+}
+
+function TlMarkReasonModal({
+  tl,
+  onClose,
+  onSaved,
+}: {
+  tl: TlProfile;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const { user } = useAuth();
+  const [reason, setReason] = useState<typeof TL_REASON_OPTIONS[number]["v"]>("on_leave");
+  const [leaveUntil, setLeaveUntil] = useState("");
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function save() {
+    if (!user) return;
+    if (reason === "on_leave" && !leaveUntil) return toast.error("Pick a date for leave end");
+    if (reason === "other" && !comment.trim()) return toast.error("Please mention a reason");
+    setSubmitting(true);
+    const expires_at =
+      reason === "on_leave" ? null : new Date(Date.now() + 7 * 86400000).toISOString();
+    const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_inactivity_reasons" as any)
+      .insert({
+        wd_tl_id: tl.id,
+        wd_code: tl.wd_code,
+        reason,
+        comment: comment.trim() || null,
+        leave_until: reason === "on_leave" ? leaveUntil : null,
+        expires_at,
+        created_by: user.id,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    setSubmitting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Reason recorded");
+    await onSaved();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-background p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Submit reason / Apply leave</p>
+            <p className="truncate text-sm font-bold">{tl.tl_name}</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {TL_REASON_OPTIONS.map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setReason(o.v)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                reason === o.v
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-background text-foreground"
+              }`}
+            >
+              <span className="font-semibold">{o.l}</span>
+              {reason === o.v && <span className="text-xs text-primary">✓</span>}
+            </button>
+          ))}
+        </div>
+
+        {reason === "on_leave" && (
+          <div className="mt-3">
+            <label className="text-[10px] font-bold uppercase text-muted-foreground">On leave till</label>
+            <input
+              type="date"
+              value={leaveUntil}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setLeaveUntil(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+        )}
+
+        <div className="mt-3">
+          <label className="text-[10px] font-bold uppercase text-muted-foreground">
+            Comment {reason === "other" ? "(required)" : "(optional)"}
+          </label>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            placeholder={reason === "other" ? "Please mention the reason…" : ""}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+
+        <button
+          onClick={save}
+          disabled={submitting}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          Save reason
+        </button>
+      </div>
+    </div>
   );
 }
