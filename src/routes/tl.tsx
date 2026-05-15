@@ -833,3 +833,132 @@ function ActionBtn({
     </button>
   );
 }
+
+// ───────── Inactivity reason (TL self-service) ─────────
+
+const TL_REASON_OPTIONS: { v: "on_leave" | "no_requirement" | "stock_sufficient" | "other"; l: string }[] = [
+  { v: "on_leave", l: "On Leave" },
+  { v: "no_requirement", l: "No requirement" },
+  { v: "stock_sufficient", l: "Stock already sufficient" },
+  { v: "other", l: "Other" },
+];
+
+function reasonLabel(r: string): string {
+  return TL_REASON_OPTIONS.find((o) => o.v === r)?.l ?? r;
+}
+
+function TlMarkReasonModal({
+  tl,
+  onClose,
+  onSaved,
+}: {
+  tl: TlProfile;
+  onClose: () => void;
+  onSaved: () => void | Promise<void>;
+}) {
+  const { user } = useAuth();
+  const [reason, setReason] = useState<typeof TL_REASON_OPTIONS[number]["v"]>("on_leave");
+  const [leaveUntil, setLeaveUntil] = useState("");
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  async function save() {
+    if (!user) return;
+    if (reason === "on_leave" && !leaveUntil) return toast.error("Pick a date for leave end");
+    if (reason === "other" && !comment.trim()) return toast.error("Please mention a reason");
+    setSubmitting(true);
+    const expires_at =
+      reason === "on_leave" ? null : new Date(Date.now() + 7 * 86400000).toISOString();
+    const { error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_inactivity_reasons" as any)
+      .insert({
+        wd_tl_id: tl.id,
+        wd_code: tl.wd_code,
+        reason,
+        comment: comment.trim() || null,
+        leave_until: reason === "on_leave" ? leaveUntil : null,
+        expires_at,
+        created_by: user.id,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } as any);
+    setSubmitting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Reason recorded");
+    await onSaved();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-2xl bg-background p-4 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase text-muted-foreground">Submit reason / Apply leave</p>
+            <p className="truncate text-sm font-bold">{tl.tl_name}</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {TL_REASON_OPTIONS.map((o) => (
+            <button
+              key={o.v}
+              onClick={() => setReason(o.v)}
+              className={`flex w-full items-center justify-between rounded-lg border px-3 py-2 text-left text-sm transition ${
+                reason === o.v
+                  ? "border-primary bg-primary/10 text-foreground"
+                  : "border-border bg-background text-foreground"
+              }`}
+            >
+              <span className="font-semibold">{o.l}</span>
+              {reason === o.v && <span className="text-xs text-primary">✓</span>}
+            </button>
+          ))}
+        </div>
+
+        {reason === "on_leave" && (
+          <div className="mt-3">
+            <label className="text-[10px] font-bold uppercase text-muted-foreground">On leave till</label>
+            <input
+              type="date"
+              value={leaveUntil}
+              min={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setLeaveUntil(e.target.value)}
+              className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+            />
+          </div>
+        )}
+
+        <div className="mt-3">
+          <label className="text-[10px] font-bold uppercase text-muted-foreground">
+            Comment {reason === "other" ? "(required)" : "(optional)"}
+          </label>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={2}
+            placeholder={reason === "other" ? "Please mention the reason…" : ""}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+
+        <button
+          onClick={save}
+          disabled={submitting}
+          className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
+        >
+          {submitting && <Loader2 size={14} className="animate-spin" />}
+          Save reason
+        </button>
+      </div>
+    </div>
+  );
+}
