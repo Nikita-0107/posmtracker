@@ -84,6 +84,14 @@ function TlPortalPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState<string | "all" | null>(null);
   const [wdOpen, setWdOpen] = useState(false);
+  const [activeReason, setActiveReason] = useState<{
+    reason: string;
+    leave_until: string | null;
+    expires_at: string | null;
+    comment: string | null;
+    created_at: string;
+  } | null>(null);
+  const [reasonModalOpen, setReasonModalOpen] = useState(false);
 
   // Inline qty state per row
   const [takeQty, setTakeQty] = useState<Record<string, string>>({});
