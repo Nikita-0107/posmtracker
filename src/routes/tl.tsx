@@ -737,7 +737,7 @@ function MyStockSheet({
   const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
   const [actionQty, setActionQty] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [historyCode, setHistoryCode] = useState<string | null>(null);
+  
 
   const list = Object.values(stats)
     .filter((m) => m.received > 0)
