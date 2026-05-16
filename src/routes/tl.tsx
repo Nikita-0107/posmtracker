@@ -532,7 +532,7 @@ function TlPortalPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                <Package size={16} className="text-primary" /> Your Stock
+                <Package size={16} className="text-primary" /> My SOH
               </h2>
               <p className="text-[11px] text-muted-foreground">
                 Stock currently with you. Tap a material for actions.
