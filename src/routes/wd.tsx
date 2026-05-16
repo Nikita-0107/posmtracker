@@ -204,7 +204,7 @@ function WdHomePage() {
         {/* Section tabs — delegated TL only sees Dispatches */}
         {isTl ? (
           <div className="rounded-xl border bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
-            <Inbox className="mr-1 inline" size={12} /> Receive Materials — delegated WD Receiver access
+            <Inbox className="mr-1 inline" size={12} /> My SOH — delegated WD Receiver access
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
