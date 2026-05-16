@@ -379,15 +379,15 @@ function TlPortalPage() {
           <Link
             to="/wd"
             search={{ wd: tlReceiverWd }}
-            className="flex items-center gap-3 rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-card p-3 shadow-sm transition active:scale-[0.98]"
+            className="flex items-center gap-3 rounded-2xl border-2 border-orange-500/40 bg-gradient-to-br from-orange-500/10 to-card p-3 shadow-sm transition active:scale-[0.98]"
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 text-orange-600 dark:text-orange-400">
               <Inbox size={20} />
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold leading-tight text-foreground">Receive materials from WSP</p>
               <p className="text-[11px] text-muted-foreground">
-                Delegated WD Receiver for <span className="font-mono font-bold text-primary">{tlReceiverWd}</span>
+                Delegated WD Receiver for <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{tlReceiverWd}</span>
               </p>
             </div>
             <ChevronRight size={18} className="text-muted-foreground/60" />
