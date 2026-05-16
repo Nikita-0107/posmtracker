@@ -452,7 +452,7 @@ function TlPortalPage() {
           <ActionRow
             icon={Package}
             iconBg="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-            title="My Stock"
+            title="My SOH"
             subtitle={
               materialsHeld === 0
                 ? "No stock with you"
