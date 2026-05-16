@@ -658,7 +658,7 @@ function ReceiveSheet({
   }
 
   return (
-    <Sheet title="Receive from WD" subtitle={`From ${tl.wd_code}${tl.wd_name ? ` · ${tl.wd_name}` : ""}`} onClose={onClose}>
+    <Sheet title="Collect Items from WD SOH" subtitle={`From ${tl.wd_code}${tl.wd_name ? ` · ${tl.wd_name}` : ""}`} onClose={onClose}>
       <SearchBar value={search} onChange={setSearch} placeholder="Search material…" />
       <div className="p-3">
         {list.length === 0 ? (
