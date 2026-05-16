@@ -199,7 +199,7 @@ function MovementsPage() {
         (r.distributor ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, filter, query, matMap]);
+  }, [rows, filter, query, matMap, isSuperAdmin]);
 
   // Decide if a row is editable by the current WSP user
   function getEditState(r: Movement): { canEdit: boolean; reason?: string } {
