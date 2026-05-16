@@ -95,6 +95,7 @@ function formatDateTime(iso: string) {
 
 function MovementsPage() {
   const { profile } = useAuth();
+  const { isSuperAdmin } = useRoles();
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
