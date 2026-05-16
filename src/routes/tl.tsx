@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import {
   ArrowDownToLine,
@@ -14,7 +14,9 @@ import {
   Warehouse,
   X,
   CalendarClock,
+  Inbox,
 } from "lucide-react";
+import { useRoles } from "@/hooks/use-roles";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
