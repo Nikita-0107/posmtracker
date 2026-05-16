@@ -8,13 +8,16 @@ import {
   AlertTriangle,
   History,
   Search,
-  ChevronDown,
   CheckCircle2,
   Package,
   Warehouse,
   X,
   CalendarClock,
   Inbox,
+  ChevronRight,
+  PackagePlus,
+  ClipboardList,
+  ChevronLeft,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
 import { AppShell } from "@/components/AppShell";
@@ -62,8 +65,10 @@ type MatStat = {
   lastReturned: string | null;
 };
 
+type Screen = "home" | "receive" | "stock" | "activity";
+
 function tlMeta(t: TlProfile) {
-  return [t.legacy_tl_id, t.tl_type].filter(Boolean).join(" - ");
+  return [t.legacy_tl_id, t.tl_type].filter(Boolean).join(" · ");
 }
 
 function fmtDate(d: string | null) {
@@ -82,11 +87,7 @@ function TlPortalPage() {
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [searchTl, setSearchTl] = useState("");
-  const [searchWd, setSearchWd] = useState("");
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [historyOpen, setHistoryOpen] = useState<string | "all" | null>(null);
-  const [wdOpen, setWdOpen] = useState(false);
+  const [screen, setScreen] = useState<Screen>("home");
   const [activeReason, setActiveReason] = useState<{
     reason: string;
     leave_until: string | null;
@@ -95,13 +96,6 @@ function TlPortalPage() {
     created_at: string;
   } | null>(null);
   const [reasonModalOpen, setReasonModalOpen] = useState(false);
-
-  // Inline qty state per row
-  const [takeQty, setTakeQty] = useState<Record<string, string>>({});
-  const [actionMat, setActionMat] = useState<string | null>(null);
-  const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
-  const [actionQty, setActionQty] = useState("");
-  const [submitting, setSubmitting] = useState<string | null>(null);
 
   const matName = useMemo(() => {
     const m = new Map<string, string>();
@@ -252,7 +246,6 @@ function TlPortalPage() {
     acts.sort((a, b) => (a.date < b.date ? 1 : -1));
     setActivity(acts);
 
-    // Load most recent inactivity reason for this TL
     const { data: reasonRows } = await supabase
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from("tl_inactivity_reasons" as any)
@@ -292,52 +285,6 @@ function TlPortalPage() {
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
   }, [tl?.wd_code, refresh]);
-
-  async function submitTake(code: string) {
-    const qty = Number(takeQty[code]);
-    const max = wdStock[code] ?? 0;
-    if (!Number.isFinite(qty) || qty <= 0) return toast.error("Enter a quantity");
-    if (qty > max) return toast.error(`WD has only ${max}`);
-    setSubmitting(`take-${code}`);
-    const { error } = await supabase.rpc("tl_self_take", { _material_code: code, _qty: qty });
-    setSubmitting(null);
-    if (error) return toast.error(error.message);
-    toast.success(`Received ${qty} × ${matName.get(code) ?? code}`);
-    setTakeQty((p) => ({ ...p, [code]: "" }));
-    void refresh();
-  }
-
-  function openAction(code: string, kind: "used" | "return") {
-    setActionMat(code);
-    setActionKind(kind);
-    setActionQty("");
-  }
-  function closeAction() {
-    setActionMat(null);
-    setActionKind(null);
-    setActionQty("");
-  }
-
-  async function submitAction() {
-    if (!actionMat || !actionKind) return;
-    const qty = Number(actionQty);
-    const max = matStats[actionMat]?.balance ?? 0;
-    if (!Number.isFinite(qty) || qty <= 0) return toast.error("Enter a quantity");
-    if (qty > max) return toast.error(`Max allowed: ${max}`);
-    setSubmitting("action");
-    let error;
-    if (actionKind === "used") {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ({ error } = await (supabase.rpc as any)("tl_self_used", { _material_code: actionMat, _qty: qty }));
-    } else {
-      ({ error } = await supabase.rpc("tl_self_return", { _material_code: actionMat, _qty: qty }));
-    }
-    setSubmitting(null);
-    if (error) return toast.error(error.message);
-    toast.success(`${actionKind === "used" ? "Marked used" : "Returned"} ${qty} × ${matName.get(actionMat) ?? actionMat}`);
-    closeAction();
-    void refresh();
-  }
 
   if (loading) {
     return (
@@ -385,37 +332,49 @@ function TlPortalPage() {
   const materialsHeld = Object.values(matStats).filter((m) => m.balance > 0).length;
   const pendingReturns = Object.values(matStats).reduce((a, b) => a + Math.max(0, b.balance), 0);
   const lastActivityDate = activity[0]?.date ?? null;
-
-  const wdList = materials
-    .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
-    .filter((m) => m.qty > 0)
-    .filter((m) =>
-      !searchWd ||
-      m.code.toLowerCase().includes(searchWd.toLowerCase()) ||
-      m.name.toLowerCase().includes(searchWd.toLowerCase()),
-    )
-    .sort((a, b) => a.code.localeCompare(b.code));
-
-  const tlList = Object.values(matStats)
-    .filter((m) => m.received > 0)
-    .filter((m) =>
-      !searchTl ||
-      m.code.toLowerCase().includes(searchTl.toLowerCase()) ||
-      m.name.toLowerCase().includes(searchTl.toLowerCase()),
-    )
-    .sort((a, b) => b.balance - a.balance || a.code.localeCompare(b.code));
+  const wdAvailableCount = materials.filter((m) => (wdStock[m.code] ?? 0) > 0).length;
 
   const lastDate = lastActivityDate ? new Date(lastActivityDate) : null;
   const daysSince = lastDate ? Math.floor((Date.now() - lastDate.getTime()) / 86400000) : null;
   const inactive = daysSince === null || daysSince >= 7;
 
-  const historyFiltered = historyOpen && historyOpen !== "all"
-    ? activity.filter((a) => a.material_code === historyOpen)
-    : activity;
-
   return (
     <AppShell>
-      <div className="mx-auto max-w-3xl space-y-4">
+      <div className="mx-auto max-w-2xl space-y-4 pb-6">
+        {/* Compact TL header */}
+        <div className="rounded-2xl border bg-card p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="font-heading text-lg font-bold leading-tight text-foreground">
+                {tl.tl_name}
+              </h1>
+              {tlMeta(tl) && (
+                <p className="mt-0.5 text-xs text-muted-foreground">{tlMeta(tl)}</p>
+              )}
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Warehouse size={12} />
+                <span className="truncate">
+                  <strong className="text-primary">{tl.wd_code}</strong>
+                  {tl.wd_name && <> · {tl.wd_name}</>}
+                </span>
+              </div>
+            </div>
+            <button
+              onClick={() => void refresh()}
+              className="rounded-md border bg-card p-1.5 text-muted-foreground hover:bg-muted"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={14} />
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-center">
+            <Stat label="With you" value={materialsHeld} />
+            <Stat label="Pending" value={pendingReturns} />
+            <Stat label="Last" value={fmtDate(lastActivityDate)} small />
+          </div>
+        </div>
+
+        {/* WD Receiver banner */}
         {isTlWdReceiver && tlReceiverWd && (
           <Link
             to="/wd"
@@ -431,15 +390,17 @@ function TlPortalPage() {
                 Delegated WD Receiver for <span className="font-mono font-bold text-primary">{tlReceiverWd}</span>
               </p>
             </div>
-            <span className="text-muted-foreground/60">›</span>
+            <ChevronRight size={18} className="text-muted-foreground/60" />
           </Link>
         )}
+
+        {/* Reason / inactivity banner */}
         {activeReason ? (
           <div className="rounded-xl border border-emerald-500/50 bg-emerald-50 p-3 dark:bg-emerald-950/30">
             <div className="flex items-start gap-2.5">
               <CalendarClock className="mt-0.5 shrink-0 text-emerald-700 dark:text-emerald-400" size={18} />
               <div className="min-w-0 flex-1 text-xs text-emerald-900 dark:text-emerald-100">
-                <strong>Reason recorded: {reasonLabel(activeReason.reason)}</strong>
+                <strong>Reason: {reasonLabel(activeReason.reason)}</strong>
                 {activeReason.leave_until && (
                   <> · until {new Date(activeReason.leave_until + "T00:00:00").toLocaleDateString(undefined, { day: "2-digit", month: "short" })}</>
                 )}
@@ -455,7 +416,7 @@ function TlPortalPage() {
               </button>
             </div>
           </div>
-        ) : inactive && (
+        ) : inactive ? (
           <div className="rounded-xl border border-amber-500/60 bg-amber-50 p-3 dark:bg-amber-950/30">
             <div className="flex items-start gap-2.5">
               <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={18} />
@@ -463,7 +424,7 @@ function TlPortalPage() {
                 <strong>
                   {daysSince === null ? "No activity yet." : `No activity for ${daysSince} days.`}
                 </strong>{" "}
-                Please update your stock or submit a reason.
+                Update stock or mark a reason.
               </div>
               <button
                 onClick={() => setReasonModalOpen(true)}
@@ -473,385 +434,556 @@ function TlPortalPage() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
 
-        {reasonModalOpen && tl && (
-          <TlMarkReasonModal
-            tl={tl}
-            onClose={() => setReasonModalOpen(false)}
-            onSaved={async () => {
-              setReasonModalOpen(false);
-              await refresh();
-            }}
+        {/* Primary action cards */}
+        <div className="space-y-2.5">
+          <ActionRow
+            icon={PackagePlus}
+            iconBg="bg-primary/15 text-primary"
+            title="Receive from WD"
+            subtitle={
+              wdAvailableCount === 0
+                ? "Nothing available right now"
+                : `${wdAvailableCount} material${wdAvailableCount === 1 ? "" : "s"} available at ${tl.wd_code}`
+            }
+            onClick={() => setScreen("receive")}
           />
-        )}
-
-        {/* Header */}
-        <div className="rounded-2xl border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h1 className="font-heading text-xl font-bold leading-tight text-foreground">
-                {tl.tl_name}
-                {tlMeta(tl) && (
-                  <span className="ml-2 text-xs font-medium text-muted-foreground">
-                    ({tlMeta(tl)})
-                  </span>
-                )}
-              </h1>
-              <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Warehouse size={12} />
-                <span>
-                  WD: <strong className="text-primary">{tl.wd_code}</strong>
-                  {tl.wd_name && <> — <span className="text-foreground">{tl.wd_name}</span></>}
-                </span>
-              </div>
-            </div>
-            <button
-              onClick={() => void refresh()}
-              className="rounded-md border bg-card p-1.5 text-muted-foreground hover:bg-muted"
-              aria-label="Refresh"
-            >
-              <RefreshCw size={14} />
-            </button>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs">
-            <span className="text-muted-foreground">
-              Materials Held: <strong className="text-foreground">{materialsHeld}</strong>
-            </span>
-            <span className="text-muted-foreground">
-              Pending Returns: <strong className="text-foreground">{pendingReturns}</strong>
-            </span>
-            <span className="text-muted-foreground">
-              Last Activity: <strong className="text-foreground">{fmtDate(lastActivityDate)}</strong>
-            </span>
-          </div>
+          <ActionRow
+            icon={Package}
+            iconBg="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+            title="My Stock"
+            subtitle={
+              materialsHeld === 0
+                ? "No stock with you"
+                : `${materialsHeld} material${materialsHeld === 1 ? "" : "s"} · ${pendingReturns} units`
+            }
+            onClick={() => setScreen("stock")}
+          />
+          <ActionRow
+            icon={ClipboardList}
+            iconBg="bg-violet-500/15 text-violet-600 dark:text-violet-400"
+            title="Activity"
+            subtitle={
+              activity.length === 0
+                ? "No activity yet"
+                : `${activity.length} event${activity.length === 1 ? "" : "s"} · last ${fmtDate(lastActivityDate)}`
+            }
+            onClick={() => setScreen("activity")}
+          />
         </div>
 
-        {/* TL-SOH Section */}
-        <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                <Package size={16} className="text-primary" /> My SOH
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                Stock currently with you. Tap a material for actions.
-              </p>
-            </div>
-            <button
-              onClick={() => setHistoryOpen("all")}
-              className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1 text-xs font-bold text-foreground hover:bg-muted"
-            >
-              <History size={12} /> View History
-            </button>
-          </div>
-
-          <div className="relative">
-            <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={searchTl}
-              onChange={(e) => setSearchTl(e.target.value)}
-              placeholder="Search material…"
-              className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
-            />
-          </div>
-
-          {tlList.length === 0 ? (
-            <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-              You haven't received any materials yet. Use the WD section below to take stock.
-            </p>
-          ) : (
-            <div className="divide-y rounded-xl border bg-background">
-              {tlList.map((m) => {
-                const open = expanded === `tl-${m.code}`;
-                const wdAvail = wdStock[m.code] ?? 0;
-                return (
-                  <div key={m.code}>
-                    <button
-                      onClick={() => { setExpanded(open ? null : `tl-${m.code}`); closeAction(); }}
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-muted/40"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                            {m.code}
-                          </span>
-                          <span className="truncate text-sm font-bold text-foreground">
-                            {m.name}
-                          </span>
-                        </div>
-                        <div className="mt-0.5 text-[11px] text-muted-foreground">
-                          Stock With You: <strong className={m.balance > 0 ? "text-primary" : "text-foreground"}>{m.balance}</strong>
-                        </div>
-                      </div>
-                      <ChevronDown
-                        size={14}
-                        className={`text-muted-foreground transition ${open ? "rotate-180" : ""}`}
-                      />
-                    </button>
-                    {open && (
-                      <div className="space-y-2.5 border-t bg-muted/20 p-3">
-                        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-                          <span>WD Available: <strong className="text-foreground">{wdAvail}</strong></span>
-                          <span>Stock With You: <strong className="text-foreground">{m.balance}</strong></span>
-                          <span>Last Received: <strong className="text-foreground">{fmtDate(m.lastReceived)}</strong></span>
-                          <span>Last Used: <strong className="text-foreground">{fmtDate(m.lastUsed)}</strong></span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          <ActionBtn
-                            icon={CheckCircle2}
-                            label="Mark Used"
-                            disabled={m.balance <= 0}
-                            onClick={() => openAction(m.code, "used")}
-                            variant="success"
-                          />
-                          <ActionBtn
-                            icon={ArrowUpFromLine}
-                            label="Return Unused"
-                            disabled={m.balance <= 0}
-                            onClick={() => openAction(m.code, "return")}
-                            variant="muted"
-                          />
-                          <button
-                            onClick={() => setHistoryOpen(m.code)}
-                            className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
-                          >
-                            <History size={12} /> View History
-                          </button>
-                        </div>
-                        {actionMat === m.code && actionKind && (
-                          <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-2.5">
-                            <span className="text-[11px] text-muted-foreground">
-                              Max: <strong className="text-foreground">{m.balance}</strong>
-                            </span>
-                            <input
-                              type="number"
-                              min={1}
-                              max={m.balance}
-                              value={actionQty}
-                              onChange={(e) => setActionQty(e.target.value)}
-                              placeholder="Quantity"
-                              autoFocus
-                              className="w-24 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
-                            />
-                            <button
-                              onClick={submitAction}
-                              disabled={submitting === "action" || !actionQty}
-                              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                            >
-                              {submitting === "action" && <Loader2 className="animate-spin" size={12} />}
-                              {actionKind === "used" ? "Confirm Used" : "Confirm Return"}
-                            </button>
-                            <button
-                              onClick={closeAction}
-                              className="rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-muted-foreground hover:bg-muted"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        {/* WD-SOH Section (collapsible) */}
-        <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
-          <button
-            onClick={() => setWdOpen((o) => !o)}
-            className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-muted/40"
-          >
-            <div className="min-w-0">
-              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                <Warehouse size={16} className="text-primary" /> Collect items from WD SOH ({tl.wd_code})
-              </h2>
-              <p className="text-[11px] text-muted-foreground">
-                {wdList.length === 0
-                  ? "Nothing available right now"
-                  : `${wdList.length} material${wdList.length === 1 ? "" : "s"} available at your WD`}
-              </p>
-            </div>
-            <ChevronDown
-              size={16}
-              className={`shrink-0 text-muted-foreground transition-transform ${wdOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-
-          {wdOpen && (
-            <div className="space-y-2 border-t bg-background/50 p-3">
-              <div className="relative">
-                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  value={searchWd}
-                  onChange={(e) => setSearchWd(e.target.value)}
-                  placeholder="Search material…"
-                  className="w-full rounded-lg border bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
-                />
-              </div>
-
-              {wdList.length === 0 ? (
-                <p className="rounded-lg border border-dashed bg-muted/30 p-3 text-xs text-muted-foreground">
-                  Nothing available at your WD right now.
-                </p>
-              ) : (
-                <div className="divide-y rounded-xl border bg-background">
-                  {wdList.map((m) => {
-                    const isSubmitting = submitting === `take-${m.code}`;
-                    return (
-                      <div
-                        key={m.code}
-                        className="flex flex-wrap items-center justify-between gap-3 px-3 py-2.5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-mono uppercase text-muted-foreground">
-                              {m.code}
-                            </span>
-                            <span className="truncate text-sm font-bold text-foreground">
-                              {m.name}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 text-[11px] text-muted-foreground">
-                            WD Available: <strong className="text-primary">{m.qty}</strong>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            min={1}
-                            max={m.qty}
-                            value={takeQty[m.code] ?? ""}
-                            onChange={(e) => setTakeQty((p) => ({ ...p, [m.code]: e.target.value }))}
-                            placeholder="Qty"
-                            className="w-20 rounded-md border bg-background px-2 py-1.5 text-sm text-foreground"
-                          />
-                          <button
-                            onClick={() => submitTake(m.code)}
-                            disabled={isSubmitting || !takeQty[m.code]}
-                            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground transition active:scale-[0.97] hover:bg-primary/90 disabled:opacity-50"
-                          >
-                            {isSubmitting ? <Loader2 className="animate-spin" size={12} /> : <ArrowDownToLine size={12} />}
-                            Take from WD
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        <p className="text-[11px] text-muted-foreground">
-          <strong className="text-foreground">Note:</strong> "Mark Used" permanently reduces your stock and cannot be returned later.
+        <p className="px-1 text-[11px] text-muted-foreground">
+          Tip: "Mark Used" permanently reduces your stock and cannot be returned later.
         </p>
       </div>
 
-      {/* History modal */}
-      {historyOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center"
-          onClick={() => setHistoryOpen(null)}
-        >
-          <div
-            className="max-h-[85vh] w-full max-w-lg overflow-hidden rounded-t-2xl border bg-card shadow-xl sm:rounded-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <div>
-                <h3 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                  <History size={14} className="text-primary" /> Stock History
-                </h3>
-                <p className="text-[11px] text-muted-foreground">
-                  {historyOpen === "all"
-                    ? "All recent activity"
-                    : matName.get(historyOpen) ?? historyOpen}
-                </p>
-              </div>
-              <button
-                onClick={() => setHistoryOpen(null)}
-                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-                aria-label="Close"
-              >
-                <X size={16} />
-              </button>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto">
-              {historyFiltered.length === 0 ? (
-                <p className="p-6 text-center text-xs text-muted-foreground">No activity yet.</p>
-              ) : (
-                <ul className="divide-y">
-                  {historyFiltered.slice(0, 100).map((a, i) => {
-                    const meta =
-                      a.kind === "received"
-                        ? { label: "Received from WD", color: "text-primary", bg: "bg-primary/10", sign: "+", Icon: ArrowDownToLine }
-                        : a.kind === "used"
-                          ? { label: "Marked used", color: "text-success", bg: "bg-success/10", sign: "−", Icon: CheckCircle2 }
-                          : { label: "Returned to WD", color: "text-muted-foreground", bg: "bg-muted", sign: "−", Icon: ArrowUpFromLine };
-                    const Icon = meta.Icon;
-                    return (
-                      <li key={i} className="flex items-center justify-between gap-2 px-4 py-2.5 text-xs">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <span className={`inline-flex h-7 w-7 items-center justify-center rounded-md ${meta.bg} ${meta.color}`}>
-                            <Icon size={13} />
-                          </span>
-                          <div className="min-w-0">
-                            <div className="truncate text-sm font-bold text-foreground">
-                              {matName.get(a.material_code) ?? a.material_code}
-                            </div>
-                            <div className="text-[10px] text-muted-foreground">
-                              {meta.label} · {a.date ? new Date(a.date).toLocaleString() : ""}
-                            </div>
-                          </div>
-                        </div>
-                        <span className={`text-sm font-bold ${meta.color}`}>
-                          {meta.sign}{a.qty}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
+      {/* Focused screens */}
+      {screen === "receive" && (
+        <ReceiveSheet
+          tl={tl}
+          materials={materials}
+          wdStock={wdStock}
+          matName={matName}
+          onClose={() => setScreen("home")}
+          onDone={() => void refresh()}
+        />
+      )}
+      {screen === "stock" && (
+        <MyStockSheet
+          stats={matStats}
+          onClose={() => setScreen("home")}
+          onDone={() => void refresh()}
+        />
+      )}
+      {screen === "activity" && (
+        <ActivitySheet
+          activity={activity}
+          matName={matName}
+          onClose={() => setScreen("home")}
+        />
+      )}
+
+      {reasonModalOpen && tl && (
+        <TlMarkReasonModal
+          tl={tl}
+          onClose={() => setReasonModalOpen(false)}
+          onSaved={async () => {
+            setReasonModalOpen(false);
+            await refresh();
+          }}
+        />
       )}
     </AppShell>
   );
 }
 
-function ActionBtn({
+function Stat({ label, value, small }: { label: string; value: number | string; small?: boolean }) {
+  return (
+    <div className="rounded-lg border bg-background/50 px-2 py-2">
+      <div className={`font-heading font-bold text-foreground ${small ? "text-sm" : "text-base"}`}>{value}</div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function ActionRow({
   icon: Icon,
-  label,
+  iconBg,
+  title,
+  subtitle,
   onClick,
-  disabled,
-  variant = "primary",
 }: {
   icon: React.ComponentType<{ size?: number }>;
-  label: string;
+  iconBg: string;
+  title: string;
+  subtitle: string;
   onClick: () => void;
-  disabled?: boolean;
-  variant?: "primary" | "success" | "muted";
 }) {
-  const cls =
-    variant === "success"
-      ? "bg-success text-success-foreground hover:bg-success/90"
-      : variant === "muted"
-        ? "border bg-card text-foreground hover:bg-muted"
-        : "bg-primary text-primary-foreground hover:bg-primary/90";
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
-      className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-bold transition disabled:opacity-50 ${cls}`}
+      className="flex w-full items-center gap-3 rounded-2xl border bg-card p-3.5 text-left shadow-sm transition active:scale-[0.99] hover:bg-muted/30"
     >
-      <Icon size={12} /> {label}
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>
+        <Icon size={22} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="font-heading text-[15px] font-bold leading-tight text-foreground">{title}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>
+      </div>
+      <ChevronRight size={20} className="shrink-0 text-muted-foreground" />
     </button>
+  );
+}
+
+// ───────────────── Sheet wrapper ─────────────────
+
+function Sheet({
+  title,
+  subtitle,
+  onClose,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-background">
+      <header className="flex items-center gap-2 border-b bg-card px-3 py-3 shadow-sm">
+        <button
+          onClick={onClose}
+          className="rounded-md p-1.5 text-foreground hover:bg-muted"
+          aria-label="Back"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-heading text-base font-bold leading-tight text-foreground">{title}</h2>
+          {subtitle && <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>}
+        </div>
+        <button
+          onClick={onClose}
+          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted"
+          aria-label="Close"
+        >
+          <X size={18} />
+        </button>
+      </header>
+      <div className="flex-1 overflow-y-auto">{children}</div>
+    </div>
+  );
+}
+
+function SearchBar({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {
+  return (
+    <div className="sticky top-0 z-10 border-b bg-background p-3">
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-lg border bg-card py-2.5 pl-10 pr-3 text-sm text-foreground placeholder:text-muted-foreground"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ───────────────── Receive sheet ─────────────────
+
+function ReceiveSheet({
+  tl,
+  materials,
+  wdStock,
+  matName,
+  onClose,
+  onDone,
+}: {
+  tl: TlProfile;
+  materials: Material[];
+  wdStock: Record<string, number>;
+  matName: Map<string, string>;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [qty, setQty] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  const list = materials
+    .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
+    .filter((m) => m.qty > 0)
+    .filter((m) =>
+      !search ||
+      m.code.toLowerCase().includes(search.toLowerCase()) ||
+      m.name.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  async function submitTake(code: string, max: number) {
+    const n = Number(qty[code]);
+    if (!Number.isFinite(n) || n <= 0) return toast.error("Enter a quantity");
+    if (n > max) return toast.error(`WD has only ${max}`);
+    setSubmitting(code);
+    const { error } = await supabase.rpc("tl_self_take", { _material_code: code, _qty: n });
+    setSubmitting(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Received ${n} × ${matName.get(code) ?? code}`);
+    setQty((p) => ({ ...p, [code]: "" }));
+    onDone();
+  }
+
+  return (
+    <Sheet title="Receive from WD" subtitle={`From ${tl.wd_code}${tl.wd_name ? ` · ${tl.wd_name}` : ""}`} onClose={onClose}>
+      <SearchBar value={search} onChange={setSearch} placeholder="Search material…" />
+      <div className="p-3">
+        {list.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            {search ? "No matches." : "Nothing available at your WD right now."}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {list.map((m) => {
+              const v = qty[m.code] ?? "";
+              const n = Number(v);
+              const invalid = v !== "" && (!Number.isFinite(n) || n <= 0 || n > m.qty);
+              const isSubmitting = submitting === m.code;
+              return (
+                <li key={m.code} className="rounded-xl border bg-card p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-bold leading-snug text-foreground break-words">
+                        {m.name}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-mono uppercase text-muted-foreground">
+                        {m.code}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+                      {m.qty} avail
+                    </span>
+                  </div>
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={1}
+                      max={m.qty}
+                      value={v}
+                      onChange={(e) => setQty((p) => ({ ...p, [m.code]: e.target.value }))}
+                      placeholder="Qty"
+                      className={`w-24 rounded-md border bg-background px-2.5 py-2 text-sm text-foreground ${invalid ? "border-destructive" : ""}`}
+                    />
+                    <button
+                      onClick={() => submitTake(m.code, m.qty)}
+                      disabled={isSubmitting || !v || invalid}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground transition active:scale-[0.97] hover:bg-primary/90 disabled:opacity-50"
+                    >
+                      {isSubmitting ? <Loader2 className="animate-spin" size={14} /> : <ArrowDownToLine size={14} />}
+                      Receive
+                    </button>
+                  </div>
+                  {invalid && (
+                    <p className="mt-1.5 text-[11px] text-destructive">
+                      {n > m.qty ? `Max available: ${m.qty}` : "Enter a valid quantity"}
+                    </p>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </Sheet>
+  );
+}
+
+// ───────────────── My Stock sheet ─────────────────
+
+function MyStockSheet({
+  stats,
+  onClose,
+  onDone,
+}: {
+  stats: Record<string, MatStat>;
+  onClose: () => void;
+  onDone: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
+  const [actionQty, setActionQty] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [historyCode, setHistoryCode] = useState<string | null>(null);
+
+  const list = Object.values(stats)
+    .filter((m) => m.received > 0)
+    .filter((m) =>
+      !search ||
+      m.code.toLowerCase().includes(search.toLowerCase()) ||
+      m.name.toLowerCase().includes(search.toLowerCase()),
+    )
+    .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
+
+  function toggle(code: string) {
+    setExpanded(expanded === code ? null : code);
+    setActionKind(null);
+    setActionQty("");
+  }
+
+  async function submit(code: string, max: number) {
+    if (!actionKind) return;
+    const n = Number(actionQty);
+    if (!Number.isFinite(n) || n <= 0) return toast.error("Enter a quantity");
+    if (n > max) return toast.error(`Max allowed: ${max}`);
+    setSubmitting(true);
+    let error;
+    if (actionKind === "used") {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ({ error } = await (supabase.rpc as any)("tl_self_used", { _material_code: code, _qty: n }));
+    } else {
+      ({ error } = await supabase.rpc("tl_self_return", { _material_code: code, _qty: n }));
+    }
+    setSubmitting(false);
+    if (error) return toast.error(error.message);
+    toast.success(`${actionKind === "used" ? "Marked used" : "Returned"} ${n}`);
+    setActionKind(null);
+    setActionQty("");
+    setExpanded(null);
+    onDone();
+  }
+
+  return (
+    <Sheet title="My Stock" subtitle="Tap a material to act on it" onClose={onClose}>
+      <SearchBar value={search} onChange={setSearch} placeholder="Search your stock…" />
+      <div className="p-3">
+        {list.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            {search ? "No matches." : "You haven't received any materials yet."}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {list.map((m) => {
+              const open = expanded === m.code;
+              const v = actionQty;
+              const n = Number(v);
+              const invalid = v !== "" && (!Number.isFinite(n) || n <= 0 || n > m.balance);
+              return (
+                <li key={m.code} className="overflow-hidden rounded-xl border bg-card shadow-sm">
+                  <button
+                    onClick={() => toggle(m.code)}
+                    className="flex w-full items-center gap-3 p-3 text-left hover:bg-muted/30"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[15px] font-bold leading-snug text-foreground break-words">
+                        {m.name}
+                      </p>
+                      <p className="mt-0.5 text-[11px] font-mono uppercase text-muted-foreground">
+                        {m.code}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className={`font-heading text-lg font-bold ${m.balance > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                        {m.balance}
+                      </div>
+                      <div className="text-[10px] uppercase text-muted-foreground">on hand</div>
+                    </div>
+                    <ChevronRight size={18} className={`shrink-0 text-muted-foreground transition ${open ? "rotate-90" : ""}`} />
+                  </button>
+                  {open && (
+                    <div className="space-y-2.5 border-t bg-muted/10 p-3">
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                        <span>Received: <strong className="text-foreground">{m.received}</strong></span>
+                        <span>Used: <strong className="text-foreground">{m.used}</strong></span>
+                        <span>Returned: <strong className="text-foreground">{m.returned}</strong></span>
+                        <span>Last used: <strong className="text-foreground">{fmtDate(m.lastUsed)}</strong></span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <button
+                          disabled={m.balance <= 0}
+                          onClick={() => { setActionKind("used"); setActionQty(""); }}
+                          className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-xs font-bold transition disabled:opacity-50 ${actionKind === "used" ? "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300" : "bg-card text-foreground hover:bg-muted"}`}
+                        >
+                          <CheckCircle2 size={16} />
+                          Mark Used
+                        </button>
+                        <button
+                          disabled={m.balance <= 0}
+                          onClick={() => { setActionKind("return"); setActionQty(""); }}
+                          className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2.5 text-xs font-bold transition disabled:opacity-50 ${actionKind === "return" ? "border-primary bg-primary/10 text-primary" : "bg-card text-foreground hover:bg-muted"}`}
+                        >
+                          <ArrowUpFromLine size={16} />
+                          Return
+                        </button>
+                        <button
+                          onClick={() => setHistoryCode(m.code)}
+                          className="flex flex-col items-center gap-1 rounded-lg border bg-card px-2 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
+                        >
+                          <History size={16} />
+                          History
+                        </button>
+                      </div>
+                      {actionKind && (
+                        <div className="rounded-lg border bg-card p-2.5">
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              min={1}
+                              max={m.balance}
+                              autoFocus
+                              value={actionQty}
+                              onChange={(e) => setActionQty(e.target.value)}
+                              placeholder={`Qty (max ${m.balance})`}
+                              className={`flex-1 rounded-md border bg-background px-2.5 py-2 text-sm text-foreground ${invalid ? "border-destructive" : ""}`}
+                            />
+                            <button
+                              onClick={() => submit(m.code, m.balance)}
+                              disabled={submitting || !actionQty || invalid}
+                              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground disabled:opacity-50"
+                            >
+                              {submitting && <Loader2 className="animate-spin" size={14} />}
+                              Confirm
+                            </button>
+                          </div>
+                          {invalid && (
+                            <p className="mt-1.5 text-[11px] text-destructive">
+                              {n > m.balance ? `Max allowed: ${m.balance}` : "Enter a valid quantity"}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {historyCode && (
+        <MaterialHistoryModal
+          code={historyCode}
+          name={stats[historyCode]?.name ?? historyCode}
+          onClose={() => setHistoryCode(null)}
+        />
+      )}
+    </Sheet>
+  );
+}
+
+function MaterialHistoryModal({ code, name, onClose }: { code: string; name: string; onClose: () => void }) {
+  // simple stub — opens activity filtered; we'll fetch from parent via re-render isn't trivial,
+  // so this modal just hints to use the Activity screen filtered. Keep lightweight.
+  return (
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div className="w-full max-w-md rounded-t-2xl border bg-card p-4 shadow-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-heading text-sm font-bold text-foreground">{name}</h3>
+            <p className="text-[11px] font-mono uppercase text-muted-foreground">{code}</p>
+          </div>
+          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="mt-3 text-xs text-muted-foreground">
+          Open <strong className="text-foreground">Activity</strong> from the home screen to see full history. You can search by code or name there.
+        </p>
+        <button
+          onClick={onClose}
+          className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
+        >
+          Got it
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ───────────────── Activity sheet ─────────────────
+
+function ActivitySheet({
+  activity,
+  matName,
+  onClose,
+}: {
+  activity: ActivityRow[];
+  matName: Map<string, string>;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const list = activity.filter((a) => {
+    if (!search) return true;
+    const n = matName.get(a.material_code) ?? a.material_code;
+    const q = search.toLowerCase();
+    return a.material_code.toLowerCase().includes(q) || n.toLowerCase().includes(q);
+  });
+
+  return (
+    <Sheet title="Activity" subtitle={`${activity.length} event${activity.length === 1 ? "" : "s"}`} onClose={onClose}>
+      <SearchBar value={search} onChange={setSearch} placeholder="Search activity…" />
+      <div className="p-3">
+        {list.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            {search ? "No matches." : "No activity yet."}
+          </p>
+        ) : (
+          <ul className="space-y-1.5">
+            {list.slice(0, 200).map((a, i) => {
+              const meta =
+                a.kind === "received"
+                  ? { label: "Received from WD", color: "text-primary", bg: "bg-primary/10", sign: "+", Icon: ArrowDownToLine }
+                  : a.kind === "used"
+                    ? { label: "Marked used", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", sign: "−", Icon: CheckCircle2 }
+                    : { label: "Returned to WD", color: "text-muted-foreground", bg: "bg-muted", sign: "−", Icon: ArrowUpFromLine };
+              const Icon = meta.Icon;
+              return (
+                <li key={i} className="flex items-center gap-3 rounded-xl border bg-card p-3 shadow-sm">
+                  <span className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${meta.bg} ${meta.color}`}>
+                    <Icon size={15} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-foreground">
+                      {matName.get(a.material_code) ?? a.material_code}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {meta.label} · {a.date ? new Date(a.date).toLocaleString() : ""}
+                    </p>
+                  </div>
+                  <span className={`shrink-0 font-heading text-base font-bold ${meta.color}`}>
+                    {meta.sign}{a.qty}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </Sheet>
   );
 }
 
@@ -911,7 +1043,7 @@ function TlMarkReasonModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-3 sm:items-center"
+      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 p-3 sm:items-center"
       onClick={onClose}
     >
       <div
