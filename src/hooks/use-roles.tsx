@@ -49,23 +49,25 @@ export function useRoles() {
     }
     let alive = true;
     setLoading(true);
-    fetchAll(user.id, profile?.ae_id ?? null).then(({ r, w }) => {
+    fetchAll(user.id, profile?.ae_id ?? null, profile?.tl_id ?? null).then(({ r, w, receiverWd }) => {
       if (!alive) return;
       setRoles(r);
       setAeWds(w);
+      setTlReceiverWd(receiverWd);
       setLoading(false);
     });
     return () => { alive = false; };
-  }, [user, profile?.ae_id, fetchAll]);
+  }, [user, profile?.ae_id, profile?.tl_id, fetchAll]);
 
   const refresh = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const { r, w } = await fetchAll(user.id, profile?.ae_id ?? null);
+    const { r, w, receiverWd } = await fetchAll(user.id, profile?.ae_id ?? null, profile?.tl_id ?? null);
     setRoles(r);
     setAeWds(w);
+    setTlReceiverWd(receiverWd);
     setLoading(false);
-  }, [user, profile?.ae_id, fetchAll]);
+  }, [user, profile?.ae_id, profile?.tl_id, fetchAll]);
 
   const has = (x: AppRole) => roles.includes(x);
   return {
@@ -83,5 +85,7 @@ export function useRoles() {
     isAe: has("wd_admin"),
     aeId: profile?.ae_id ?? null,
     tlId: profile?.tl_id ?? null,
+    tlReceiverWd,
+    isTlWdReceiver: !!tlReceiverWd,
   };
 }
