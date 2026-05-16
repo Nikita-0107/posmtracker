@@ -63,6 +63,7 @@ export type Database = {
         Row: {
           active: boolean
           created_at: string
+          is_wd_receiver: boolean
           tl_id: string
           tl_name: string
           updated_at: string
@@ -71,6 +72,7 @@ export type Database = {
         Insert: {
           active?: boolean
           created_at?: string
+          is_wd_receiver?: boolean
           tl_id: string
           tl_name: string
           updated_at?: string
@@ -79,6 +81,7 @@ export type Database = {
         Update: {
           active?: boolean
           created_at?: string
+          is_wd_receiver?: boolean
           tl_id?: string
           tl_name?: string
           updated_at?: string
@@ -1143,6 +1146,7 @@ export type Database = {
         Returns: string
       }
       current_user_ae_wds: { Args: never; Returns: string[] }
+      current_user_tl_is_wd_receiver: { Args: never; Returns: boolean }
       current_user_tl_wd_code: { Args: never; Returns: string }
       current_user_wd: { Args: never; Returns: string }
       current_user_wd_tl_id: { Args: never; Returns: string }
