@@ -667,7 +667,7 @@ function TlPortalPage() {
           >
             <div className="min-w-0">
               <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                <Warehouse size={16} className="text-primary" /> Receive from WD ({tl.wd_code})
+                <Warehouse size={16} className="text-primary" /> Collect items from WD SOH ({tl.wd_code})
               </h2>
               <p className="text-[11px] text-muted-foreground">
                 {wdList.length === 0
