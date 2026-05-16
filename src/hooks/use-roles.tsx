@@ -8,9 +8,10 @@ export function useRoles() {
   const { user, profile } = useAuth();
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [aeWds, setAeWds] = useState<string[]>([]);
+  const [tlReceiverWd, setTlReceiverWd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchAll = useCallback(async (userId: string, aeId: string | null) => {
+  const fetchAll = useCallback(async (userId: string, aeId: string | null, tlId: string | null) => {
     const rolesRes = await supabase.from("user_roles").select("role").eq("user_id", userId);
     const r = ((rolesRes.data ?? []) as { role: AppRole }[]).map((x) => x.role);
 
@@ -24,7 +25,19 @@ export function useRoles() {
       const aeRes = await supabase.from("ae_assignments").select("wd_code").eq("ae_user_id", userId);
       w = ((aeRes.data ?? []) as { wd_code: string }[]).map((x) => x.wd_code);
     }
-    return { r, w };
+
+    // If TL, check whether this TL is the designated WD receiver.
+    let receiverWd: string | null = null;
+    if (tlId) {
+      const { data } = await supabase
+        .from("hierarchy_tl")
+        .select("wd_code, is_wd_receiver, active")
+        .eq("tl_id", tlId)
+        .maybeSingle();
+      const row = data as { wd_code: string; is_wd_receiver: boolean; active: boolean } | null;
+      if (row?.is_wd_receiver && row.active) receiverWd = row.wd_code;
+    }
+    return { r, w, receiverWd };
   }, []);
 
   useEffect(() => {
