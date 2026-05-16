@@ -242,8 +242,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   {isActive && (
                     <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary" />
                   )}
-                  <tab.icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                  <span>{tab.label}</span>
+                  {tab.to !== "/tl" && <tab.icon size={22} strokeWidth={isActive ? 2.5 : 2} />}
+                  <span className={tab.to === "/tl" ? "text-sm" : undefined}>{tab.label}</span>
                 </Link>
               );
             })}

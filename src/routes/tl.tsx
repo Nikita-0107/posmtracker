@@ -426,7 +426,7 @@ function TlPortalPage() {
               <Inbox size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold leading-tight text-foreground">My SOH</p>
+              <p className="text-sm font-bold leading-tight text-foreground">Receive materials from WSP</p>
               <p className="text-[11px] text-muted-foreground">
                 Delegated WD Receiver for <span className="font-mono font-bold text-primary">{tlReceiverWd}</span>
               </p>
@@ -532,7 +532,7 @@ function TlPortalPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                <Package size={16} className="text-primary" /> Your Stock
+                <Package size={16} className="text-primary" /> My SOH
               </h2>
               <p className="text-[11px] text-muted-foreground">
                 Stock currently with you. Tap a material for actions.
@@ -667,7 +667,7 @@ function TlPortalPage() {
           >
             <div className="min-w-0">
               <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
-                <Warehouse size={16} className="text-primary" /> Receive from WD ({tl.wd_code})
+                <Warehouse size={16} className="text-primary" /> Collect items from WD SOH ({tl.wd_code})
               </h2>
               <p className="text-[11px] text-muted-foreground">
                 {wdList.length === 0
