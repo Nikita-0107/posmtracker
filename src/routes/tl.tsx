@@ -821,7 +821,7 @@ function MyStockSheet({
                         <span>Returned: <strong className="text-foreground">{m.returned}</strong></span>
                         <span>Last used: <strong className="text-foreground">{fmtDate(m.lastUsed)}</strong></span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           disabled={m.balance <= 0}
                           onClick={() => { setActionKind("used"); setActionQty(""); }}
@@ -837,13 +837,6 @@ function MyStockSheet({
                         >
                           <ArrowUpFromLine size={16} />
                           Return
-                        </button>
-                        <button
-                          onClick={() => setHistoryCode(m.code)}
-                          className="flex flex-col items-center gap-1 rounded-lg border bg-card px-2 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
-                        >
-                          <History size={16} />
-                          History
                         </button>
                       </div>
                       {actionKind && (
