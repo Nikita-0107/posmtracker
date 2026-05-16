@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback } from "react";
-import { Users, Loader2, UserPlus, Trash2, Power } from "lucide-react";
+import { Users, Loader2, UserPlus, Trash2, Power, Inbox, Check } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/wd-admin/users")({
 });
 
 type WdRow = { wd_code: string; wd_name: string };
-type TlRow = { tl_id: string; tl_name: string; wd_code: string; active: boolean };
+type TlRow = { tl_id: string; tl_name: string; wd_code: string; active: boolean; is_wd_receiver: boolean };
 
 function WdAdminUsersPage() {
   const { user, loading: authLoading } = useAuth();
@@ -40,7 +40,7 @@ function WdAdminUsersPage() {
       const codes = wdList.map((w) => w.wd_code);
       const { data: tlData } = await supabase
         .from("hierarchy_tl")
-        .select("tl_id, tl_name, wd_code, active")
+        .select("tl_id, tl_name, wd_code, active, is_wd_receiver")
         .in("wd_code", codes)
         .order("wd_code");
       setTls((tlData ?? []) as TlRow[]);
@@ -81,6 +81,32 @@ function WdAdminUsersPage() {
       .eq("tl_id", tl.tl_id);
     if (error) return toast.error(error.message);
     toast.success(tl.active ? "TL deactivated" : "TL re-activated");
+    await load();
+  }
+
+  async function toggleReceiver(tl: TlRow) {
+    if (tl.is_wd_receiver) {
+      const { error } = await supabase
+        .from("hierarchy_tl")
+        .update({ is_wd_receiver: false })
+        .eq("tl_id", tl.tl_id);
+      if (error) return toast.error(error.message);
+      toast.success("Receiver delegation removed");
+    } else {
+      // Clear any other receiver on the same WD first, then set this one.
+      const { error: clearErr } = await supabase
+        .from("hierarchy_tl")
+        .update({ is_wd_receiver: false })
+        .eq("wd_code", tl.wd_code)
+        .eq("is_wd_receiver", true);
+      if (clearErr) return toast.error(clearErr.message);
+      const { error } = await supabase
+        .from("hierarchy_tl")
+        .update({ is_wd_receiver: true })
+        .eq("tl_id", tl.tl_id);
+      if (error) return toast.error(error.message);
+      toast.success(`${tl.tl_name} is now the WD Receiver`);
+    }
     await load();
   }
 
@@ -128,13 +154,33 @@ function WdAdminUsersPage() {
                     {wdTls.map((t) => (
                       <div key={t.tl_id} className={`flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 ${t.active ? "" : "opacity-60"}`}>
                         <div className="min-w-0">
-                          <div className="text-sm font-semibold text-foreground">{t.tl_name} <span className="ml-1 text-xs font-mono text-muted-foreground">#{t.tl_id}</span></div>
+                          <div className="text-sm font-semibold text-foreground">
+                            {t.tl_name} <span className="ml-1 text-xs font-mono text-muted-foreground">#{t.tl_id}</span>
+                            {t.is_wd_receiver && (
+                              <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
+                                <Inbox size={9}/> WD Receiver
+                              </span>
+                            )}
+                          </div>
                           {!t.active && <div className="text-[10px] font-bold uppercase text-destructive">Inactive</div>}
                         </div>
-                        <button onClick={() => toggleActive(t)}
-                          className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted">
-                          {t.active ? <><Trash2 size={12}/> Remove</> : <><Power size={12}/> Reactivate</>}
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {t.active && (
+                            <button onClick={() => toggleReceiver(t)}
+                              title={t.is_wd_receiver ? "Remove WD Receiver delegation" : "Make this TL the WD Receiver"}
+                              className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition ${
+                                t.is_wd_receiver
+                                  ? "border-primary bg-primary text-primary-foreground hover:opacity-90"
+                                  : "border-border bg-background text-foreground hover:bg-muted"
+                              }`}>
+                              {t.is_wd_receiver ? <><Check size={12}/> Receiver</> : <><Inbox size={12}/> Set Receiver</>}
+                            </button>
+                          )}
+                          <button onClick={() => toggleActive(t)}
+                            className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted">
+                            {t.active ? <><Trash2 size={12}/> Remove</> : <><Power size={12}/> Reactivate</>}
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

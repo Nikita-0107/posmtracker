@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -51,14 +51,24 @@ type Section = "in_transit" | "stock" | "brand_images";
 
 function WdHomePage() {
   const { profile } = useAuth();
-  const { isAdmin, aeId } = useRoles();
+  const { isAdmin, aeId, isTl, isTlWdReceiver, tlReceiverWd, loading: rolesLoading } = useRoles();
   const { wd: wdParam } = Route.useSearch();
+  const navigate = useNavigate();
   const [section, setSection] = useState<Section>("in_transit");
   const [downloading, setDownloading] = useState(false);
 
-  // Active WD context: URL ?wd= (used by AE selecting from My WDs) takes priority,
-  // falling back to the user's own profile.wd_code (legacy single-WD users).
-  const activeWd = wdParam ?? profile?.wd_code ?? null;
+  // For delegated TL receivers, lock the active WD to the TL's WD regardless of URL.
+  const activeWd = isTl
+    ? tlReceiverWd
+    : (wdParam ?? profile?.wd_code ?? null);
+
+  // If a TL lands here without receiver delegation, kick them back to /tl.
+  useEffect(() => {
+    if (rolesLoading) return;
+    if (isTl && !isAdmin && !isTlWdReceiver) {
+      navigate({ to: "/tl", replace: true });
+    }
+  }, [rolesLoading, isTl, isAdmin, isTlWdReceiver, navigate]);
 
   const wdName = activeWd
     ? wdMaster.find((w) => w.wd_code === activeWd)?.wd_name ?? null
@@ -157,51 +167,59 @@ function WdHomePage() {
           </div>
         </div>
 
-        {/* Compact action tiles */}
-        <div className="grid grid-cols-3 gap-1.5">
-          <ActionTile
-            to="/wd-issue-tl"
-            wd={activeWd}
-            icon={Send}
-            label="TL Allocation"
-            tone="accent"
-          />
-          <ActionTile
-            to="/wd-transfer"
-            wd={activeWd}
-            icon={ArrowLeftRight}
-            label="Transfer"
-            tone="primary"
-          />
-          <button
-            onClick={downloadReport}
-            disabled={downloading || !activeWd}
-            className="flex flex-col items-center gap-1 rounded-xl border bg-card p-2 text-center transition hover:bg-muted/40 disabled:opacity-50"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
-              {downloading ? (
-                <Loader2 size={14} className="animate-spin text-accent" />
-              ) : (
-                <Download size={14} className="text-accent" />
-              )}
-            </div>
-            <span className="text-[10px] font-bold leading-tight text-foreground">Report</span>
-          </button>
-        </div>
+        {/* Compact action tiles — hidden for delegated TL receivers */}
+        {!isTl && (
+          <div className="grid grid-cols-3 gap-1.5">
+            <ActionTile
+              to="/wd-issue-tl"
+              wd={activeWd}
+              icon={Send}
+              label="TL Allocation"
+              tone="accent"
+            />
+            <ActionTile
+              to="/wd-transfer"
+              wd={activeWd}
+              icon={ArrowLeftRight}
+              label="Transfer"
+              tone="primary"
+            />
+            <button
+              onClick={downloadReport}
+              disabled={downloading || !activeWd}
+              className="flex flex-col items-center gap-1 rounded-xl border bg-card p-2 text-center transition hover:bg-muted/40 disabled:opacity-50"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+                {downloading ? (
+                  <Loader2 size={14} className="animate-spin text-accent" />
+                ) : (
+                  <Download size={14} className="text-accent" />
+                )}
+              </div>
+              <span className="text-[10px] font-bold leading-tight text-foreground">Report</span>
+            </button>
+          </div>
+        )}
 
-        {/* Section tabs */}
-        <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
-          <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
-          <SectionBtn label="WD Stock" icon={Boxes} active={section === "stock"} onClick={() => setSection("stock")} />
-          <SectionBtn label="Stock Images" icon={ImageIcon} active={section === "brand_images"} onClick={() => setSection("brand_images")} />
-        </div>
+        {/* Section tabs — delegated TL only sees Dispatches */}
+        {isTl ? (
+          <div className="rounded-xl border bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
+            <Inbox className="mr-1 inline" size={12} /> Receive Materials — delegated WD Receiver access
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
+            <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
+            <SectionBtn label="WD Stock" icon={Boxes} active={section === "stock"} onClick={() => setSection("stock")} />
+            <SectionBtn label="Stock Images" icon={ImageIcon} active={section === "brand_images"} onClick={() => setSection("brand_images")} />
+          </div>
+        )}
 
-        {section === "in_transit" && <InTransitSection wdCode={activeWd} />}
-        {section === "stock" && <WdStockSection wdCode={activeWd} />}
-        {section === "brand_images" && <BrandImagesSection wdCode={activeWd} />}
+        {(isTl || section === "in_transit") && <InTransitSection wdCode={activeWd} />}
+        {!isTl && section === "stock" && <WdStockSection wdCode={activeWd} />}
+        {!isTl && section === "brand_images" && <BrandImagesSection wdCode={activeWd} />}
 
         <div className="pt-2 text-center">
-          <Link to="/" className="text-[11px] font-semibold text-muted-foreground underline">
+          <Link to={isTl ? "/tl" : "/"} className="text-[11px] font-semibold text-muted-foreground underline">
             ← Back to home
           </Link>
         </div>
