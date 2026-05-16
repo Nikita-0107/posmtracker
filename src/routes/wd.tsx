@@ -51,14 +51,24 @@ type Section = "in_transit" | "stock" | "brand_images";
 
 function WdHomePage() {
   const { profile } = useAuth();
-  const { isAdmin, aeId } = useRoles();
+  const { isAdmin, aeId, isTl, isTlWdReceiver, tlReceiverWd, loading: rolesLoading } = useRoles();
   const { wd: wdParam } = Route.useSearch();
+  const navigate = useNavigate();
   const [section, setSection] = useState<Section>("in_transit");
   const [downloading, setDownloading] = useState(false);
 
-  // Active WD context: URL ?wd= (used by AE selecting from My WDs) takes priority,
-  // falling back to the user's own profile.wd_code (legacy single-WD users).
-  const activeWd = wdParam ?? profile?.wd_code ?? null;
+  // For delegated TL receivers, lock the active WD to the TL's WD regardless of URL.
+  const activeWd = isTl
+    ? tlReceiverWd
+    : (wdParam ?? profile?.wd_code ?? null);
+
+  // If a TL lands here without receiver delegation, kick them back to /tl.
+  useEffect(() => {
+    if (rolesLoading) return;
+    if (isTl && !isAdmin && !isTlWdReceiver) {
+      navigate({ to: "/tl", replace: true });
+    }
+  }, [rolesLoading, isTl, isAdmin, isTlWdReceiver, navigate]);
 
   const wdName = activeWd
     ? wdMaster.find((w) => w.wd_code === activeWd)?.wd_name ?? null
