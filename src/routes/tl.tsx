@@ -777,7 +777,7 @@ function MyStockSheet({
   }
 
   return (
-    <Sheet title="My Stock" subtitle="Tap a material to act on it" onClose={onClose}>
+    <Sheet title="My SOH" subtitle="Tap a material to act on it" onClose={onClose}>
       <SearchBar value={search} onChange={setSearch} placeholder="Search your stock…" />
       <div className="p-3">
         {list.length === 0 ? (
