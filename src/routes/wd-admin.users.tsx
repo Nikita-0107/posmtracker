@@ -84,6 +84,32 @@ function WdAdminUsersPage() {
     await load();
   }
 
+  async function toggleReceiver(tl: TlRow) {
+    if (tl.is_wd_receiver) {
+      const { error } = await supabase
+        .from("hierarchy_tl")
+        .update({ is_wd_receiver: false })
+        .eq("tl_id", tl.tl_id);
+      if (error) return toast.error(error.message);
+      toast.success("Receiver delegation removed");
+    } else {
+      // Clear any other receiver on the same WD first, then set this one.
+      const { error: clearErr } = await supabase
+        .from("hierarchy_tl")
+        .update({ is_wd_receiver: false })
+        .eq("wd_code", tl.wd_code)
+        .eq("is_wd_receiver", true);
+      if (clearErr) return toast.error(clearErr.message);
+      const { error } = await supabase
+        .from("hierarchy_tl")
+        .update({ is_wd_receiver: true })
+        .eq("tl_id", tl.tl_id);
+      if (error) return toast.error(error.message);
+      toast.success(`${tl.tl_name} is now the WD Receiver`);
+    }
+    await load();
+  }
+
   return (
     <AppShell>
       <div className="mx-auto max-w-2xl space-y-4">
