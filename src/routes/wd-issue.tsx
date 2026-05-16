@@ -447,7 +447,7 @@ function WdIssuePage() {
                       key={it.id}
                       idx={idx}
                       item={it}
-                      materials={materials}
+                      materials={inStockMaterials}
                       stockQty={v.stockQty}
                       transit={v.transit}
                       stockLoading={stockLoading}
