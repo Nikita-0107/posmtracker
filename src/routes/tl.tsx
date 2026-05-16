@@ -441,7 +441,7 @@ function TlPortalPage() {
           <ActionRow
             icon={PackagePlus}
             iconBg="bg-primary/15 text-primary"
-            title="Receive from WD"
+            title="Collect Items from WD SOH"
             subtitle={
               wdAvailableCount === 0
                 ? "Nothing available right now"
