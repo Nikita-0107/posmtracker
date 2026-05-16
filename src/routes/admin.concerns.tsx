@@ -84,7 +84,7 @@ function AdminConcernsPage() {
   }, [load]);
 
   async function act(id: string, action: "approve" | "reject") {
-    if (!isAdmin) return;
+    if (!isAdmin && !isWspAdmin) return;
     const note = action === "reject" ? window.prompt("Reason for rejection (optional):") ?? undefined : undefined;
     setActingId(id);
     const { error } = await supabase.rpc("resolve_stock_concern", {
@@ -170,7 +170,7 @@ function AdminConcernsPage() {
                 key={r.id}
                 row={r}
                 acting={actingId === r.id}
-                canAct={isAdmin}
+                canAct={isAdmin || isWspAdmin}
                 onAct={(a) => act(r.id, a)}
               />
             ))}
