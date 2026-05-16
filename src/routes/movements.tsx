@@ -16,6 +16,7 @@ import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageU
 import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
+import { useRoles } from "@/hooks/use-roles";
 import { toast } from "sonner";
 
 type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
