@@ -531,7 +531,7 @@ function TlPortalPage() {
         <section className="space-y-2 rounded-2xl border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
-              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
                 <Package size={16} className="text-primary" /> Your Stock
               </h2>
               <p className="text-[11px] text-muted-foreground">
@@ -666,7 +666,7 @@ function TlPortalPage() {
             className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-muted/40"
           >
             <div className="min-w-0">
-              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+              <h2 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
                 <Warehouse size={16} className="text-primary" /> Receive from WD ({tl.wd_code})
               </h2>
               <p className="text-[11px] text-muted-foreground">
@@ -764,7 +764,7 @@ function TlPortalPage() {
           >
             <div className="flex items-center justify-between border-b px-4 py-3">
               <div>
-                <h3 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground">
+                <h3 className="flex items-center gap-2 font-heading text-sm font-bold text-foreground font-sans text-left">
                   <History size={14} className="text-primary" /> Stock History
                 </h3>
                 <p className="text-[11px] text-muted-foreground">
