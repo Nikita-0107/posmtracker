@@ -65,6 +65,11 @@ function WdIssuePage() {
 
   const { materials } = useMaterials();
   const { stock, refresh, loading: stockLoading } = useStock();
+  // Only allow selecting materials that are actually present at this WSP
+  const inStockMaterials = useMemo(
+    () => materials.filter((m) => (stock[m.code] ?? 0) > 0),
+    [materials, stock],
+  );
 
   // In-transit per material = pending/issue dispatch lines from this WSP
   const [inTransit, setInTransit] = useState<Record<string, number>>({});
