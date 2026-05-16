@@ -217,7 +217,7 @@ function ActionTile({
   label,
   tone,
 }: {
-  to: "/wd-issue-tl" | "/wd-stock-track" | "/wd-transfer";
+  to: "/wd-issue-tl" | "/wd-transfer";
   wd: string | null;
   icon: React.ComponentType<{ size?: number; className?: string }>;
   label: string;
