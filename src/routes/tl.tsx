@@ -426,7 +426,7 @@ function TlPortalPage() {
               <Inbox size={20} />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-bold leading-tight text-foreground">My SOH</p>
+              <p className="text-sm font-bold leading-tight text-foreground">Receive materials from WSP</p>
               <p className="text-[11px] text-muted-foreground">
                 Delegated WD Receiver for <span className="font-mono font-bold text-primary">{tlReceiverWd}</span>
               </p>
