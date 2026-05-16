@@ -40,7 +40,7 @@ function WdAdminUsersPage() {
       const codes = wdList.map((w) => w.wd_code);
       const { data: tlData } = await supabase
         .from("hierarchy_tl")
-        .select("tl_id, tl_name, wd_code, active")
+        .select("tl_id, tl_name, wd_code, active, is_wd_receiver")
         .in("wd_code", codes)
         .order("wd_code");
       setTls((tlData ?? []) as TlRow[]);
