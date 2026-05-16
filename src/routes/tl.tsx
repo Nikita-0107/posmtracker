@@ -6,7 +6,7 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
-  History,
+  
   Search,
   CheckCircle2,
   Package,
@@ -737,7 +737,7 @@ function MyStockSheet({
   const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
   const [actionQty, setActionQty] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [historyCode, setHistoryCode] = useState<string | null>(null);
+  
 
   const list = Object.values(stats)
     .filter((m) => m.received > 0)
@@ -821,7 +821,7 @@ function MyStockSheet({
                         <span>Returned: <strong className="text-foreground">{m.returned}</strong></span>
                         <span>Last used: <strong className="text-foreground">{fmtDate(m.lastUsed)}</strong></span>
                       </div>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           disabled={m.balance <= 0}
                           onClick={() => { setActionKind("used"); setActionQty(""); }}
@@ -837,13 +837,6 @@ function MyStockSheet({
                         >
                           <ArrowUpFromLine size={16} />
                           Return
-                        </button>
-                        <button
-                          onClick={() => setHistoryCode(m.code)}
-                          className="flex flex-col items-center gap-1 rounded-lg border bg-card px-2 py-2.5 text-xs font-bold text-foreground hover:bg-muted"
-                        >
-                          <History size={16} />
-                          History
                         </button>
                       </div>
                       {actionKind && (
@@ -884,43 +877,7 @@ function MyStockSheet({
         )}
       </div>
 
-      {historyCode && (
-        <MaterialHistoryModal
-          code={historyCode}
-          name={stats[historyCode]?.name ?? historyCode}
-          onClose={() => setHistoryCode(null)}
-        />
-      )}
     </Sheet>
-  );
-}
-
-function MaterialHistoryModal({ code, name, onClose }: { code: string; name: string; onClose: () => void }) {
-  // simple stub — opens activity filtered; we'll fetch from parent via re-render isn't trivial,
-  // so this modal just hints to use the Activity screen filtered. Keep lightweight.
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
-      <div className="w-full max-w-md rounded-t-2xl border bg-card p-4 shadow-xl sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="font-heading text-sm font-bold text-foreground">{name}</h3>
-            <p className="text-[11px] font-mono uppercase text-muted-foreground">{code}</p>
-          </div>
-          <button onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted">
-            <X size={16} />
-          </button>
-        </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Open <strong className="text-foreground">Activity</strong> from the home screen to see full history. You can search by code or name there.
-        </p>
-        <button
-          onClick={onClose}
-          className="mt-4 w-full rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground"
-        >
-          Got it
-        </button>
-      </div>
-    </div>
   );
 }
 
