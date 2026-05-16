@@ -59,13 +59,19 @@ function ConcernsPage() {
 
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
+  // Only show materials that are actually present at this WSP (qty > 0)
+  const inStockMaterials = useMemo(
+    () => materials.filter((m) => (stock[m.code] ?? 0) > 0),
+    [materials, stock],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return materials.slice(0, 25);
-    return materials
+    if (!q) return inStockMaterials.slice(0, 25);
+    return inStockMaterials
       .filter((m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q))
       .slice(0, 25);
-  }, [materials, query]);
+  }, [inStockMaterials, query]);
 
   const systemQty = material ? (stock[material.code] ?? 0) : 0;
   const actualNum = actualQty === "" ? null : Number(actualQty);
