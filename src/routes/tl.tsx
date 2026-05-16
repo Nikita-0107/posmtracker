@@ -73,6 +73,7 @@ function fmtDate(d: string | null) {
 
 function TlPortalPage() {
   const { user, profile } = useAuth();
+  const { isTlWdReceiver, tlReceiverWd } = useRoles();
   const [tl, setTl] = useState<TlProfile | null>(null);
   const [tlLoadErr, setTlLoadErr] = useState<string | null>(null);
   const [materials, setMaterials] = useState<Material[]>([]);
