@@ -158,20 +158,13 @@ function WdHomePage() {
         </div>
 
         {/* Compact action tiles */}
-        <div className="grid grid-cols-4 gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           <ActionTile
             to="/wd-issue-tl"
             wd={activeWd}
             icon={Send}
             label="TL Allocation"
             tone="accent"
-          />
-          <ActionTile
-            to="/wd-stock-track"
-            wd={activeWd}
-            icon={Boxes}
-            label="Verify Stock"
-            tone="primary"
           />
           <ActionTile
             to="/wd-transfer"
