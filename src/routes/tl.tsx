@@ -416,6 +416,24 @@ function TlPortalPage() {
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl space-y-4">
+        {isTlWdReceiver && tlReceiverWd && (
+          <Link
+            to="/wd"
+            search={{ wd: tlReceiverWd }}
+            className="flex items-center gap-3 rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-card p-3 shadow-sm transition active:scale-[0.98]"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Inbox size={20} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-bold leading-tight text-foreground">Receive Materials</p>
+              <p className="text-[11px] text-muted-foreground">
+                Delegated WD Receiver for <span className="font-mono font-bold text-primary">{tlReceiverWd}</span>
+              </p>
+            </div>
+            <span className="text-muted-foreground/60">›</span>
+          </Link>
+        )}
         {activeReason ? (
           <div className="rounded-xl border border-emerald-500/50 bg-emerald-50 p-3 dark:bg-emerald-950/30">
             <div className="flex items-start gap-2.5">
