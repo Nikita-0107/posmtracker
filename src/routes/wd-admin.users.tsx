@@ -14,7 +14,7 @@ export const Route = createFileRoute("/wd-admin/users")({
 });
 
 type WdRow = { wd_code: string; wd_name: string };
-type TlRow = { tl_id: string; tl_name: string; wd_code: string; active: boolean };
+type TlRow = { tl_id: string; tl_name: string; wd_code: string; active: boolean; is_wd_receiver: boolean };
 
 function WdAdminUsersPage() {
   const { user, loading: authLoading } = useAuth();
