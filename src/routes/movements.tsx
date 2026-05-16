@@ -16,6 +16,7 @@ import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageU
 import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
+import { useRoles } from "@/hooks/use-roles";
 import { toast } from "sonner";
 
 type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
@@ -94,6 +95,7 @@ function formatDateTime(iso: string) {
 
 function MovementsPage() {
   const { profile } = useAuth();
+  const { isSuperAdmin } = useRoles();
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
@@ -185,6 +187,8 @@ function MovementsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
+      // Non-admin users only see receive/dispatch (hide TL issue etc.)
+      if (!isSuperAdmin && r.movement !== "receive" && r.movement !== "dispatch") return false;
       if (filter !== "all" && r.movement !== filter) return false;
       if (!q) return true;
       const name = matMap.get(r.material_code) ?? "";
@@ -195,7 +199,7 @@ function MovementsPage() {
         (r.distributor ?? "").toLowerCase().includes(q)
       );
     });
-  }, [rows, filter, query, matMap]);
+  }, [rows, filter, query, matMap, isSuperAdmin]);
 
   // Decide if a row is editable by the current WSP user
   function getEditState(r: Movement): { canEdit: boolean; reason?: string } {
