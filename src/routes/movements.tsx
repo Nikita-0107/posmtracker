@@ -187,6 +187,8 @@ function MovementsPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return rows.filter((r) => {
+      // Non-admin users only see receive/dispatch (hide TL issue etc.)
+      if (!isSuperAdmin && r.movement !== "receive" && r.movement !== "dispatch") return false;
       if (filter !== "all" && r.movement !== filter) return false;
       if (!q) return true;
       const name = matMap.get(r.material_code) ?? "";
