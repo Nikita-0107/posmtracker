@@ -86,12 +86,14 @@ function StockPage() {
           (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
         )
       : materials;
-    return list.map((m) => {
-      const total = stock[m.code] ?? 0;
-      const transit = inTransit[m.code] ?? 0;
-      const available = Math.max(0, total - transit);
-      return { ...m, total, transit, available };
-    });
+    return list
+      .map((m) => {
+        const total = stock[m.code] ?? 0;
+        const transit = inTransit[m.code] ?? 0;
+        const available = Math.max(0, total - transit);
+        return { ...m, total, transit, available };
+      })
+      .filter((m) => m.available > 0 || m.transit > 0);
   }, [query, wsp, materials, stock, inTransit]);
 
   const totalAvailable = useMemo(
