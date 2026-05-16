@@ -277,7 +277,7 @@ function ReceivePage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="font-heading text-lg font-bold leading-tight">Receive Materials</h2>
+              <h2 className="font-heading text-lg font-bold leading-tight">My SOH</h2>
               <WspBadge />
             </div>
             <p className="text-[11px] text-muted-foreground">Add multiple items to your WSP under one PO</p>
