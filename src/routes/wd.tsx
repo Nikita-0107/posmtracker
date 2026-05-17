@@ -789,17 +789,12 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
   const total = stock.reduce((s, r) => s + r.qty, 0);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return stock
       .slice()
       .sort((a, b) => a.material_code.localeCompare(b.material_code))
-      .filter((r) => {
-        if (!q) return true;
-        return (
-          r.material_code.toLowerCase().includes(q) ||
-          (matMap.get(r.material_code) ?? "").toLowerCase().includes(q)
-        );
-      });
+      .filter((r) =>
+        matchesSearch(query, r.material_code, matMap.get(r.material_code) ?? ""),
+      );
   }, [stock, query, matMap]);
 
   if (loading) {
