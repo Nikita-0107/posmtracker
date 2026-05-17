@@ -8,6 +8,7 @@ import { useWdStock } from "@/hooks/use-wd";
 import { useTlsForMyWd, type TlOption } from "@/hooks/use-tl-issuances";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue-tl")({
   component: TlAllocationPage,
