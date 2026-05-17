@@ -638,11 +638,7 @@ function ReceiveSheet({
   const list = materials
     .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
     .filter((m) => m.qty > 0)
-    .filter((m) =>
-      !search ||
-      m.code.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase()),
-    )
+    .filter((m) => matchesSearch(search, m.code, m.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   async function submitTake(code: string, max: number) {
