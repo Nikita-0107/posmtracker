@@ -20,6 +20,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
+import { matchesSearch } from "@/lib/search";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
