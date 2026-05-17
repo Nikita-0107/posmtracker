@@ -18,6 +18,7 @@ import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { toast } from "sonner";
+import { matchesSearch } from "@/lib/search";
 
 type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
 const BATCH_TYPES: BatchType[] = ["Launch", "Cyclical", "SOV", "Others"];
