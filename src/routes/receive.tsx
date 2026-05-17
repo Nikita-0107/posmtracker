@@ -570,14 +570,10 @@ function ReceiveLineItemRow({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [onChange]);
 
-  const q = item.query.trim().toLowerCase();
+  const q = item.query.trim();
   const results = useMemo(
     () =>
-      q
-        ? materials.filter(
-            (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-          )
-        : [],
+      q ? materials.filter((m) => matchesSearch(q, m.code, m.name)) : [],
     [materials, q],
   );
   const noResults = q.length > 0 && results.length === 0;
