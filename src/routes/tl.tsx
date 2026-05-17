@@ -676,21 +676,24 @@ function ReceiveSheet({
                 <li key={m.code} className="rounded-xl border bg-card p-3 shadow-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <button className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80">
-                          <Eye size={14} />
-                        </button>
-                        <p className="text-[15px] font-bold leading-snug text-foreground break-words">
-                          {m.name}
-                        </p>
-                      </div>
+                      <p className="text-[15px] font-bold leading-snug text-foreground break-words">
+                        {m.name}
+                      </p>
                       <p className="mt-0.5 text-[11px] font-mono uppercase text-muted-foreground">
                         {m.code}
                       </p>
                     </div>
-                    <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
-                      {m.qty} avail
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80"
+                        aria-label="View details"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
+                        {m.qty} avail
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-2.5 flex items-center gap-2">
                     <input
