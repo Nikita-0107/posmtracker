@@ -846,15 +846,11 @@ function MaterialPicker({
   const [search, setSearch] = useState("");
 
   const selectableMaterials = useMemo(() => {
-    const term = search.trim().toLowerCase();
     return availableMaterials.filter((s) => {
-      // hide ones already used in another line, unless editing this very one
       if (usedCodes.has(s.material_code) && s.material_code !== existing?.material_code) {
         return false;
       }
-      if (!term) return true;
-      const name = (matMap.get(s.material_code) ?? "").toLowerCase();
-      return s.material_code.toLowerCase().includes(term) || name.includes(term);
+      return matchesSearch(search, s.material_code, matMap.get(s.material_code) ?? "");
     });
   }, [availableMaterials, usedCodes, existing, search, matMap]);
 
