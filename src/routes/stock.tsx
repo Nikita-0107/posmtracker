@@ -6,6 +6,7 @@ import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock } from "@/hooks/use-stock";
 import { exportDispatchReport } from "@/lib/export-dispatch";
+import { matchesSearch } from "@/lib/search";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
