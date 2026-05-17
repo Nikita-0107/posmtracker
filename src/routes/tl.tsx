@@ -903,12 +903,9 @@ function ActivitySheet({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const list = activity.filter((a) => {
-    if (!search) return true;
-    const n = matName.get(a.material_code) ?? a.material_code;
-    const q = search.toLowerCase();
-    return a.material_code.toLowerCase().includes(q) || n.toLowerCase().includes(q);
-  });
+  const list = activity.filter((a) =>
+    matchesSearch(search, a.material_code, matName.get(a.material_code) ?? ""),
+  );
 
   return (
     <Sheet title="Activity" subtitle={`${activity.length} event${activity.length === 1 ? "" : "s"}`} onClose={onClose}>
