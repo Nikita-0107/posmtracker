@@ -114,7 +114,7 @@ function StockPage() {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
-              <h2 className="font-heading text-lg font-bold leading-tight">WSP Stock Overview</h2>
+              <h2 className="font-heading text-lg font-bold leading-tight">WSP SOH</h2>
               <WspBadge />
             </div>
             <p className="text-[11px] text-muted-foreground">
