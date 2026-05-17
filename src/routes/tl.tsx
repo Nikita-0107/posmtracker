@@ -369,9 +369,9 @@ function TlPortalPage() {
             </button>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Stat label="With you" value={materialsHeld} />
-            <Stat label="Pending" value={pendingReturns} />
-            <Stat label="Last" value={fmtDate(lastActivityDate)} small />
+            <Stat label="Total Qty" value={pendingReturns} />
+            <Stat label="SKU types" value={materialsHeld} />
+            <Stat label="Last Activity" value={fmtDate(lastActivityDate)} />
           </div>
         </div>
 
@@ -519,11 +519,11 @@ function TlPortalPage() {
   );
 }
 
-function Stat({ label, value, small }: { label: string; value: number | string; small?: boolean }) {
+function Stat({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-lg border bg-background/50 px-2 py-2">
-      <div className={`font-heading font-bold text-foreground ${small ? "text-sm" : "text-base"}`}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+    <div className="rounded-lg border bg-background/50 px-2 py-2.5">
+      <div className="font-heading text-lg font-bold text-foreground">{value}</div>
+      <div className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
     </div>
   );
 }
