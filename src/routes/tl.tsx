@@ -746,11 +746,7 @@ function MyStockSheet({
 
   const list = Object.values(stats)
     .filter((m) => m.received > 0)
-    .filter((m) =>
-      !search ||
-      m.code.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase()),
-    )
+    .filter((m) => matchesSearch(search, m.code, m.name))
     .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
 
   function toggle(code: string) {
