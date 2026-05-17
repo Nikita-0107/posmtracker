@@ -21,6 +21,7 @@ import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageU
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock, dispatchMaterials, type Material } from "@/hooks/use-stock";
 import { wdMaster } from "@/lib/posm-data";
+import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue")({
   component: WdIssuePage,
