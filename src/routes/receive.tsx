@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { matchesSearch } from "@/lib/search";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
