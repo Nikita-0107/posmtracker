@@ -202,11 +202,17 @@ function WdHomePage() {
           </div>
         )}
 
-        {/* Section tabs — delegated TL only sees Dispatches */}
+        {/* Section tabs — delegated TL sees Dispatches + Stock Images only */}
         {isTl ? (
-          <div className="rounded-xl border bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
-            <Inbox className="mr-1 inline" size={12} /> My SOH — delegated WD Receiver access
-          </div>
+          <>
+            <div className="rounded-xl border bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
+              <Inbox className="mr-1 inline" size={12} /> Delegated WD Receiver access
+            </div>
+            <div className="grid grid-cols-2 gap-1.5 rounded-xl border bg-card p-1">
+              <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
+              <SectionBtn label="Stock Images" icon={ImageIcon} active={section === "brand_images"} onClick={() => setSection("brand_images")} />
+            </div>
+          </>
         ) : (
           <div className="grid grid-cols-3 gap-1.5 rounded-xl border bg-card p-1">
             <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
@@ -215,9 +221,9 @@ function WdHomePage() {
           </div>
         )}
 
-        {(isTl || section === "in_transit") && <InTransitSection wdCode={activeWd} />}
+        {section === "in_transit" && <InTransitSection wdCode={activeWd} />}
         {!isTl && section === "stock" && <WdStockSection wdCode={activeWd} />}
-        {!isTl && section === "brand_images" && <BrandImagesSection wdCode={activeWd} />}
+        {section === "brand_images" && <BrandImagesSection wdCode={activeWd} />}
 
         <div className="pt-2 text-center">
           <Link to={isTl ? "/tl" : "/"} className="text-[11px] font-semibold text-muted-foreground underline">
