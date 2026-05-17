@@ -20,6 +20,7 @@ import { useMaterials } from "@/hooks/use-stock";
 import { useWdStock } from "@/hooks/use-wd";
 import { supabase } from "@/integrations/supabase/client";
 import { wdMaster } from "@/lib/posm-data";
+import { matchesSearch } from "@/lib/search";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-transfer")({
