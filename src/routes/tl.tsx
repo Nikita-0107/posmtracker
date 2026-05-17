@@ -806,29 +806,29 @@ function MyStockSheet({
                     className="flex w-full items-center gap-3 p-3 text-left hover:bg-muted/30"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                          onClick={(e) => e.stopPropagation()}
-                          role="button"
-                        >
-                          <Eye size={14} />
-                        </span>
-                        <p className="text-[15px] font-bold leading-snug text-foreground break-words">
-                          {m.name}
-                        </p>
-                      </div>
+                      <p className="text-[15px] font-bold leading-snug text-foreground break-words">
+                        {m.name}
+                      </p>
                       <p className="mt-0.5 text-[11px] font-mono uppercase text-muted-foreground">
                         {m.code}
                       </p>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <div className={`font-heading text-lg font-bold ${m.balance > 0 ? "text-primary" : "text-muted-foreground"}`}>
-                        {m.balance}
+                    <div className="flex items-center gap-2">
+                      <div className="text-right">
+                        <div className={`font-heading text-lg font-bold ${m.balance > 0 ? "text-primary" : "text-muted-foreground"}`}>
+                          {m.balance}
+                        </div>
+                        <div className="text-[10px] uppercase text-muted-foreground">on hand</div>
                       </div>
-                      <div className="text-[10px] uppercase text-muted-foreground">on hand</div>
+                      <span
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
+                        onClick={(e) => e.stopPropagation()}
+                        role="button"
+                      >
+                        <Eye size={14} />
+                      </span>
+                      <ChevronRight size={18} className={`shrink-0 text-muted-foreground transition ${open ? "rotate-90" : ""}`} />
                     </div>
-                    <ChevronRight size={18} className={`shrink-0 text-muted-foreground transition ${open ? "rotate-90" : ""}`} />
                   </button>
                   {open && (
                     <div className="space-y-2.5 border-t bg-muted/10 p-3">
