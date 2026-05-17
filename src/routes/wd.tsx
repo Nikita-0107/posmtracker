@@ -991,9 +991,9 @@ function verifyState(uploadedAt: string | null | undefined) {
 }
 
 function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
-  const { isAdmin, isAe } = useRoles();
+  const { isAdmin, isAe, isTlWdReceiver, tlReceiverWd } = useRoles();
   const { user } = useAuth();
-  const canEdit = (isAdmin || isAe) && !!wdCode;
+  const canEdit = (isAdmin || isAe || (isTlWdReceiver && !!wdCode && wdCode === tlReceiverWd)) && !!wdCode;
   const [rows, setRows] = useState<BrandImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
