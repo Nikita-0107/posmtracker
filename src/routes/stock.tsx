@@ -81,11 +81,8 @@ function StockPage() {
 
   const items = useMemo(() => {
     if (!wsp) return [];
-    const q = query.trim().toLowerCase();
-    const list = q
-      ? materials.filter(
-          (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-        )
+    const list = query.trim()
+      ? materials.filter((m) => matchesSearch(query, m.code, m.name))
       : materials;
     return list
       .map((m) => {
