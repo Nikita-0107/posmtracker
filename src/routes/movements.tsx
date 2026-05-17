@@ -186,19 +186,13 @@ function MovementsPage() {
   }, [refresh]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     return rows.filter((r) => {
-      // Non-admin users only see receive/dispatch (hide TL issue etc.)
       if (!isSuperAdmin && r.movement !== "receive" && r.movement !== "dispatch") return false;
       if (filter !== "all" && r.movement !== filter) return false;
       if (!q) return true;
       const name = matMap.get(r.material_code) ?? "";
-      return (
-        r.material_code.toLowerCase().includes(q) ||
-        name.toLowerCase().includes(q) ||
-        (r.reference_number ?? "").toLowerCase().includes(q) ||
-        (r.distributor ?? "").toLowerCase().includes(q)
-      );
+      return matchesSearch(q, r.material_code, name, r.reference_number, r.distributor);
     });
   }, [rows, filter, query, matMap, isSuperAdmin]);
 
