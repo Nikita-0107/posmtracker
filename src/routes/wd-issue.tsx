@@ -633,11 +633,9 @@ function LineItemRow({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [onChange]);
 
-  const q = item.query.trim().toLowerCase();
+  const q = item.query.trim();
   const results = q
-    ? materials.filter(
-        (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-      )
+    ? materials.filter((m) => matchesSearch(q, m.code, m.name))
     : [];
 
   function pick(m: Material) {
