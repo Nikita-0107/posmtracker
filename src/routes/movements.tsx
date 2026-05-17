@@ -486,13 +486,10 @@ function EditEntryDialog({
   );
 
   const materialMatches = useMemo(() => {
-    const q = materialQuery.trim().toLowerCase();
+    const q = materialQuery.trim();
     if (!q) return [] as { code: string; name: string }[];
     return materials
-      .filter(
-        (m) =>
-          m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-      )
+      .filter((m) => matchesSearch(q, m.code, m.name))
       .slice(0, 6);
   }, [materialQuery, materials]);
 
