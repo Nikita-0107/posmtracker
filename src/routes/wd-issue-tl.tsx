@@ -991,15 +991,9 @@ function AllocateTab({
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {tls
-                .filter((t) => {
-                  const q = tlSearch.trim().toLowerCase();
-                  if (!q) return true;
-                  return (
-                    t.tl_name.toLowerCase().includes(q) ||
-                    String(t.legacy_tl_id ?? "").includes(q) ||
-                    (t.tl_type ?? "").toLowerCase().includes(q)
-                  );
-                })
+                .filter((t) =>
+                  matchesSearch(tlSearch, t.tl_name, t.legacy_tl_id, t.tl_type),
+                )
                 .map((t) => {
                 const a = activity.get(t.id);
                 const bal = balances.get(t.id);
