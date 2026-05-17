@@ -644,19 +644,25 @@ function ReceiveSheet({
   async function submitTake(code: string, max: number) {
     const n = Number(qty[code]);
     if (!Number.isFinite(n) || n <= 0) return toast.error("Enter a quantity");
+    const cap = Math.floor(max * 0.4);
+    if (n > cap) {
+      return toast.error(
+        `Per-transaction limit: collect up to ${cap} at a time. Split large collections into multiple actions.`,
+      );
+    }
     if (n > max) return toast.error(`WD has only ${max}`);
     setSubmitting(code);
     const { error } = await supabase.rpc("tl_self_take", { _material_code: code, _qty: n });
     setSubmitting(null);
     if (error) return toast.error(error.message);
-    toast.success(`Received ${n} × ${matName.get(code) ?? code}`);
+    toast.success(`Received ${n} \u00d7 ${matName.get(code) ?? code}`);
     setQty((p) => ({ ...p, [code]: "" }));
     onDone();
   }
 
   return (
-    <Sheet title="Collect Items from WD SOH" subtitle={`From ${tl.wd_code}${tl.wd_name ? ` · ${tl.wd_name}` : ""}`} onClose={onClose}>
-      <SearchBar value={search} onChange={setSearch} placeholder="Search material…" />
+    <Sheet title="Collect Items from WD SOH" subtitle={`From ${tl.wd_code}${tl.wd_name ? ` \u00b7 ${tl.wd_name}` : ""}`} onClose={onClose}>
+      <SearchBar value={search} onChange={setSearch} placeholder="Search material\u2026" />
       <div className="p-3">
         {list.length === 0 ? (
           <p className="rounded-lg border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
@@ -667,7 +673,10 @@ function ReceiveSheet({
             {list.map((m) => {
               const v = qty[m.code] ?? "";
               const n = Number(v);
-              const invalid = v !== "" && (!Number.isFinite(n) || n <= 0 || n > m.qty);
+              const cap = Math.floor(m.qty * 0.4);
+              const overCap = Number.isFinite(n) && n > cap;
+              const overStock = Number.isFinite(n) && n > m.qty;
+              const invalid = v !== "" && (!Number.isFinite(n) || n <= 0 || overCap || overStock);
               const isSubmitting = submitting === m.code;
               return (
                 <li key={m.code} className="rounded-xl border bg-card p-3 shadow-sm">
@@ -713,7 +722,11 @@ function ReceiveSheet({
                   </div>
                   {invalid && (
                     <p className="mt-1.5 text-[11px] text-destructive">
-                      {n > m.qty ? `Max available: ${m.qty}` : "Enter a valid quantity"}
+                      {!Number.isFinite(n) || n <= 0
+                        ? "Enter a valid quantity"
+                        : overStock
+                          ? `Max available: ${m.qty}`
+                          : `Per-transaction limit applies. You can collect up to ${cap} at one time. Split large collections into multiple actions.`}
                     </p>
                   )}
                 </li>
