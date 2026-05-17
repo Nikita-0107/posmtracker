@@ -8,6 +8,7 @@ import { useWdStock } from "@/hooks/use-wd";
 import { useTlsForMyWd, type TlOption } from "@/hooks/use-tl-issuances";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue-tl")({
   component: TlAllocationPage,
@@ -990,15 +991,9 @@ function AllocateTab({
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {tls
-                .filter((t) => {
-                  const q = tlSearch.trim().toLowerCase();
-                  if (!q) return true;
-                  return (
-                    t.tl_name.toLowerCase().includes(q) ||
-                    String(t.legacy_tl_id ?? "").includes(q) ||
-                    (t.tl_type ?? "").toLowerCase().includes(q)
-                  );
-                })
+                .filter((t) =>
+                  matchesSearch(tlSearch, t.tl_name, t.legacy_tl_id, t.tl_type),
+                )
                 .map((t) => {
                 const a = activity.get(t.id);
                 const bal = balances.get(t.id);
@@ -1091,14 +1086,9 @@ function AllocateTab({
               />
             </div>
             {stocked
-              .filter((s) => {
-                const q = matSearch.trim().toLowerCase();
-                if (!q) return true;
-                return (
-                  s.material_code.toLowerCase().includes(q) ||
-                  (matName.get(s.material_code) ?? "").toLowerCase().includes(q)
-                );
-              })
+              .filter((s) =>
+                matchesSearch(matSearch, s.material_code, matName.get(s.material_code) ?? ""),
+              )
               .map((s) => {
               const sel = !!lines.find((l) => l.code === s.material_code);
               const exp = expandedMat === s.material_code;

@@ -32,6 +32,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { wdMaster } from "@/lib/posm-data";
 import { exportWdReport } from "@/lib/export-wd-report";
+import { matchesSearch } from "@/lib/search";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd")({
@@ -321,19 +322,16 @@ function InTransitSection({ wdCode }: { wdCode: string | null }) {
   }, [groups]);
 
   const visible = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     return groups.filter((g) => {
       const parents = g.items.filter((i) => !i.parent_movement_id);
       const allDone = parents.every((i) => i.item_status !== "pending");
       if (filter === "pending" && allDone) return false;
       if (filter === "done" && !allDone) return false;
       if (!q) return true;
-      if (g.wsp.toLowerCase().includes(q)) return true;
-      if (g.dispatch_id.toLowerCase().includes(q)) return true;
-      return g.items.some(
-        (it) =>
-          it.material_code.toLowerCase().includes(q) ||
-          (matMap.get(it.material_code) ?? "").toLowerCase().includes(q),
+      if (matchesSearch(q, g.wsp, g.dispatch_id)) return true;
+      return g.items.some((it) =>
+        matchesSearch(q, it.material_code, matMap.get(it.material_code) ?? ""),
       );
     });
   }, [groups, filter, query, matMap]);
@@ -791,17 +789,12 @@ function WdStockSection({ wdCode }: { wdCode: string | null }) {
   const total = stock.reduce((s, r) => s + r.qty, 0);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
     return stock
       .slice()
       .sort((a, b) => a.material_code.localeCompare(b.material_code))
-      .filter((r) => {
-        if (!q) return true;
-        return (
-          r.material_code.toLowerCase().includes(q) ||
-          (matMap.get(r.material_code) ?? "").toLowerCase().includes(q)
-        );
-      });
+      .filter((r) =>
+        matchesSearch(query, r.material_code, matMap.get(r.material_code) ?? ""),
+      );
   }, [stock, query, matMap]);
 
   if (loading) {

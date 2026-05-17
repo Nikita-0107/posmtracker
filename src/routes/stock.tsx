@@ -6,6 +6,7 @@ import { WspBadge } from "@/components/WspSelector";
 import { useAuth } from "@/hooks/use-auth";
 import { useMaterials, useStock } from "@/hooks/use-stock";
 import { exportDispatchReport } from "@/lib/export-dispatch";
+import { matchesSearch } from "@/lib/search";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -80,11 +81,8 @@ function StockPage() {
 
   const items = useMemo(() => {
     if (!wsp) return [];
-    const q = query.trim().toLowerCase();
-    const list = q
-      ? materials.filter(
-          (m) => m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-        )
+    const list = query.trim()
+      ? materials.filter((m) => matchesSearch(query, m.code, m.name))
       : materials;
     return list
       .map((m) => {

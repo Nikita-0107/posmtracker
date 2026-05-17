@@ -20,6 +20,7 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
+import { matchesSearch } from "@/lib/search";
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -637,11 +638,7 @@ function ReceiveSheet({
   const list = materials
     .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
     .filter((m) => m.qty > 0)
-    .filter((m) =>
-      !search ||
-      m.code.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase()),
-    )
+    .filter((m) => matchesSearch(search, m.code, m.name))
     .sort((a, b) => a.name.localeCompare(b.name));
 
   async function submitTake(code: string, max: number) {
@@ -749,11 +746,7 @@ function MyStockSheet({
 
   const list = Object.values(stats)
     .filter((m) => m.received > 0)
-    .filter((m) =>
-      !search ||
-      m.code.toLowerCase().includes(search.toLowerCase()) ||
-      m.name.toLowerCase().includes(search.toLowerCase()),
-    )
+    .filter((m) => matchesSearch(search, m.code, m.name))
     .sort((a, b) => b.balance - a.balance || a.name.localeCompare(b.name));
 
   function toggle(code: string) {
@@ -910,12 +903,9 @@ function ActivitySheet({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const list = activity.filter((a) => {
-    if (!search) return true;
-    const n = matName.get(a.material_code) ?? a.material_code;
-    const q = search.toLowerCase();
-    return a.material_code.toLowerCase().includes(q) || n.toLowerCase().includes(q);
-  });
+  const list = activity.filter((a) =>
+    matchesSearch(search, a.material_code, matName.get(a.material_code) ?? ""),
+  );
 
   return (
     <Sheet title="Activity" subtitle={`${activity.length} event${activity.length === 1 ? "" : "s"}`} onClose={onClose}>

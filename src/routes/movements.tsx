@@ -18,6 +18,7 @@ import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { toast } from "sonner";
+import { matchesSearch } from "@/lib/search";
 
 type BatchType = "Launch" | "Cyclical" | "SOV" | "Others";
 const BATCH_TYPES: BatchType[] = ["Launch", "Cyclical", "SOV", "Others"];
@@ -185,19 +186,13 @@ function MovementsPage() {
   }, [refresh]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     return rows.filter((r) => {
-      // Non-admin users only see receive/dispatch (hide TL issue etc.)
       if (!isSuperAdmin && r.movement !== "receive" && r.movement !== "dispatch") return false;
       if (filter !== "all" && r.movement !== filter) return false;
       if (!q) return true;
       const name = matMap.get(r.material_code) ?? "";
-      return (
-        r.material_code.toLowerCase().includes(q) ||
-        name.toLowerCase().includes(q) ||
-        (r.reference_number ?? "").toLowerCase().includes(q) ||
-        (r.distributor ?? "").toLowerCase().includes(q)
-      );
+      return matchesSearch(q, r.material_code, name, r.reference_number, r.distributor);
     });
   }, [rows, filter, query, matMap, isSuperAdmin]);
 
@@ -491,13 +486,10 @@ function EditEntryDialog({
   );
 
   const materialMatches = useMemo(() => {
-    const q = materialQuery.trim().toLowerCase();
+    const q = materialQuery.trim();
     if (!q) return [] as { code: string; name: string }[];
     return materials
-      .filter(
-        (m) =>
-          m.code.toLowerCase().includes(q) || m.name.toLowerCase().includes(q),
-      )
+      .filter((m) => matchesSearch(q, m.code, m.name))
       .slice(0, 6);
   }, [materialQuery, materials]);
 
