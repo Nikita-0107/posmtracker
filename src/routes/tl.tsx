@@ -369,9 +369,9 @@ function TlPortalPage() {
             </button>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2 text-center">
-            <Stat label="With you" value={materialsHeld} />
-            <Stat label="Pending" value={pendingReturns} />
-            <Stat label="Last" value={fmtDate(lastActivityDate)} small />
+            <Stat label="Total Qty" value={pendingReturns} />
+            <Stat label="SKU types" value={materialsHeld} />
+            <Stat label="Last Activity" value={fmtDate(lastActivityDate)} />
           </div>
         </div>
 
