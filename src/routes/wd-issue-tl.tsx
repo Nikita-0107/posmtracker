@@ -1086,14 +1086,9 @@ function AllocateTab({
               />
             </div>
             {stocked
-              .filter((s) => {
-                const q = matSearch.trim().toLowerCase();
-                if (!q) return true;
-                return (
-                  s.material_code.toLowerCase().includes(q) ||
-                  (matName.get(s.material_code) ?? "").toLowerCase().includes(q)
-                );
-              })
+              .filter((s) =>
+                matchesSearch(matSearch, s.material_code, matName.get(s.material_code) ?? ""),
+              )
               .map((s) => {
               const sel = !!lines.find((l) => l.code === s.material_code);
               const exp = expandedMat === s.material_code;
