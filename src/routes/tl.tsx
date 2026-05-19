@@ -66,7 +66,7 @@ type MatStat = {
   lastReturned: string | null;
 };
 
-type Screen = "home" | "receive" | "stock" | "activity";
+type Screen = "home" | "receive" | "stock" | "activity" | "wdstock";
 
 function tlMeta(t: TlProfile) {
   return [t.legacy_tl_id, t.tl_type].filter(Boolean).join(" · ");
@@ -451,6 +451,17 @@ function TlPortalPage() {
             onClick={() => setScreen("receive")}
           />
           <ActionRow
+            icon={Warehouse}
+            iconBg="bg-sky-500/15 text-sky-600 dark:text-sky-400"
+            title="WD Stock (Available at WD)"
+            subtitle={
+              wdAvailableCount === 0
+                ? "No stock at WD right now"
+                : `${wdAvailableCount} material${wdAvailableCount === 1 ? "" : "s"} in stock at ${tl.wd_code}`
+            }
+            onClick={() => setScreen("wdstock")}
+          />
+          <ActionRow
             icon={Package}
             iconBg="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
             title="My SOH"
@@ -488,6 +499,15 @@ function TlPortalPage() {
           matName={matName}
           onClose={() => setScreen("home")}
           onDone={() => void refresh()}
+        />
+      )}
+      {screen === "wdstock" && (
+        <WdStockSheet
+          tl={tl}
+          materials={materials}
+          wdStock={wdStock}
+          onClose={() => setScreen("home")}
+          onCollect={() => setScreen("receive")}
         />
       )}
       {screen === "stock" && (
@@ -740,6 +760,129 @@ function ReceiveSheet({
 }
 
 // ───────────────── My Stock sheet ─────────────────
+
+// ───────────────── WD Stock sheet (read-only) ─────────────────
+
+function WdStockSheet({
+  tl,
+  materials,
+  wdStock,
+  onClose,
+  onCollect,
+}: {
+  tl: TlProfile;
+  materials: Material[];
+  wdStock: Record<string, number>;
+  onClose: () => void;
+  onCollect: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [sortAlpha, setSortAlpha] = useState(false);
+  const [showZero, setShowZero] = useState(false);
+
+  const rows = materials
+    .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
+    .filter((m) => (showZero ? true : m.qty > 0))
+    .filter((m) => matchesSearch(search, m.code, m.name));
+
+  rows.sort((a, b) =>
+    sortAlpha ? a.code.localeCompare(b.code) : b.qty - a.qty || a.name.localeCompare(b.name),
+  );
+
+  const totalSkus = rows.filter((r) => r.qty > 0).length;
+  const totalUnits = rows.reduce((s, r) => s + Math.max(0, r.qty), 0);
+
+  return (
+    <Sheet
+      title="WD Stock"
+      subtitle={`${tl.wd_code}${tl.wd_name ? ` \u00b7 ${tl.wd_name}` : ""}`}
+      onClose={onClose}
+    >
+      <SearchBar value={search} onChange={setSearch} placeholder="Search material…" />
+      <div className="space-y-3 p-3 pb-24">
+        <div className="rounded-lg border border-sky-500/30 bg-sky-50 p-2.5 text-[11px] text-sky-900 dark:bg-sky-950/30 dark:text-sky-100">
+          Live stock available at your WD. Per-transaction collection limit is 40% of the
+          quantity shown here — split larger collections into multiple actions.
+        </div>
+
+        <div className="flex items-center justify-between gap-2 text-[11px]">
+          <div className="flex gap-1.5">
+            <button
+              onClick={() => setSortAlpha(false)}
+              className={`rounded-md border px-2 py-1 font-medium ${!sortAlpha ? "border-primary bg-primary/10 text-primary" : "bg-card text-muted-foreground"}`}
+            >
+              Qty (high → low)
+            </button>
+            <button
+              onClick={() => setSortAlpha(true)}
+              className={`rounded-md border px-2 py-1 font-medium ${sortAlpha ? "border-primary bg-primary/10 text-primary" : "bg-card text-muted-foreground"}`}
+            >
+              A–Z
+            </button>
+          </div>
+          <label className="flex items-center gap-1.5 text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={showZero}
+              onChange={(e) => setShowZero(e.target.checked)}
+              className="h-3.5 w-3.5"
+            />
+            Show out-of-stock
+          </label>
+        </div>
+
+        {rows.length === 0 ? (
+          <p className="rounded-lg border border-dashed bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+            {search ? "No matches." : "Nothing available at your WD right now."}
+          </p>
+        ) : (
+          <ul className="space-y-2">
+            {rows.map((m) => (
+              <li
+                key={m.code}
+                className="flex items-start justify-between gap-3 rounded-xl border bg-card p-3 shadow-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-bold leading-snug text-foreground break-words">
+                    {m.name}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-mono uppercase text-muted-foreground">
+                    {m.code}
+                  </p>
+                </div>
+                <span
+                  className={`shrink-0 rounded-md px-2 py-1 text-xs font-bold ${
+                    m.qty > 0
+                      ? "bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                      : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {m.qty}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="fixed inset-x-0 bottom-0 z-10 border-t bg-card/95 p-3 backdrop-blur">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-3">
+          <div className="text-[11px] text-muted-foreground">
+            <span className="font-bold text-foreground">{totalSkus}</span> SKUs ·{" "}
+            <span className="font-bold text-foreground">{totalUnits}</span> units
+          </div>
+          <button
+            onClick={onCollect}
+            className="flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition active:scale-[0.97] hover:bg-primary/90"
+          >
+            <ArrowDownToLine size={14} />
+            Collect from WD
+          </button>
+        </div>
+      </div>
+    </Sheet>
+  );
+}
 
 function MyStockSheet({
   stats,
