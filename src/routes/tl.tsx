@@ -66,7 +66,7 @@ type MatStat = {
   lastReturned: string | null;
 };
 
-type Screen = "home" | "receive" | "stock" | "activity";
+type Screen = "home" | "receive" | "stock" | "activity" | "wdstock";
 
 function tlMeta(t: TlProfile) {
   return [t.legacy_tl_id, t.tl_type].filter(Boolean).join(" · ");
