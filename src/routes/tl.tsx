@@ -501,6 +501,15 @@ function TlPortalPage() {
           onDone={() => void refresh()}
         />
       )}
+      {screen === "wdstock" && (
+        <WdStockSheet
+          tl={tl}
+          materials={materials}
+          wdStock={wdStock}
+          onClose={() => setScreen("home")}
+          onCollect={() => setScreen("receive")}
+        />
+      )}
       {screen === "stock" && (
         <MyStockSheet
           stats={matStats}
