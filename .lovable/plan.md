@@ -1,55 +1,40 @@
 ## Goal
+Give TLs a clear, read-only view of the **current WD stock** (WD-SOH) for their WD, so they can plan collections without first opening the Receive flow.
 
-Use `WD_Stock_Details.xlsx` as the **current live WD stock** snapshot. Each sheet (e.g. `VI3221`, `VI3500`, …) is one WD. The 8 sheet names exactly match the 8 `wd_code`s in `hierarchy_wd`.
+## Current state
+- `src/routes/tl.tsx` already fetches `wd_stock` for the TL's `wd_code` (line 141) and subscribes to realtime updates (line 280).
+- WD stock is only surfaced as:
+  - a count on the "Collect Items from WD SOH" action card ("X materials available at VI…")
+  - quantities inside the Receive sheet, mixed with the 40% per-transaction cap UI
+- There is no dedicated, searchable list of current WD stock for TLs.
 
-## What the file looks like
+## Proposed change (UI only, no logic/data changes)
 
-Each sheet has:
-- Row 2: `WD Code` (numeric, e.g. `3221`)
-- Row 5 headers: `Brand | Code | Material Description | SOH`
-- Row 6+: data
+1. **New action card on the TL home** (between "Collect Items from WD SOH" and "My SOH"):
+   - Title: **"WD Stock (Available at WD)"**
+   - Subtitle: `${wdAvailableCount} materials in stock at ${tl.wd_code}` (or "No stock at WD right now")
+   - Icon: `Warehouse` in a blue/sky tint to differentiate from green "My SOH"
 
-Across all 8 sheets: **225 stock rows, 83 unique material codes**.
+2. **New `WdStockSheet` screen** opened from that card:
+   - Header: "WD Stock — `<wd_code>` · `<wd_name>`" with close button
+   - Short helper line: *"Live stock available at your WD. Per-transaction collection limit is 40% of the quantity shown here."*
+   - Search box (filter by material code or name)
+   - Sort: by qty desc by default; toggle to A–Z by code
+   - List rows: material code (mono) + name, right side qty badge
+   - Show zero-qty items only when search matches (collapsed by default via a "Show out-of-stock" toggle)
+   - Footer summary: total SKUs in stock + sum of units
+   - A "Collect from WD" button at the bottom that opens the existing `ReceiveSheet` (no logic change)
 
-## Mapping rules
-
-- `wd_code` ← **sheet name** (already in `VI####` form, matches DB).
-- `material_code` ← `Code` column (e.g. `M/0120201301`).
-- `material_name` ← `Material Description`.
-- `qty` ← `SOH` (integer).
-- Skip rows where `Code` is blank or `SOH` is blank / 0 / non-numeric.
-- Trim whitespace on codes/names.
-
-## DB writes (idempotent upserts only — no transactions, no history)
-
-1. **`materials`** — upsert every unique `(code, name)` from the file. `materials.code` is PK, so `ON CONFLICT (code) DO NOTHING` keeps existing names untouched. Required because `wd_stock.material_code` FKs to `materials.code`.
-2. **`wd_stock`** — upsert `(wd_code, material_code, qty)` using the existing `UNIQUE (wd_code, material_code)` constraint:
-   ```sql
-   INSERT INTO wd_stock (wd_code, material_code, qty)
-   VALUES (...)
-   ON CONFLICT (wd_code, material_code)
-   DO UPDATE SET qty = EXCLUDED.qty, updated_at = now();
-   ```
-   This **overwrites** the current SOH for that (WD, material) pair with the Excel value — which is what "use this as the live stock position" means. Re-running the import produces the same state; no duplicates.
-
-## Explicitly NOT touched
-
-- `stock_movements` — no dispatch/receive rows created.
-- `tl_issuances`, `tl_issuance_items`, `tl_returns`, `tl_usages`, `tl_weekly_allocations` — untouched.
-- `wd_stock_snapshots` — untouched (this is a different feature: counted snapshots with proof images).
-- WSP `stock`, in-transit, brand images — untouched.
-- Any (wd_code, material_code) pair already in `wd_stock` but **absent** from the Excel is left alone (not zeroed out). If you want missing rows zeroed, say so and I'll add that step.
-
-## How it's executed
-
-A single SQL migration generated from the file:
-- ~83 `INSERT … ON CONFLICT DO NOTHING` rows into `materials`.
-- ~225 `INSERT … ON CONFLICT DO UPDATE` rows into `wd_stock`.
-
-No app code changes. After approval the migration runs once; the upserts make it safe to re-run if you upload an updated sheet.
+3. **No changes** to:
+   - 40% per-transaction cap logic
+   - Receive / return / used flows
+   - `wd_stock` RLS (TLs already have SELECT via `TL can view stock of own WD`)
+   - any backend / migration
 
 ## Files touched
+- `src/routes/tl.tsx` — add new action card, new `WdStockSheet` component, new `screen === "wdstock"` case. All other code unchanged.
 
-- `supabase/migrations/<new>.sql` — the seed/upsert SQL.
-
-Nothing else.
+## Out of scope
+- Editing WD stock from TL side
+- History / movement of WD stock
+- Brand-wise grouping (can be a follow-up if needed)
