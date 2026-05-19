@@ -970,7 +970,7 @@ const BRANDS = [
   "Others",
 ] as const;
 
-const VERIFY_DAYS = 15;
+const VERIFY_DAYS = 7;
 
 type BrandImage = {
   id: string;
