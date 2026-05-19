@@ -970,7 +970,7 @@ const BRANDS = [
   "Others",
 ] as const;
 
-const VERIFY_DAYS = 15;
+const VERIFY_DAYS = 7;
 
 type BrandImage = {
   id: string;
@@ -1120,7 +1120,7 @@ function BrandImagesSection({ wdCode }: { wdCode: string | null }) {
     <div className="space-y-2">
       {overdueCount > 0 && (
         <div className="rounded-xl border-2 border-amber-400/60 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-          ⚠ {overdueCount} brand{overdueCount > 1 ? "s" : ""} pending verification (15-day cycle).
+          ⚠ {overdueCount} brand{overdueCount > 1 ? "s" : ""} pending verification (7-day cycle).
         </div>
       )}
       <p className="text-[11px] text-muted-foreground">
