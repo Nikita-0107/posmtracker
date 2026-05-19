@@ -33,7 +33,7 @@ export function brandFromName(name: string | null | undefined): string {
   return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
 }
 
-export const VERIFY_INTERVAL_DAYS = 15;
+export const VERIFY_INTERVAL_DAYS = 7;
 
 export function verifyStatus(lastDateIso: string | null): {
   status: "overdue" | "due_soon" | "ok" | "never";
