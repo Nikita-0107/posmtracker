@@ -451,6 +451,17 @@ function TlPortalPage() {
             onClick={() => setScreen("receive")}
           />
           <ActionRow
+            icon={Warehouse}
+            iconBg="bg-sky-500/15 text-sky-600 dark:text-sky-400"
+            title="WD Stock (Available at WD)"
+            subtitle={
+              wdAvailableCount === 0
+                ? "No stock at WD right now"
+                : `${wdAvailableCount} material${wdAvailableCount === 1 ? "" : "s"} in stock at ${tl.wd_code}`
+            }
+            onClick={() => setScreen("wdstock")}
+          />
+          <ActionRow
             icon={Package}
             iconBg="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
             title="My SOH"
