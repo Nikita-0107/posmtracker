@@ -1,40 +1,25 @@
-## Goal
-Give TLs a clear, read-only view of the **current WD stock** (WD-SOH) for their WD, so they can plan collections without first opening the Receive flow.
+## Problem
 
-## Current state
-- `src/routes/tl.tsx` already fetches `wd_stock` for the TL's `wd_code` (line 141) and subscribes to realtime updates (line 280).
-- WD stock is only surfaced as:
-  - a count on the "Collect Items from WD SOH" action card ("X materials available at VI…")
-  - quantities inside the Receive sheet, mixed with the 40% per-transaction cap UI
-- There is no dedicated, searchable list of current WD stock for TLs.
+After login, every user briefly sees the WSP Operations screen (`/`) for ~2–3 seconds before being redirected to their actual landing page (`/my-wds` for WD Admins, `/tl` for TLs). This causes confusion.
 
-## Proposed change (UI only, no logic/data changes)
+## Root cause
 
-1. **New action card on the TL home** (between "Collect Items from WD SOH" and "My SOH"):
-   - Title: **"WD Stock (Available at WD)"**
-   - Subtitle: `${wdAvailableCount} materials in stock at ${tl.wd_code}` (or "No stock at WD right now")
-   - Icon: `Warehouse` in a blue/sky tint to differentiate from green "My SOH"
+`src/components/AppShell.tsx` already redirects non-WSP users away from `/`, but the redirect happens in a `useEffect` that runs **after** the first render. That first render shows the WSP cards (`WspOperationsPage`) until React commits the navigation. The existing `showLoadingOverlay` only hides children while `authLoading || rolesLoading` is true — it does not cover the gap between "roles finished loading" and "redirect navigation committed".
 
-2. **New `WdStockSheet` screen** opened from that card:
-   - Header: "WD Stock — `<wd_code>` · `<wd_name>`" with close button
-   - Short helper line: *"Live stock available at your WD. Per-transaction collection limit is 40% of the quantity shown here."*
-   - Search box (filter by material code or name)
-   - Sort: by qty desc by default; toggle to A–Z by code
-   - List rows: material code (mono) + name, right side qty badge
-   - Show zero-qty items only when search matches (collapsed by default via a "Show out-of-stock" toggle)
-   - Footer summary: total SKUs in stock + sum of units
-   - A "Collect from WD" button at the bottom that opens the existing `ReceiveSheet` (no logic change)
+A second contributor: any time roles load and the current route doesn't match the user's role (not just `/`), the page content flashes before `AppShell` redirects.
 
-3. **No changes** to:
-   - 40% per-transaction cap logic
-   - Receive / return / used flows
-   - `wd_stock` RLS (TLs already have SELECT via `TL can view stock of own WD`)
-   - any backend / migration
+## Fix (single file: `src/components/AppShell.tsx`)
 
-## Files touched
-- `src/routes/tl.tsx` — add new action card, new `WdStockSheet` component, new `screen === "wdstock"` case. All other code unchanged.
+1. Compute a `pendingRedirect` flag right next to the existing redirect `useEffect`, using the same logic:
+   - `true` if `location.pathname === "/"` and the user is not WSP/WSP admin/admin, OR
+   - `true` if the current path matches a `routeRoleMap` entry the user is not allowed in.
+2. Extend the loading overlay condition so children are replaced by the spinner while `pendingRedirect` is true (in addition to the existing `authLoading || rolesLoading` case).
+3. Leave the redirect `useEffect`, `landingForRoles`, `routeRoleMap`, waiting-screen, and back-home logic unchanged.
+
+Result: TLs and WD Admins see only the header + spinner from the moment they land on `/` until the router commits the redirect — no WSP cards flash.
 
 ## Out of scope
-- Editing WD stock from TL side
-- History / movement of WD stock
-- Brand-wise grouping (can be a follow-up if needed)
+
+- No changes to `src/routes/index.tsx`, role hook, auth hook, or any role-specific landing page.
+- No change to the redirect destinations themselves.
+- No change to the waiting screen for users with no role/entity assigned.

@@ -93,8 +93,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     navigate({ to: "/login" });
   }
 
-  // While auth/roles still loading, render a thin shell
-  const showLoadingOverlay = (authLoading || rolesLoading) && !!user;
+  // While auth/roles still loading, render a thin shell.
+  // Also keep the overlay while a role-based redirect is pending so users
+  // don't briefly see the WSP "/" screen before being sent to their landing.
+  const onPublicPathEarly = PUBLIC_PATHS.some((p) => location.pathname.startsWith(p));
+  let pendingRedirect = false;
+  if (!!user && !authLoading && !rolesLoading && !onPublicPathEarly && !isAdmin) {
+    if (location.pathname === "/" && !roles.includes("wsp") && !roles.includes("wsp_admin")) {
+      if (landingForRoles(roles) !== "/") pendingRedirect = true;
+    } else {
+      const match = routeRoleMap.find((r) => matchesRoutePrefix(location.pathname, r.prefix));
+      if (match && !match.roles.some((r) => roles.includes(r))) pendingRedirect = true;
+    }
+  }
+  const showLoadingOverlay = ((authLoading || rolesLoading) && !!user) || pendingRedirect;
 
   // Determine if this user has any role-allowed entity assigned at all
   const hasPrimaryRole =
