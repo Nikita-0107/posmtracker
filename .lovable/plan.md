@@ -1,51 +1,55 @@
-## Issue 1 — Password length
+## Goal
 
-Supabase Auth's default minimum password length is **6 characters**, not 4. Our code allows 4 (`z.string().min(4)`) and defaults to `"1234"`, so account creation may have appeared to succeed in the UI but `auth.admin.createUser` actually rejected the password — leaving the profile/role rows in place but **no auth user**, which is exactly why login `VIJ003` / `1234` returns "Invalid ID or password".
+Use `WD_Stock_Details.xlsx` as the **current live WD stock** snapshot. Each sheet (e.g. `VI3221`, `VI3500`, …) is one WD. The 8 sheet names exactly match the 8 `wd_code`s in `hierarchy_wd`.
 
-**Fix:**
-- Change `DEFAULT_PW` from `"1234"` to `"123456"` in `src/server/admin.functions.ts`.
-- Change all `z.string().min(4)` password validators to `.min(6)`.
-- Update UI placeholder/help text in `admin.users.tsx` and `wd-admin.users.tsx` from "default 1234" → "default 123456".
+## What the file looks like
 
-## Issue 2 — Seed accounts from your hierarchy sheet
+Each sheet has:
+- Row 2: `WD Code` (numeric, e.g. `3221`)
+- Row 5 headers: `Brand | Code | Material Description | SOH`
+- Row 6+: data
 
-You're right — I should create the accounts from the hierarchy you sent. I'll seed the hierarchy tables AND auto-create auth accounts for every AE and TL in one go, using the data visible in your screenshot.
+Across all 8 sheets: **225 stock rows, 83 unique material codes**.
 
-### Data to seed (from the screenshot)
+## Mapping rules
 
-**AE VIJ003 — Nanaji**
-- VI3180 SRI KALYANI AGENCIES → GUNA 32285, HANOK 31070, 3180 ESWAR RAO 3888, PRUDVI 3989
-- VI3233 SAI VENKATA NARASIMHA ENTERPRISES → BHANU 31272, GOPI 33715, AMIR 30451
-- VI3391 PAVANI ENTERPRISES → SRIKANTH 32629, JAGADESH 31274, JANAKI RAM 31071, MANIKANTA 31776, VINOD 36835
-- VI3465 VASUDAH ASSOCIATES → MURALI_VI3232 4515, JOSEPH 31975, PREM 38653, REHMAN_VI3232 33717, HANUMANTH 31963, SANTOSH 37401
-- VI3799 PIONEER MARKETING → NIKHIL 36452, SHIVA 31275
+- `wd_code` ← **sheet name** (already in `VI####` form, matches DB).
+- `material_code` ← `Code` column (e.g. `M/0120201301`).
+- `material_name` ← `Material Description`.
+- `qty` ← `SOH` (integer).
+- Skip rows where `Code` is blank or `SOH` is blank / 0 / non-numeric.
+- Trim whitespace on codes/names.
 
-**AE VI1005 — Sai Venu**
-- VI3221 CMK ASSOCIATES → KAPUGANTI PRASANTH KUMAR 37306, CHAKRAMAHANTI GOWRI SANKAR 35117A, KAKINADA RAVI KUMAR 35329, KOLA TEJESWARARAO 33716, KRISHNA 31271
-- VI3434 SREE VAISHNAVI TRADERS → CHAKRAMAHANTI GOWRI SANKAR 35117B, HANUMANSETTI VENKATA NARASIMHA GUPTA 37905, SIVA KUMAR 32108
-- VI3500 SURYA MARKETING → BONU JAYANTH 32616, KALLEMPUDI SRINIVASA RAO 4273, KALLEPALLI SRINU 36339, PALIVELA SRINIVASARAO 37644, RAJARAM GARAKIPATI 37220
-- VI3801 SRI VENKATA SAI ABHAYA ANJANEYA TRADERS → ADARI VAMSI 35116, KANISETTY SATISH 36840
+## DB writes (idempotent upserts only — no transactions, no history)
 
-### How I'll seed it
+1. **`materials`** — upsert every unique `(code, name)` from the file. `materials.code` is PK, so `ON CONFLICT (code) DO NOTHING` keeps existing names untouched. Required because `wd_stock.material_code` FKs to `materials.code`.
+2. **`wd_stock`** — upsert `(wd_code, material_code, qty)` using the existing `UNIQUE (wd_code, material_code)` constraint:
+   ```sql
+   INSERT INTO wd_stock (wd_code, material_code, qty)
+   VALUES (...)
+   ON CONFLICT (wd_code, material_code)
+   DO UPDATE SET qty = EXCLUDED.qty, updated_at = now();
+   ```
+   This **overwrites** the current SOH for that (WD, material) pair with the Excel value — which is what "use this as the live stock position" means. Re-running the import produces the same state; no duplicates.
 
-A single new migration that:
-1. Upserts all rows above into `hierarchy_ae`, `hierarchy_wd`, `hierarchy_tl` (idempotent — won't disturb anything else).
-2. Adds a SQL helper `admin_seed_accounts_from_hierarchy()` that, for every AE and active TL in the hierarchy without an auth user yet, creates one via `auth.admin` equivalent. Since SQL can't directly create auth users, I'll instead expose a **server function** `seedAccountsFromHierarchy()` (admin-only) that:
-   - Iterates `hierarchy_ae` → `createUser(<ae_id>@posm.local, "123456")` + profile + `wd_admin` role.
-   - Iterates `hierarchy_tl` → `createUser(<tl_id>@posm.local, "123456")` + profile + `tl` role.
-   - Skips any user that already exists (lookup by email).
+## Explicitly NOT touched
 
-3. Adds a **"Seed Accounts from Hierarchy"** button on `/admin/users` (Super Admin only) that calls the function and shows a toast with `{ae_created, tl_created, skipped}`.
+- `stock_movements` — no dispatch/receive rows created.
+- `tl_issuances`, `tl_issuance_items`, `tl_returns`, `tl_usages`, `tl_weekly_allocations` — untouched.
+- `wd_stock_snapshots` — untouched (this is a different feature: counted snapshots with proof images).
+- WSP `stock`, in-transit, brand images — untouched.
+- Any (wd_code, material_code) pair already in `wd_stock` but **absent** from the Excel is left alone (not zeroed out). If you want missing rows zeroed, say so and I'll add that step.
 
-### Result
+## How it's executed
 
-After approval and one click, every AE and TL from your sheet can log in immediately with their ID + password `123456`. WD visibility flows automatically from the hierarchy.
+A single SQL migration generated from the file:
+- ~83 `INSERT … ON CONFLICT DO NOTHING` rows into `materials`.
+- ~225 `INSERT … ON CONFLICT DO UPDATE` rows into `wd_stock`.
 
-### Files touched
+No app code changes. After approval the migration runs once; the upserts make it safe to re-run if you upload an updated sheet.
 
-- `supabase/migrations/<new>.sql` — seed hierarchy rows.
-- `src/server/admin.functions.ts` — bump password validation/default to 6, add `seedAccountsFromHierarchy`.
-- `src/routes/admin.users.tsx` — add "Seed Accounts from Hierarchy" button next to Create Account; update default-password text.
-- `src/routes/wd-admin.users.tsx` — update default-password text.
+## Files touched
 
-Nothing in the existing `profiles`, `user_roles`, stock, or transaction data is modified or removed.
+- `supabase/migrations/<new>.sql` — the seed/upsert SQL.
+
+Nothing else.
