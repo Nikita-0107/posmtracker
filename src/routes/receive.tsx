@@ -911,6 +911,33 @@ function ReceiveLineItemRow({
         </select>
       </label>
 
+      {/* Material reference image (per-material, shared across the app) */}
+      {validation.hasMaterial && (
+        validation.needsImage ? (
+          <MaterialImagePicker
+            value={item.image}
+            onChange={(v) => onChange({ image: v })}
+            error={submitted && !validation.imageOk ? "Material image is required" : null}
+            required
+          />
+        ) : (
+          <div className="flex items-center justify-between gap-2 rounded-lg border bg-muted/30 px-2.5 py-1.5">
+            <span className="text-[10px] font-semibold text-muted-foreground">
+              Material image on file ✓
+            </span>
+            <button
+              type="button"
+              onClick={() => onChange({ image: null })}
+              className="text-[10px] font-semibold text-primary underline-offset-2 hover:underline"
+            >
+              {item.image ? "Keep new image" : "Replace"}
+            </button>
+          </div>
+        )
+      )}
+      {validation.hasMaterial && !validation.needsImage && item.image === undefined && null}
+      {validation.hasMaterial && !validation.needsImage && false}
+
       {dup && (
         <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[11px] font-semibold text-destructive">
           <AlertTriangle size={12} />
