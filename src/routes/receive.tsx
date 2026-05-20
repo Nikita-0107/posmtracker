@@ -249,7 +249,29 @@ function ReceivePage() {
       return;
     }
 
-    setSubmitResult({
+    // Upload + link any staged material images (best-effort, in parallel)
+    const imageUploads = items
+      .filter((it, idx) => itemValidations[idx].ok && it.image)
+      .map(async (it) => {
+        const code = it.material ? it.material.code : it.newCode.trim();
+        const file = it.image!.file;
+        const ext = (file.type.split("/")[1] || "webp").replace("jpeg", "jpg");
+        const path = `material-images/${code.replace(/[^a-zA-Z0-9_-]/g, "_")}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("proofs")
+          .upload(path, file, { contentType: file.type, upsert: true, cacheControl: "3600" });
+        if (upErr) {
+          console.error("Material image upload failed for", code, upErr);
+          return;
+        }
+        const { error: updErr } = await supabase
+          .from("materials")
+          .update({ image_path: path, image_updated_at: new Date().toISOString() })
+          .eq("code", code);
+        if (updErr) console.error("Material image link failed for", code, updErr);
+      });
+    await Promise.all(imageUploads);
+
       poNumber: poNumber.trim(),
       receivedDate,
       wsp: wsp ?? "",
