@@ -21,6 +21,8 @@ import { AppShell } from "@/components/AppShell";
 import { matchesSearch } from "@/lib/search";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
+import { MaterialImagePicker, type StagedImage } from "@/components/MaterialImagePicker";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMaterials,
