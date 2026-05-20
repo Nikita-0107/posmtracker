@@ -141,8 +141,12 @@ function ReceivePage() {
     const qtyNum = Number(it.qty);
     const qtyOk = it.qty !== "" && qtyNum > 0;
     const dup = !!code && dupCodes.has(code);
-    const ok = hasMaterial && qtyOk && !dup;
-    return { code, hasMaterial, qtyNum, qtyOk, dup, ok };
+    // Image required if: brand-new material OR existing material with no image_path yet
+    const materialHasImageOnFile = !!it.material && !!it.material.image_path;
+    const needsImage = hasMaterial && !materialHasImageOnFile;
+    const imageOk = !needsImage || !!it.image;
+    const ok = hasMaterial && qtyOk && !dup && imageOk;
+    return { code, hasMaterial, qtyNum, qtyOk, dup, needsImage, imageOk, ok };
   });
 
   const itemCount = itemValidations.filter((v) => v.hasMaterial).length;
