@@ -21,6 +21,8 @@ import { AppShell } from "@/components/AppShell";
 import { matchesSearch } from "@/lib/search";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
+import { MaterialImagePicker, type StagedImage } from "@/components/MaterialImagePicker";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import {
   useMaterials,
@@ -61,6 +63,8 @@ type LineItem = {
   qty: string;
   // batch type per item
   batchType: BatchType;
+  // staged material reference image (required when material has no image yet)
+  image: StagedImage | null;
 };
 
 function newLine(): LineItem {
@@ -74,6 +78,7 @@ function newLine(): LineItem {
     open: false,
     qty: "",
     batchType: "Cyclical",
+    image: null,
   };
 }
 
@@ -81,7 +86,7 @@ function ReceivePage() {
   const { profile, user } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
-  const { materials, loading: matLoading } = useMaterials();
+  const { materials, loading: matLoading, refresh: refreshMaterials } = useMaterials();
   const { stock, loading: stockLoading, refresh } = useStock();
 
   // HEADER
@@ -136,8 +141,12 @@ function ReceivePage() {
     const qtyNum = Number(it.qty);
     const qtyOk = it.qty !== "" && qtyNum > 0;
     const dup = !!code && dupCodes.has(code);
-    const ok = hasMaterial && qtyOk && !dup;
-    return { code, hasMaterial, qtyNum, qtyOk, dup, ok };
+    // Image required if: brand-new material OR existing material with no image_path yet
+    const materialHasImageOnFile = !!it.material && !!it.material.image_path;
+    const needsImage = hasMaterial && !materialHasImageOnFile;
+    const imageOk = !needsImage || !!it.image;
+    const ok = hasMaterial && qtyOk && !dup && imageOk;
+    return { code, hasMaterial, qtyNum, qtyOk, dup, needsImage, imageOk, ok };
   });
 
   const itemCount = itemValidations.filter((v) => v.hasMaterial).length;
@@ -239,6 +248,30 @@ function ReceivePage() {
       }
       return;
     }
+
+    // Upload + link any staged material images (best-effort, in parallel)
+    const imageUploads = items
+      .filter((it, idx) => itemValidations[idx].ok && it.image)
+      .map(async (it) => {
+        const code = it.material ? it.material.code : it.newCode.trim();
+        const file = it.image!.file;
+        const ext = (file.type.split("/")[1] || "webp").replace("jpeg", "jpg");
+        const path = `material-images/${code.replace(/[^a-zA-Z0-9_-]/g, "_")}-${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from("proofs")
+          .upload(path, file, { contentType: file.type, upsert: true, cacheControl: "3600" });
+        if (upErr) {
+          console.error("Material image upload failed for", code, upErr);
+          return;
+        }
+        const { error: updErr } = await supabase
+          .from("materials")
+          .update({ image_path: path, image_updated_at: new Date().toISOString() })
+          .eq("code", code);
+        if (updErr) console.error("Material image link failed for", code, updErr);
+      });
+    await Promise.all(imageUploads);
+    void refreshMaterials();
 
     setSubmitResult({
       poNumber: poNumber.trim(),
@@ -534,7 +567,7 @@ type ReceiveLineItemRowProps = {
   stockQty: number;
   stockLoading: boolean;
   dup: boolean;
-  validation: { hasMaterial: boolean; qtyOk: boolean; dup: boolean; ok: boolean };
+  validation: { hasMaterial: boolean; qtyOk: boolean; dup: boolean; needsImage: boolean; imageOk: boolean; ok: boolean };
   submitted: boolean;
   rowRef: (el: HTMLDivElement | null) => void;
   canRemove: boolean;
@@ -877,6 +910,23 @@ function ReceiveLineItemRow({
           ))}
         </select>
       </label>
+
+      {/* Material reference image (per-material, shared across the app) */}
+      {validation.hasMaterial && (
+        <div className="rounded-lg border bg-muted/20 p-2">
+          {!validation.needsImage && !item.image && (
+            <p className="mb-1 text-[10px] font-semibold text-success">
+              Material image on file ✓ — upload to replace (optional)
+            </p>
+          )}
+          <MaterialImagePicker
+            value={item.image}
+            onChange={(v) => onChange({ image: v })}
+            error={submitted && !validation.imageOk ? "Material image is required" : null}
+            required={validation.needsImage}
+          />
+        </div>
+      )}
 
       {dup && (
         <div className="flex items-center gap-1.5 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[11px] font-semibold text-destructive">

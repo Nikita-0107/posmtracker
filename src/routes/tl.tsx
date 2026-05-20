@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { MaterialImageViewer } from "@/components/MaterialImageViewer";
+import { useMaterialImageMap } from "@/hooks/use-stock";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Loader2,
   RefreshCw,
   AlertTriangle,
-  Eye,
+  // Eye icon now provided by MaterialImageViewer
   Search,
   CheckCircle2,
   Package,
@@ -87,6 +89,7 @@ function TlPortalPage() {
   const [matStats, setMatStats] = useState<Record<string, MatStat>>({});
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const materialImageMap = useMaterialImageMap();
 
   const [screen, setScreen] = useState<Screen>("home");
   const [activeReason, setActiveReason] = useState<{
@@ -655,6 +658,7 @@ function ReceiveSheet({
   const [qty, setQty] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
 
+  const materialImageMap = useMaterialImageMap();
   const list = materials
     .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
     .filter((m) => m.qty > 0)
@@ -710,12 +714,7 @@ function ReceiveSheet({
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80"
-                        aria-label="View details"
-                      >
-                        <Eye size={14} />
-                      </button>
+                      <MaterialImageViewer imagePath={materialImageMap[m.code]} label={m.code} />
                       <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
                         {m.qty} avail
                       </span>
@@ -894,6 +893,7 @@ function MyStockSheet({
   onDone: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const materialImageMap = useMaterialImageMap();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
   const [actionQty, setActionQty] = useState("");
@@ -969,13 +969,7 @@ function MyStockSheet({
                         </div>
                         <div className="text-[10px] uppercase text-muted-foreground">on hand</div>
                       </div>
-                      <span
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                        onClick={(e) => e.stopPropagation()}
-                        role="button"
-                      >
-                        <Eye size={14} />
-                      </span>
+                      <MaterialImageViewer imagePath={materialImageMap[m.code]} label={m.code} />
                       <ChevronRight size={18} className={`shrink-0 text-muted-foreground transition ${open ? "rotate-90" : ""}`} />
                     </div>
                   </button>

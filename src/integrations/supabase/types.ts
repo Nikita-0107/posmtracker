@@ -133,16 +133,22 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          image_path: string | null
+          image_updated_at: string | null
           name: string
         }
         Insert: {
           code: string
           created_at?: string
+          image_path?: string | null
+          image_updated_at?: string | null
           name: string
         }
         Update: {
           code?: string
           created_at?: string
+          image_path?: string | null
+          image_updated_at?: string | null
           name?: string
         }
         Relationships: []
