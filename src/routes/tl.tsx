@@ -8,7 +8,7 @@ import {
   Loader2,
   RefreshCw,
   AlertTriangle,
-  Eye,
+  // Eye icon now provided by MaterialImageViewer
   Search,
   CheckCircle2,
   Package,
