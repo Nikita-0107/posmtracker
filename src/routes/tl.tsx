@@ -893,6 +893,7 @@ function MyStockSheet({
   onDone: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const materialImageMap = useMaterialImageMap();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [actionKind, setActionKind] = useState<"used" | "return" | null>(null);
   const [actionQty, setActionQty] = useState("");
