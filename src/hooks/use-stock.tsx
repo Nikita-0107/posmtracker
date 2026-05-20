@@ -2,18 +2,19 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 
-export type Material = { code: string; name: string };
+export type Material = { code: string; name: string; image_path?: string | null };
 export type StockRow = { material_code: string; qty: number };
 
 export function useMaterials() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     let alive = true;
     supabase
       .from("materials")
-      .select("code, name")
+      .select("code, name, image_path")
       .order("code")
       .then(({ data, error }) => {
         if (!alive) return;
@@ -24,13 +25,13 @@ export function useMaterials() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [refreshKey]);
 
   const addMaterial = useCallback(async (code: string, name: string) => {
     const { data, error } = await supabase
       .from("materials")
       .insert({ code, name })
-      .select("code, name")
+      .select("code, name, image_path")
       .single();
     if (error) return { material: null, error };
     const newMat = data as Material;
@@ -42,7 +43,17 @@ export function useMaterials() {
     return { material: newMat, error: null };
   }, []);
 
-  return { materials, loading, addMaterial };
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), []);
+
+  return { materials, loading, addMaterial, refresh };
+}
+
+/** Lightweight lookup map by material code → image_path */
+export function useMaterialImageMap(): Record<string, string | null> {
+  const { materials } = useMaterials();
+  const map: Record<string, string | null> = {};
+  for (const m of materials) map[m.code] = m.image_path ?? null;
+  return map;
 }
 
 export function useStock() {
