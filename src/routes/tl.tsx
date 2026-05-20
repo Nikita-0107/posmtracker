@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { MaterialImageViewer } from "@/components/MaterialImageViewer";
+import { useMaterialImageMap } from "@/hooks/use-stock";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
