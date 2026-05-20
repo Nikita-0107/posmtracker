@@ -89,6 +89,7 @@ function TlPortalPage() {
   const [matStats, setMatStats] = useState<Record<string, MatStat>>({});
   const [activity, setActivity] = useState<ActivityRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const materialImageMap = useMaterialImageMap();
 
   const [screen, setScreen] = useState<Screen>("home");
   const [activeReason, setActiveReason] = useState<{
