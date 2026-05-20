@@ -86,7 +86,7 @@ function ReceivePage() {
   const { profile, user } = useAuth();
   const wsp = profile?.wsp;
   const wspEnabled = !!wsp;
-  const { materials, loading: matLoading } = useMaterials();
+  const { materials, loading: matLoading, refresh: refreshMaterials } = useMaterials();
   const { stock, loading: stockLoading, refresh } = useStock();
 
   // HEADER
