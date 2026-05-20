@@ -63,6 +63,8 @@ type LineItem = {
   qty: string;
   // batch type per item
   batchType: BatchType;
+  // staged material reference image (required when material has no image yet)
+  image: StagedImage | null;
 };
 
 function newLine(): LineItem {
@@ -76,6 +78,7 @@ function newLine(): LineItem {
     open: false,
     qty: "",
     batchType: "Cyclical",
+    image: null,
   };
 }
 
