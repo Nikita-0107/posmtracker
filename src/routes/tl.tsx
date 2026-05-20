@@ -968,13 +968,7 @@ function MyStockSheet({
                         </div>
                         <div className="text-[10px] uppercase text-muted-foreground">on hand</div>
                       </div>
-                      <span
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground"
-                        onClick={(e) => e.stopPropagation()}
-                        role="button"
-                      >
-                        <Eye size={14} />
-                      </span>
+                      <MaterialImageViewer imagePath={materialImageMap[m.code]} label={m.code} />
                       <ChevronRight size={18} className={`shrink-0 text-muted-foreground transition ${open ? "rotate-90" : ""}`} />
                     </div>
                   </button>
