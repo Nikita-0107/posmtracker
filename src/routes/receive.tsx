@@ -271,7 +271,9 @@ function ReceivePage() {
         if (updErr) console.error("Material image link failed for", code, updErr);
       });
     await Promise.all(imageUploads);
+    void refreshMaterials();
 
+    setSubmitResult({
       poNumber: poNumber.trim(),
       receivedDate,
       wsp: wsp ?? "",
