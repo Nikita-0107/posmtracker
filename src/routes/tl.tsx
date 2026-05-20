@@ -658,6 +658,7 @@ function ReceiveSheet({
   const [qty, setQty] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
 
+  const materialImageMap = useMaterialImageMap();
   const list = materials
     .map((m) => ({ ...m, qty: wdStock[m.code] ?? 0 }))
     .filter((m) => m.qty > 0)
