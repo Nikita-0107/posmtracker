@@ -713,12 +713,7 @@ function ReceiveSheet({
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground hover:bg-muted/80"
-                        aria-label="View details"
-                      >
-                        <Eye size={14} />
-                      </button>
+                      <MaterialImageViewer imagePath={materialImageMap[m.code]} label={m.code} />
                       <span className="shrink-0 rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">
                         {m.qty} avail
                       </span>
