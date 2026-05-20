@@ -567,7 +567,7 @@ type ReceiveLineItemRowProps = {
   stockQty: number;
   stockLoading: boolean;
   dup: boolean;
-  validation: { hasMaterial: boolean; qtyOk: boolean; dup: boolean; ok: boolean };
+  validation: { hasMaterial: boolean; qtyOk: boolean; dup: boolean; needsImage: boolean; imageOk: boolean; ok: boolean };
   submitted: boolean;
   rowRef: (el: HTMLDivElement | null) => void;
   canRemove: boolean;
