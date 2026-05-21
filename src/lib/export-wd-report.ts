@@ -1,8 +1,6 @@
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 
-const INACTIVITY_DAYS = 7;
-
 function fmtDateTime(iso: string | null) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -19,13 +17,21 @@ function todayStamp() {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
-function tlLabel(t: { tl_name: string; legacy_tl_id: number | null; tl_type: string | null }) {
-  const meta = [t.legacy_tl_id, t.tl_type].filter(Boolean).join(" • ");
-  return meta ? `${t.tl_name} (${meta})` : t.tl_name;
-}
+
+type Cell = string | number;
 
 export async function exportWdReport(wdCode: string) {
-  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, snapsRes] = await Promise.all([
+  const [
+    matsRes,
+    stockRes,
+    tlsRes,
+    issRes,
+    retRes,
+    trRes,
+    trItRes,
+    snapsRes,
+    incomingRes,
+  ] = await Promise.all([
     supabase.from("materials").select("code, name"),
     supabase.from("wd_stock").select("material_code, qty, updated_at").eq("wd_code", wdCode),
     supabase
@@ -54,6 +60,12 @@ export async function exportWdReport(wdCode: string) {
       .select("material_code, qty_counted, qty_previous, qty_change, note, snapshot_date, created_at")
       .eq("wd_code", wdCode)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("stock_movements")
+      .select("material_code, qty, item_status")
+      .eq("movement", "dispatch")
+      .eq("distributor", wdCode)
+      .in("item_status", ["pending", "issue"]),
   ]);
 
   const materials = (matsRes.data ?? []) as { code: string; name: string }[];
@@ -80,13 +92,14 @@ export async function exportWdReport(wdCode: string) {
   const itemsRes = issIds.length
     ? await supabase
         .from("tl_issuance_items")
-        .select("issuance_id, material_code, qty_issued, created_at")
+        .select("issuance_id, material_code, qty_issued, qty_used, created_at")
         .in("issuance_id", issIds)
-    : { data: [] as { issuance_id: string; material_code: string; qty_issued: number; created_at: string }[] };
+    : { data: [] as { issuance_id: string; material_code: string; qty_issued: number; qty_used: number; created_at: string }[] };
   const issItems = (itemsRes.data ?? []) as {
     issuance_id: string;
     material_code: string;
     qty_issued: number;
+    qty_used: number;
     created_at: string;
   }[];
   const returns = (retRes.data ?? []) as unknown as {
@@ -119,17 +132,27 @@ export async function exportWdReport(wdCode: string) {
     snapshot_date: string;
     created_at: string;
   }[];
+  const incoming = (incomingRes.data ?? []) as {
+    material_code: string;
+    qty: number;
+    item_status: string;
+  }[];
 
-  // In-transit OUT (pending outgoing transfers)
+  // Aggregations
+  const incomingByMat = new Map<string, number>();
+  for (const r of incoming) {
+    incomingByMat.set(r.material_code, (incomingByMat.get(r.material_code) ?? 0) + (r.qty ?? 0));
+  }
+
   const pendingOutTransferIds = new Set(
     transfers.filter((t) => t.from_wd_code === wdCode && t.status === "pending").map((t) => t.id),
   );
-  const inTransitByMat = new Map<string, number>();
+  const outgoingByMat = new Map<string, number>();
   for (const it of trItemsAll) {
     if (!pendingOutTransferIds.has(it.transfer_id)) continue;
-    inTransitByMat.set(
+    outgoingByMat.set(
       it.material_code,
-      (inTransitByMat.get(it.material_code) ?? 0) + (it.qty_requested ?? 0),
+      (outgoingByMat.get(it.material_code) ?? 0) + (it.qty_requested ?? 0),
     );
   }
 
@@ -137,187 +160,241 @@ export async function exportWdReport(wdCode: string) {
   const issIdToCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
   const tlById = new Map(tls.map((t) => [t.id, t]));
 
-  // ===== Sheet a: Stock Summary =====
+  // ===== Sheet A: WD Stock Summary =====
   const stockRows = stock
     .map((s) => {
-      const transit = inTransitByMat.get(s.material_code) ?? 0;
+      const incomingQty = incomingByMat.get(s.material_code) ?? 0;
+      const outgoingQty = outgoingByMat.get(s.material_code) ?? 0;
       return {
-        material_code: s.material_code,
-        material_name: matName.get(s.material_code) ?? "",
-        system_stock: s.qty,
-        in_transit: transit,
-        available_stock: Math.max(0, s.qty - transit),
-        last_updated: fmtDateTime(s.updated_at),
+        "Material Code": s.material_code,
+        "Material Description": matName.get(s.material_code) ?? "",
+        "WD SOH": s.qty,
+        "Incoming In Transit": incomingQty,
+        "Outgoing In Transit": outgoingQty,
+        "Available Stock": Math.max(0, s.qty - outgoingQty),
+        "Last Updated": fmtDateTime(s.updated_at),
       };
     })
-    .sort((a, b) => a.material_code.localeCompare(b.material_code));
+    .sort((a, b) => String(a["Material Code"]).localeCompare(String(b["Material Code"])));
 
-  // ===== Sheet b: TL Summary =====
-  const tlAlloc = new Map<string, number>();
-  const tlLastAlloc = new Map<string, string>();
+  // ===== Sheet B: TL Movement (TL x Material live balance) =====
+  type TlMatKey = string; // `${tlId}|${mat}`
+  const recv = new Map<TlMatKey, number>();
+  const used = new Map<TlMatKey, number>();
+  const ret = new Map<TlMatKey, number>();
+  const last = new Map<TlMatKey, string>();
+  const bump = (m: Map<TlMatKey, number>, k: TlMatKey, v: number) =>
+    m.set(k, (m.get(k) ?? 0) + v);
+  const touch = (k: TlMatKey, ts: string) => {
+    const cur = last.get(k);
+    if (!cur || ts > cur) last.set(k, ts);
+  };
+
   for (const it of issItems) {
     const tlId = issIdToTl.get(it.issuance_id);
     if (!tlId) continue;
-    tlAlloc.set(tlId, (tlAlloc.get(tlId) ?? 0) + it.qty_issued);
-    const ts = issIdToCreated.get(it.issuance_id) ?? "";
-    if (!tlLastAlloc.get(tlId) || ts > tlLastAlloc.get(tlId)!) tlLastAlloc.set(tlId, ts);
+    const k = `${tlId}|${it.material_code}`;
+    bump(recv, k, it.qty_issued);
+    bump(used, k, it.qty_used);
+    touch(k, issIdToCreated.get(it.issuance_id) ?? it.created_at);
   }
-  const tlRet = new Map<string, number>();
-  const tlLastRet = new Map<string, string>();
   for (const r of returns) {
-    tlRet.set(r.wd_tl_id, (tlRet.get(r.wd_tl_id) ?? 0) + r.qty);
-    if (!tlLastRet.get(r.wd_tl_id) || r.created_at > tlLastRet.get(r.wd_tl_id)!)
-      tlLastRet.set(r.wd_tl_id, r.created_at);
+    const k = `${r.wd_tl_id}|${r.material_code}`;
+    bump(ret, k, r.qty);
+    touch(k, r.created_at);
   }
-  const tlSummaryRows = tls
-    .map((t) => {
-      const allocated = tlAlloc.get(t.id) ?? 0;
-      const returned = tlRet.get(t.id) ?? 0;
-      const lastAlloc = tlLastAlloc.get(t.id) ?? "";
-      const lastRet = tlLastRet.get(t.id) ?? "";
-      const last = lastAlloc > lastRet ? lastAlloc : lastRet;
-      const days = last
-        ? Math.floor((Date.now() - new Date(last).getTime()) / 86400000)
-        : Infinity;
+
+  const movementKeys = new Set<TlMatKey>([...recv.keys(), ...ret.keys()]);
+  const movementRows = Array.from(movementKeys)
+    .map((k) => {
+      const [tlId, mat] = k.split("|");
+      const tl = tlById.get(tlId);
+      const r = recv.get(k) ?? 0;
+      const u = used.get(k) ?? 0;
+      const rt = ret.get(k) ?? 0;
       return {
-        tl: tlLabel(t),
-        total_allocated: allocated,
-        total_returned: returned,
-        pending: Math.max(0, allocated - returned),
-        last_activity: last ? fmtDateTime(last) : "",
-        status: days >= INACTIVITY_DAYS ? "Inactive" : "Active",
+        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL Name": tl?.tl_name ?? "",
+        "TL Type": tl?.tl_type ?? "",
+        "Material Code": mat,
+        "Material Description": matName.get(mat) ?? "",
+        "Received Qty": r,
+        "Used Qty": u,
+        "Returned Qty": rt,
+        "Current TL Balance": r - u - rt,
+        "Last Activity": fmtDateTime(last.get(k) ?? null),
       };
     })
-    .sort((a, b) => a.tl.localeCompare(b.tl));
+    .sort(
+      (a, b) =>
+        String(a["TL Name"]).localeCompare(String(b["TL Name"])) ||
+        String(a["Material Code"]).localeCompare(String(b["Material Code"])),
+    );
 
-  // ===== Sheet c: Allocation Log =====
+  // ===== Sheet C: Allocation Log =====
   const allocLog = issItems
     .map((it) => {
       const tlId = issIdToTl.get(it.issuance_id);
       const tl = tlId ? tlById.get(tlId) : null;
       return {
-        date: fmtDateTime(issIdToCreated.get(it.issuance_id) ?? it.created_at),
-        tl: tl ? tlLabel(tl) : "",
-        material_code: it.material_code,
-        material_name: matName.get(it.material_code) ?? "",
-        quantity_allocated: it.qty_issued,
+        Date: fmtDateTime(issIdToCreated.get(it.issuance_id) ?? it.created_at),
+        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL Name": tl?.tl_name ?? "",
+        "TL Type": tl?.tl_type ?? "",
+        "Material Code": it.material_code,
+        "Material Description": matName.get(it.material_code) ?? "",
+        "Quantity Allocated": it.qty_issued,
       };
     })
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+    .sort((a, b) => (a.Date < b.Date ? 1 : -1));
 
-  // ===== Sheet d: Return Log =====
+  // ===== Sheet D: Return Log =====
   const returnLog = returns
     .map((r) => {
       const tl = tlById.get(r.wd_tl_id);
       return {
-        date: fmtDateTime(r.created_at),
-        tl: tl ? tlLabel(tl) : "",
-        material_code: r.material_code,
-        material_name: matName.get(r.material_code) ?? "",
-        quantity_returned: r.qty,
+        Date: fmtDateTime(r.created_at),
+        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL Name": tl?.tl_name ?? "",
+        "TL Type": tl?.tl_type ?? "",
+        "Material Code": r.material_code,
+        "Material Description": matName.get(r.material_code) ?? "",
+        "Quantity Returned": r.qty,
       };
     })
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+    .sort((a, b) => (a.Date < b.Date ? 1 : -1));
 
-  // ===== Sheet e: Transfer Log =====
+  // ===== Sheet E: Transfer Log =====
   const trItemsByTransfer = new Map<string, typeof trItemsAll>();
   for (const it of trItemsAll) {
     const list = trItemsByTransfer.get(it.transfer_id) ?? [];
     list.push(it);
     trItemsByTransfer.set(it.transfer_id, list);
   }
-  const transferLog: {
-    date: string;
-    from_wd: string;
-    to_wd: string;
-    material_code: string;
-    material_name: string;
-    quantity: number;
-    status: string;
-  }[] = [];
+  const transferLog: Record<string, Cell>[] = [];
   for (const t of transfers) {
     const items = trItemsByTransfer.get(t.id) ?? [];
+    const direction = t.from_wd_code === wdCode ? "OUT" : "IN";
     for (const it of items) {
       transferLog.push({
-        date: fmtDateTime(t.created_at),
-        from_wd: t.from_wd_code,
-        to_wd: t.to_wd_code,
-        material_code: it.material_code,
-        material_name: matName.get(it.material_code) ?? "",
-        quantity: it.qty_confirmed ?? it.qty_requested,
-        status: `${t.status}${it.item_status ? ` / ${it.item_status}` : ""}`,
+        Date: fmtDateTime(t.created_at),
+        Direction: direction,
+        "From WD": t.from_wd_code,
+        "To WD": t.to_wd_code,
+        "Material Code": it.material_code,
+        "Material Description": matName.get(it.material_code) ?? "",
+        Quantity: it.qty_confirmed ?? it.qty_requested,
+        Status: `${t.status}${it.item_status ? ` / ${it.item_status}` : ""}`,
       });
     }
   }
-  transferLog.sort((a, b) => (a.date < b.date ? 1 : -1));
+  transferLog.sort((a, b) => (String(a.Date) < String(b.Date) ? 1 : -1));
 
-  // ===== Sheet f: Stock Update History =====
+  // ===== Sheet F: Stock Update History =====
   const historyRows = snaps.map((s) => ({
-    date: fmtDate(s.snapshot_date) || fmtDateTime(s.created_at),
-    material_code: s.material_code,
-    material_name: matName.get(s.material_code) ?? "",
-    system_stock: s.qty_previous ?? "",
-    physical_stock: s.qty_counted,
-    difference: s.qty_change ?? "",
-    remarks: s.note ?? "",
+    Date: fmtDate(s.snapshot_date) || fmtDateTime(s.created_at),
+    "Material Code": s.material_code,
+    "Material Description": matName.get(s.material_code) ?? "",
+    "System Stock": s.qty_previous ?? "",
+    "Physical Stock": s.qty_counted,
+    Difference: s.qty_change ?? "",
+    Remarks: s.note ?? "",
   }));
 
-  // Build workbook
+  // Build workbook with formatting helper
   const wb = XLSX.utils.book_new();
 
-  const addSheet = (
-    name: string,
-    rows: Record<string, string | number>[],
-    header: string[],
-    widths: number[],
-  ) => {
-    const aoa: (string | number)[][] = [
-      header,
-      ...rows.map((r) => header.map((h) => (r[h] ?? "") as string | number)),
-    ];
+  const addSheet = (name: string, rows: Record<string, Cell>[], header: string[]) => {
+    const aoa: Cell[][] = [header, ...rows.map((r) => header.map((h) => (r[h] ?? "") as Cell))];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    ws["!cols"] = widths.map((w) => ({ wch: w }));
+    // Auto column widths (cap 40)
+    ws["!cols"] = header.map((h, i) => {
+      let max = h.length;
+      for (const row of aoa.slice(1)) {
+        const v = row[i];
+        const len = v == null ? 0 : String(v).length;
+        if (len > max) max = len;
+      }
+      return { wch: Math.min(40, Math.max(10, max + 2)) };
+    });
+    // Freeze top row
+    ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+    ws["!panes"] = [{ ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft", state: "frozen" }];
+    // Bold header row
+    for (let c = 0; c < header.length; c++) {
+      const addr = XLSX.utils.encode_cell({ r: 0, c });
+      const cell = ws[addr];
+      if (cell) {
+        cell.s = {
+          font: { bold: true },
+          fill: { fgColor: { rgb: "EEEEEE" } },
+          alignment: { horizontal: "left", vertical: "center" },
+        };
+      }
+    }
     XLSX.utils.book_append_sheet(wb, ws, name);
   };
 
-  addSheet(
-    "Stock Summary",
-    stockRows,
-    ["material_code", "material_name", "system_stock", "in_transit", "available_stock", "last_updated"],
-    [14, 36, 14, 12, 16, 18],
-  );
-  addSheet(
-    "TL Summary",
-    tlSummaryRows,
-    ["tl", "total_allocated", "total_returned", "pending", "last_activity", "status"],
-    [38, 16, 16, 12, 18, 12],
-  );
-  addSheet(
-    "Allocation Log",
-    allocLog,
-    ["date", "tl", "material_code", "material_name", "quantity_allocated"],
-    [18, 38, 14, 36, 18],
-  );
-  addSheet(
-    "Return Log",
-    returnLog,
-    ["date", "tl", "material_code", "material_name", "quantity_returned"],
-    [18, 38, 14, 36, 18],
-  );
-  addSheet(
-    "Transfer Log",
-    transferLog,
-    ["date", "from_wd", "to_wd", "material_code", "material_name", "quantity", "status"],
-    [18, 12, 12, 14, 36, 10, 22],
-  );
-  addSheet(
-    "Stock Update History",
-    historyRows,
-    ["date", "material_code", "material_name", "system_stock", "physical_stock", "difference", "remarks"],
-    [13, 14, 36, 14, 14, 12, 32],
-  );
+  addSheet("WD Stock Summary", stockRows, [
+    "Material Code",
+    "Material Description",
+    "WD SOH",
+    "Incoming In Transit",
+    "Outgoing In Transit",
+    "Available Stock",
+    "Last Updated",
+  ]);
+  addSheet("TL Movement", movementRows, [
+    "TL ID",
+    "TL Name",
+    "TL Type",
+    "Material Code",
+    "Material Description",
+    "Received Qty",
+    "Used Qty",
+    "Returned Qty",
+    "Current TL Balance",
+    "Last Activity",
+  ]);
+  addSheet("Allocation Log", allocLog, [
+    "Date",
+    "TL ID",
+    "TL Name",
+    "TL Type",
+    "Material Code",
+    "Material Description",
+    "Quantity Allocated",
+  ]);
+  addSheet("Return Log", returnLog, [
+    "Date",
+    "TL ID",
+    "TL Name",
+    "TL Type",
+    "Material Code",
+    "Material Description",
+    "Quantity Returned",
+  ]);
+  addSheet("Transfer Log", transferLog, [
+    "Date",
+    "Direction",
+    "From WD",
+    "To WD",
+    "Material Code",
+    "Material Description",
+    "Quantity",
+    "Status",
+  ]);
+  addSheet("Stock Update History", historyRows, [
+    "Date",
+    "Material Code",
+    "Material Description",
+    "System Stock",
+    "Physical Stock",
+    "Difference",
+    "Remarks",
+  ]);
 
   const filename = `WD_${wdCode}_Report_${todayStamp()}.xlsx`;
-  XLSX.writeFile(wb, filename);
+  XLSX.writeFile(wb, filename, { cellStyles: true });
   return { filename };
 }
