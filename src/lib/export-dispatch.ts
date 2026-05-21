@@ -543,7 +543,7 @@ export async function exportDispatchReport() {
       wsR[cellRef] = {
         t: "s",
         v: "View Invoice",
-        f: `HYPERLINK("${r.invoice_url.replace(/"/g, '""')}","View Invoice")`,
+        l: { Target: r.invoice_url, Tooltip: "Open invoice" },
       };
     }
     if (r.proof_url) {
@@ -551,7 +551,7 @@ export async function exportDispatchReport() {
       wsR[cellRef] = {
         t: "s",
         v: "View Proof",
-        f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+        l: { Target: r.proof_url, Tooltip: "Open proof" },
       };
     }
   });
