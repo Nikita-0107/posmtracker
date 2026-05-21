@@ -402,7 +402,7 @@ export async function exportDispatchReport() {
     ws1[cellRef] = {
       t: "s",
       v: "View Proof",
-      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+      l: { Target: r.proof_url, Tooltip: "Open proof" },
     };
   });
   ws1["!cols"] = [
