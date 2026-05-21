@@ -8,65 +8,54 @@ function fmtDateTime(iso: string | null) {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
-function fmtDate(iso: string | null) {
-  if (!iso) return "";
-  return iso.slice(0, 10);
-}
 function todayStamp() {
   const d = new Date();
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
+function monthStartIso() {
+  const d = new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString();
+}
 
 type Cell = string | number;
 
 export async function exportWdReport(wdCode: string) {
-  const [
-    matsRes,
-    stockRes,
-    tlsRes,
-    issRes,
-    retRes,
-    trRes,
-    trItRes,
-    snapsRes,
-    incomingRes,
-  ] = await Promise.all([
-    supabase.from("materials").select("code, name"),
-    supabase.from("wd_stock").select("material_code, qty, updated_at").eq("wd_code", wdCode),
-    supabase
-      .from("wd_tls")
-      .select("id, tl_name, legacy_tl_id, tl_type")
-      .eq("wd_code", wdCode),
-    supabase
-      .from("tl_issuances")
-      .select("id, wd_tl_id, created_at, issue_date")
-      .eq("wd_code", wdCode),
-    supabase
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .from("tl_returns" as any)
-      .select("wd_tl_id, material_code, qty, created_at")
-      .eq("wd_code", wdCode),
-    supabase
-      .from("wd_transfers")
-      .select("id, from_wd_code, to_wd_code, status, created_at, completed_at")
-      .or(`from_wd_code.eq.${wdCode},to_wd_code.eq.${wdCode}`),
-    supabase.from("wd_transfer_items").select(
-      "transfer_id, material_code, qty_requested, qty_confirmed, item_status",
-    ),
-    supabase
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .from("wd_stock_snapshots" as any)
-      .select("material_code, qty_counted, qty_previous, qty_change, note, snapshot_date, created_at")
-      .eq("wd_code", wdCode)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("stock_movements")
-      .select("material_code, qty, item_status")
-      .eq("movement", "dispatch")
-      .eq("distributor", wdCode)
-      .in("item_status", ["pending", "issue"]),
-  ]);
+  const monthStart = monthStartIso();
+
+  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, receivedRes] =
+    await Promise.all([
+      supabase.from("materials").select("code, name"),
+      supabase.from("wd_stock").select("material_code, qty, updated_at").eq("wd_code", wdCode),
+      supabase
+        .from("wd_tls")
+        .select("id, tl_name, legacy_tl_id, tl_type")
+        .eq("wd_code", wdCode),
+      supabase
+        .from("tl_issuances")
+        .select("id, wd_tl_id, created_at, issue_date")
+        .eq("wd_code", wdCode),
+      supabase
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .from("tl_returns" as any)
+        .select("wd_tl_id, material_code, qty, created_at")
+        .eq("wd_code", wdCode),
+      supabase
+        .from("wd_transfers")
+        .select("id, from_wd_code, to_wd_code, status, created_at, completed_at")
+        .or(`from_wd_code.eq.${wdCode},to_wd_code.eq.${wdCode}`),
+      supabase.from("wd_transfer_items").select(
+        "transfer_id, material_code, qty_requested, qty_confirmed, item_status",
+      ),
+      // Stock received by this WD this month (confirmed WSP dispatches)
+      supabase
+        .from("stock_movements")
+        .select("material_code, qty, confirmed_at, item_status")
+        .eq("movement", "dispatch")
+        .eq("distributor", wdCode)
+        .eq("item_status", "received")
+        .gte("confirmed_at", monthStart),
+    ]);
 
   const materials = (matsRes.data ?? []) as { code: string; name: string }[];
   const matName = new Map(materials.map((m) => [m.code, m.name]));
@@ -123,62 +112,61 @@ export async function exportWdReport(wdCode: string) {
     qty_confirmed: number | null;
     item_status: string;
   }[];
-  const snaps = (snapsRes.data ?? []) as unknown as {
-    material_code: string;
-    qty_counted: number;
-    qty_previous: number | null;
-    qty_change: number | null;
-    note: string | null;
-    snapshot_date: string;
-    created_at: string;
-  }[];
-  const incoming = (incomingRes.data ?? []) as {
+  const received = (receivedRes.data ?? []) as {
     material_code: string;
     qty: number;
+    confirmed_at: string | null;
     item_status: string;
   }[];
-
-  // Aggregations
-  const incomingByMat = new Map<string, number>();
-  for (const r of incoming) {
-    incomingByMat.set(r.material_code, (incomingByMat.get(r.material_code) ?? 0) + (r.qty ?? 0));
-  }
-
-  const pendingOutTransferIds = new Set(
-    transfers.filter((t) => t.from_wd_code === wdCode && t.status === "pending").map((t) => t.id),
-  );
-  const outgoingByMat = new Map<string, number>();
-  for (const it of trItemsAll) {
-    if (!pendingOutTransferIds.has(it.transfer_id)) continue;
-    outgoingByMat.set(
-      it.material_code,
-      (outgoingByMat.get(it.material_code) ?? 0) + (it.qty_requested ?? 0),
-    );
-  }
 
   const issIdToTl = new Map(issuances.map((i) => [i.id, i.wd_tl_id]));
   const issIdToCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
   const tlById = new Map(tls.map((t) => [t.id, t]));
 
-  // ===== Sheet A: WD Stock Summary =====
+  // ===== Sheet A: WD Stock Summary (monthly view) =====
+  // Added Stock = received from WSP this month
+  const addedByMat = new Map<string, number>();
+  for (const r of received) {
+    addedByMat.set(r.material_code, (addedByMat.get(r.material_code) ?? 0) + (r.qty ?? 0));
+  }
+  // Deducted Stock = issued to TLs this month (net of returns this month)
+  const deductedByMat = new Map<string, number>();
+  for (const it of issItems) {
+    const ts = issIdToCreated.get(it.issuance_id) ?? it.created_at;
+    if (ts < monthStart) continue;
+    deductedByMat.set(
+      it.material_code,
+      (deductedByMat.get(it.material_code) ?? 0) + (it.qty_issued ?? 0),
+    );
+  }
+  for (const r of returns) {
+    if (r.created_at < monthStart) continue;
+    deductedByMat.set(
+      r.material_code,
+      (deductedByMat.get(r.material_code) ?? 0) - (r.qty ?? 0),
+    );
+  }
+
   const stockRows = stock
     .map((s) => {
-      const incomingQty = incomingByMat.get(s.material_code) ?? 0;
-      const outgoingQty = outgoingByMat.get(s.material_code) ?? 0;
+      const added = addedByMat.get(s.material_code) ?? 0;
+      const deducted = deductedByMat.get(s.material_code) ?? 0;
+      // SOH at month start = current SOH - added + deducted
+      const openingSoh = s.qty - added + deducted;
       return {
         "Material Code": s.material_code,
         "Material Description": matName.get(s.material_code) ?? "",
-        "WD SOH": s.qty,
-        "Incoming In Transit": incomingQty,
-        "Outgoing In Transit": outgoingQty,
-        "Available Stock": Math.max(0, s.qty - outgoingQty),
+        "SOH (Month Start)": openingSoh,
+        "Added Stock (from WSP)": added,
+        "Deducted Stock (to TLs)": deducted,
+        "Current SOH": s.qty,
         "Last Updated": fmtDateTime(s.updated_at),
       };
     })
     .sort((a, b) => String(a["Material Code"]).localeCompare(String(b["Material Code"])));
 
   // ===== Sheet B: TL Movement (TL x Material live balance) =====
-  type TlMatKey = string; // `${tlId}|${mat}`
+  type TlMatKey = string;
   const recv = new Map<TlMatKey, number>();
   const used = new Map<TlMatKey, number>();
   const ret = new Map<TlMatKey, number>();
@@ -290,24 +278,12 @@ export async function exportWdReport(wdCode: string) {
   }
   transferLog.sort((a, b) => (String(a.Date) < String(b.Date) ? 1 : -1));
 
-  // ===== Sheet F: Stock Update History =====
-  const historyRows = snaps.map((s) => ({
-    Date: fmtDate(s.snapshot_date) || fmtDateTime(s.created_at),
-    "Material Code": s.material_code,
-    "Material Description": matName.get(s.material_code) ?? "",
-    "System Stock": s.qty_previous ?? "",
-    "Physical Stock": s.qty_counted,
-    Difference: s.qty_change ?? "",
-    Remarks: s.note ?? "",
-  }));
-
   // Build workbook with formatting helper
   const wb = XLSX.utils.book_new();
 
   const addSheet = (name: string, rows: Record<string, Cell>[], header: string[]) => {
     const aoa: Cell[][] = [header, ...rows.map((r) => header.map((h) => (r[h] ?? "") as Cell))];
     const ws = XLSX.utils.aoa_to_sheet(aoa);
-    // Auto column widths (cap 40)
     ws["!cols"] = header.map((h, i) => {
       let max = h.length;
       for (const row of aoa.slice(1)) {
@@ -317,10 +293,8 @@ export async function exportWdReport(wdCode: string) {
       }
       return { wch: Math.min(40, Math.max(10, max + 2)) };
     });
-    // Freeze top row
     ws["!freeze"] = { xSplit: 0, ySplit: 1 };
     ws["!panes"] = [{ ySplit: 1, topLeftCell: "A2", activePane: "bottomLeft", state: "frozen" }];
-    // Bold header row
     for (let c = 0; c < header.length; c++) {
       const addr = XLSX.utils.encode_cell({ r: 0, c });
       const cell = ws[addr];
@@ -338,10 +312,10 @@ export async function exportWdReport(wdCode: string) {
   addSheet("WD Stock Summary", stockRows, [
     "Material Code",
     "Material Description",
-    "WD SOH",
-    "Incoming In Transit",
-    "Outgoing In Transit",
-    "Available Stock",
+    "SOH (Month Start)",
+    "Added Stock (from WSP)",
+    "Deducted Stock (to TLs)",
+    "Current SOH",
     "Last Updated",
   ]);
   addSheet("TL Movement", movementRows, [
@@ -383,15 +357,6 @@ export async function exportWdReport(wdCode: string) {
     "Material Description",
     "Quantity",
     "Status",
-  ]);
-  addSheet("Stock Update History", historyRows, [
-    "Date",
-    "Material Code",
-    "Material Description",
-    "System Stock",
-    "Physical Stock",
-    "Difference",
-    "Remarks",
   ]);
 
   const filename = `WD_${wdCode}_Report_${todayStamp()}.xlsx`;
