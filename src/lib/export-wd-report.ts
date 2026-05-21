@@ -53,7 +53,7 @@ export async function exportWdReport(wdCode: string) {
         .select("material_code, qty, confirmed_at, item_status")
         .eq("movement", "dispatch")
         .eq("distributor", wdCode)
-        .eq("item_status", "confirmed")
+        .eq("item_status", "received")
         .gte("confirmed_at", monthStart),
     ]);
 
