@@ -463,7 +463,7 @@ export async function exportDispatchReport() {
     wsL[cellRef] = {
       t: "s",
       v: "View Proof",
-      f: `HYPERLINK("${r.proof_url.replace(/"/g, '""')}","View Proof")`,
+      l: { Target: r.proof_url, Tooltip: "Open proof" },
     };
   });
   wsL["!cols"] = [
