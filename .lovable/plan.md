@@ -1,99 +1,89 @@
-## Goal
+# WD/AE Export Report — Structure & Usability Upgrade
 
-Add a per-material reference image (linked to the material master, not to transactions) that:
-- is captured at WSP receipt time (required),
-- is compressed client-side to stay lightweight,
-- is viewable on-demand via the existing eye icon on material cards across WSP / WD / TL screens.
+Scope: only `src/lib/export-wd-report.ts`. No changes to stock, dispatch, issuance, return logic, RLS, or any UI flow. The exporter already pulls live data on each click (`wd_stock`, `tl_issuance_items`, `tl_returns`, `wd_transfer*`), so "live stock" is preserved — we restructure how it's presented.
 
-No stock, dispatch, permissions, calculations, or reporting logic changes.
+## 1. Split TL ID and TL Name everywhere
 
----
+Today `tlLabel()` jams `tl_name + legacy_tl_id + tl_type` into a single `tl` column. Replace with three separate columns wherever a TL appears:
 
-## 1. Database (single migration)
+- **TL ID** — `legacy_tl_id` (fallback blank)
+- **TL Name** — `tl_name`
+- **TL Type** — `tl_type` (kept, but in its own column)
 
-**Schema**
-- Add `materials.image_path TEXT NULL` (storage path inside the `proofs` bucket, e.g. `material-images/VI3180-XXX.webp`).
-- Add `materials.image_updated_at TIMESTAMPTZ NULL`.
-- Add an UPDATE policy on `public.materials` so any authenticated user can set/replace `image_path` (matches the existing "any authenticated user can insert materials" pattern).
+Affected sheets: TL Summary, Allocation Log, Return Log, and the new TL Movement sheet.
 
-**Storage**
-- Reuse the existing private `proofs` bucket under a `material-images/` prefix. No new bucket.
-- Add storage RLS:
-  - SELECT: any authenticated user can read `proofs/material-images/*` (so signed/public URLs can be fetched on demand).
-  - INSERT/UPDATE: any authenticated user can write under `proofs/material-images/*`.
-- Images are fetched on demand via `createSignedUrl` (no pre-loading).
+## 2. Reorganised sheet list
 
----
+Final workbook (in this order):
 
-## 2. Image capture & compression (new helper)
+1. **WD Stock Summary** — material-wise live SOH
+2. **TL Movement** — TL × material live balance (new)
+3. **Allocation Log** — per-issuance line history
+4. **Return Log** — per-return line history
+5. **Transfer Log** — incoming + outgoing WD transfers
+6. **Stock Update History** — physical-count snapshots
 
-New file: `src/lib/compress-image.ts`
-- Pure browser helper. Given a `File`, draw to an offscreen `<canvas>`:
-  - max edge 1024 px, preserve aspect,
-  - export as `image/webp` quality ~0.78,
-  - if result > 150 KB, retry at quality 0.65 then 0.5,
-  - fallback to `image/jpeg` if browser lacks webp encode.
-- Returns a compressed `File` (≤ ~150 KB target, hard cap 400 KB).
+"TL Summary" (the per-TL totals sheet) is merged into the new **TL Movement** sheet, which already shows the same numbers split by material — more useful and removes a redundant tab.
 
----
+### Sheet A — WD Stock Summary
+Columns: `Material Code | Material Description | WD SOH | Incoming In Transit | Outgoing In Transit | Available Stock | Last Updated`
 
-## 3. Receipt flow change (REQUIRED image)
+- `WD SOH` = current `wd_stock.qty` (live)
+- `Incoming In Transit` = sum of pending dispatch lines from WSP to this WD (`stock_movements` where `movement='dispatch'`, `distributor=wd`, `item_status in ('pending','issue')`) — new, but read-only aggregation
+- `Outgoing In Transit` = existing pending outgoing transfer logic
+- `Available Stock` = `WD SOH − Outgoing In Transit` (unchanged formula)
 
-File: `src/routes/receive.tsx`
-- Each line item gains an optional "Upload Material Image" affordance, but the rule is per **material code** (not per line):
-  - If the line's material already has `image_path`, show a small "Image on file ✓ Replace" link (optional re-upload).
-  - If the material has no image yet (existing material missing image, OR a brand-new material being added), show a required **"Upload Material Image"** button. Submit is blocked until an image is attached for every such line.
-- On submit, for each line that has a staged image:
-  1. compress via `compress-image.ts`,
-  2. upload to `proofs/material-images/{material_code}-{timestamp}.webp`,
-  3. `update materials set image_path=..., image_updated_at=now() where code=...` (for brand-new materials, the existing `receive_materials` RPC creates the material first; we run the update right after the RPC returns).
-- Existing receipt RPC, batch type, PO proof image, and stock math are untouched.
+### Sheet B — TL Movement (new, replaces TL Summary)
+One row per (TL, material) with non-zero activity. Columns:
 
-UI is reused from a new lightweight `MaterialImagePicker` component (camera/gallery, preview, retake) modeled on `ProofImageUpload` but without uploading until submit (staged in memory so we can compress + upload alongside the receipt).
+`TL ID | TL Name | TL Type | Material Code | Material Description | Received Qty | Used Qty | Returned Qty | Current TL Balance | Last Activity`
 
----
+- `Received Qty` = Σ `tl_issuance_items.qty_issued` for that TL+material
+- `Used Qty` = Σ `tl_issuance_items.qty_used` for that TL+material
+- `Returned Qty` = Σ `tl_returns.qty` for that TL+material
+- `Current TL Balance` = `Received − Used − Returned` (matches existing remaining logic; no new business rule)
+- `Last Activity` = max(created_at across issuance items, returns) for that pair
 
-## 4. On-demand viewer
+Sorted by TL Name, then Material Code.
 
-New component: `src/components/MaterialImageViewer.tsx`
-- Props: `materialCode`, `hasImage: boolean`, render-prop or default eye-icon trigger.
-- Behavior:
-  - If `!hasImage`: render the eye icon disabled / faded (`opacity-40 pointer-events-none`).
-  - If `hasImage`: clicking opens a simple shadcn `Dialog` (mobile-friendly sheet on small screens). On open, it lazily calls `supabase.storage.from('proofs').createSignedUrl(image_path, 600)` and shows the image (with a small spinner while loading). No metadata, no actions, just the image and a close button.
-- Nothing pre-fetches; the signed URL is created only on click and cached in component state for that session.
+### Sheet C — Allocation Log
+`Date | TL ID | TL Name | TL Type | Material Code | Material Description | Quantity Allocated`
 
-New small hook: `useMaterialImagePaths(codes: string[])` in `src/hooks/use-stock.tsx`
-- Single query: `select code, image_path from materials where code in (...)`.
-- Returns `Record<code, image_path | null>`. Lists pass this to the viewer so they know whether to enable the eye icon — they do NOT fetch the image bytes.
-- Existing `useMaterials()` is also extended to include `image_path` so screens already loading materials get it for free.
+### Sheet D — Return Log
+`Date | TL ID | TL Name | TL Type | Material Code | Material Description | Quantity Returned`
 
----
+### Sheet E — Transfer Log
+`Date | Direction (IN/OUT) | From WD | To WD | Material Code | Material Description | Quantity | Status`
+(adds explicit Direction column for AE clarity; rest unchanged.)
 
-## 5. Wire the eye icon into existing material cards
+### Sheet F — Stock Update History
+Unchanged columns, just header polish.
 
-Only swap the existing eye-icon placeholders (no new buttons, no thumbnails anywhere).
+## 3. Excel formatting polish
 
-- `src/routes/tl.tsx` — two existing `<Eye />` buttons (Receive-from-WD list and SOH list): wrap with `MaterialImageViewer`.
-- `src/routes/wd.tsx` (WD dispatch-confirm material rows), `src/routes/wd-stock-track.tsx` (WD SOH cards), `src/routes/stock.tsx` (WSP SOH cards): add the same `MaterialImageViewer` eye icon to the right of the qty badge using the same styling already used in `tl.tsx`. Disabled/faded when `image_path` is null.
-- `src/routes/movements.tsx` and other non-material-card screens: no change.
+Applied uniformly to every sheet via a small helper:
 
-Lists derive `hasImage` from the materials map; no image bytes loaded until the user taps.
+- **Freeze top row** (`ws['!freeze'] = { ySplit: 1 }` via `XLSX.utils` panes)
+- **Bold header row** with light grey fill
+- **Title-Case headers** ("Material Code" not "material_code")
+- **Numeric columns** right-aligned; qty columns formatted as integers, dates as `yyyy-mm-dd hh:mm`
+- **Auto-width** based on max content length (cap 40)
+- Empty/`0` numeric cells render as blank for readability
 
----
+(`xlsx` community build supports header styling via `cellStyles: true` on write; if a style escapes, fall back to bold header only — no blocker.)
 
-## 6. Out of scope (explicitly unchanged)
+## 4. Filename
+Keep `WD_{code}_Report_{YYYY-MM-DD}.xlsx`. Unchanged.
 
-- `stock`, `wd_stock`, `stock_movements`, dispatch/TL/loss/concern RPCs.
-- All permissions outside the two narrow grants above.
-- Reporting / exports (`src/lib/export-*.ts`).
-- The WSP receipt PO proof flow (still required, still uses `ProofImageUpload`).
-- AppShell redirect logic, auth, roles.
-
----
+## 5. What is explicitly NOT changing
+- `wd_stock`, dispatch, issuance, return, transfer SQL — untouched
+- No new tables, RPCs, or migrations
+- No permission or RLS edits
+- The call site in `src/routes/wd.tsx` keeps the same signature
+- No reconstruction/derivation of stock from scratch — all numbers come straight from existing live queries
 
 ## Technical notes
-
-- Compression runs entirely client-side; no server function needed.
-- Signed URLs expire after 10 min and are created per-click — keeps lists fast and avoids leaking a public bucket.
-- A material's image is overwritten only when a WSP user explicitly re-uploads during a receipt; otherwise the first image sticks (matches "all future references reuse the same image").
-- Migration touches only `public.materials` schema + storage RLS; no data migration for the 60+ existing materials (their `image_path` stays null and the eye icon is shown faded until someone uploads via the next receipt).
+- Single file touched: `src/lib/export-wd-report.ts`
+- `materials` map already loaded → reused for descriptions
+- TL Movement aggregation done in-memory from already-fetched `issItems` + `returns` + `tls` — no extra queries
+- "Incoming In Transit" adds one extra Supabase query (`stock_movements` filtered by WD + dispatch + pending/issue). Cheap, indexed.
