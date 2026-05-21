@@ -360,28 +360,95 @@ export async function exportDispatchReport() {
   // -------------------------------------------------------------
   const wb = XLSX.utils.book_new();
 
-  // ----- Dispatch Log -----
+  // Helper: finalize a sheet with freeze top row + autofilter
+  const finalizeSheet = (
+    ws: XLSX.WorkSheet,
+    headerRowIdx: number, // 0-based row where the header lives
+    headerColCount: number,
+  ) => {
+    ws["!freeze"] = { xSplit: 0, ySplit: headerRowIdx + 1 };
+    (ws as any)["!views"] = [{ state: "frozen", ySplit: headerRowIdx + 1, xSplit: 0 }];
+    const endCol = XLSX.utils.encode_col(headerColCount - 1);
+    ws["!autofilter"] = { ref: `A${headerRowIdx + 1}:${endCol}${headerRowIdx + 1}` };
+  };
+
+  // ============================================================
+  // Sheet 1: Current Stock (PRIMARY)
+  // ============================================================
+  const activeStock = currentStockRows.filter(
+    (r) => r.available_at_wsp > 0 || r.in_transit_to_wd > 0 || r.total_stock > 0,
+  );
+  const totalWspSoh = activeStock.reduce((s, r) => s + r.available_at_wsp, 0);
+  const totalInTransit = activeStock.reduce((s, r) => s + r.in_transit_to_wd, 0);
+  const totalDispatches = dispatchRows.length;
+  const totalLossEvents = lossRows.length;
+
+  const csHeader = [
+    "Material Code",
+    "Material Name",
+    "WSP SOH",
+    "In Transit",
+    "Total Stock",
+    "Total Loss",
+  ];
+  const csAoa: (string | number)[][] = [
+    ["WSP Stock Summary"],
+    [`Generated: ${todayStamp()}`],
+    [],
+    ["Total Active Materials", activeStock.length],
+    ["Total WSP SOH", totalWspSoh],
+    ["Total In Transit", totalInTransit],
+    ["Total Dispatches", totalDispatches],
+    ["Total Loss Events", totalLossEvents],
+    [],
+    csHeader,
+    ...activeStock.map((r) => [
+      r.material_code,
+      r.material_name,
+      r.available_at_wsp,
+      r.in_transit_to_wd,
+      r.total_stock,
+      r.total_lost,
+    ]),
+  ];
+  const wsCS = XLSX.utils.aoa_to_sheet(csAoa);
+  wsCS["!cols"] = [
+    { wch: 16 },
+    { wch: 42 },
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 14 },
+    { wch: 12 },
+  ];
+  wsCS["!merges"] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+  ];
+  finalizeSheet(wsCS, 9, csHeader.length);
+  XLSX.utils.book_append_sheet(wb, wsCS, "Current Stock");
+
+  // ============================================================
+  // Sheet 2: Dispatch Log
+  // ============================================================
   const dispatchHeader = [
-    "date",
-    "dispatch_date",
-    "dispatch_id",
-    "wsp_name",
-    "wd_code",
-    "wd_name",
-    "material_code",
-    "material_name",
-    "quantity",
-    "status",
-    "issue_note",
-    "closed_at",
-    "proof",
+    "Date",
+    "Dispatch ID",
+    "WSP",
+    "WD Code",
+    "WD Name",
+    "Material Code",
+    "Material Name",
+    "Quantity",
+    "Status",
+    "Issue Note",
+    "Closed At",
+    "Proof",
   ];
   const dispatchProofCol = dispatchHeader.length - 1;
   const dispatchAoa: (string | number)[][] = [
     dispatchHeader,
     ...dispatchRows.map((r) => [
       r.date,
-      r.dispatch_date,
       r.dispatch_id,
       r.wsp_name,
       r.wd_code,
@@ -406,104 +473,108 @@ export async function exportDispatchReport() {
     };
   });
   ws1["!cols"] = [
-    { wch: 18 }, // date
-    { wch: 13 }, // dispatch_date
-    { wch: 36 }, // dispatch_id
-    { wch: 10 }, // wsp_name
-    { wch: 10 }, // wd_code
-    { wch: 36 }, // wd_name
-    { wch: 14 }, // material_code
-    { wch: 36 }, // material_name
-    { wch: 10 }, // quantity
-    { wch: 16 }, // status
-    { wch: 32 }, // issue_note
-    { wch: 18 }, // closed_at
-    { wch: 14 }, // proof
+    { wch: 18 },
+    { wch: 32 },
+    { wch: 8 },
+    { wch: 10 },
+    { wch: 32 },
+    { wch: 14 },
+    { wch: 36 },
+    { wch: 10 },
+    { wch: 16 },
+    { wch: 32 },
+    { wch: 18 },
+    { wch: 14 },
   ];
+  finalizeSheet(ws1, 0, dispatchHeader.length);
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
-  // ----- Losses sheet -----
+  // ============================================================
+  // Sheet 3: Losses
+  // ============================================================
   const lossHeader = [
-    "loss_date",
-    "dispatch_date",
-    "dispatch_id",
-    "wsp",
-    "wd_code",
-    "wd_name",
-    "material_code",
-    "material_name",
-    "quantity_lost",
-    "issue_note",
-    "proof",
+    "Loss Date",
+    "Dispatch ID",
+    "WSP",
+    "WD Code",
+    "WD Name",
+    "Material Code",
+    "Material Name",
+    "Quantity Lost",
+    "Issue Note",
+    "Proof",
   ];
   const lossProofCol = lossHeader.length - 1;
   const totalLostUnits = lossRows.reduce((s, r) => s + (r.quantity ?? 0), 0);
-  const lossAoa: (string | number)[][] = [
-    lossHeader,
-    ...lossRows.map((r) => [
-      r.closed_at || r.date,
-      r.dispatch_date,
-      r.dispatch_id,
-      r.wsp_name,
-      r.wd_code,
-      r.wd_name,
-      r.material_code,
-      r.material_name,
-      r.quantity,
-      r.issue_note,
-      r.proof_url ? "View Proof" : "",
-    ]),
-    [],
-    ["TOTAL", "", "", "", "", "", "", `${lossRows.length} loss events`, totalLostUnits, "", ""],
-  ];
-  const wsL = XLSX.utils.aoa_to_sheet(lossAoa);
-  lossRows.forEach((r, i) => {
-    if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: lossProofCol });
-    wsL[cellRef] = {
-      t: "s",
-      v: "View Proof",
-      l: { Target: r.proof_url, Tooltip: "Open proof" },
-    };
-  });
-  wsL["!cols"] = [
-    { wch: 18 }, // loss_date
-    { wch: 13 }, // dispatch_date
-    { wch: 36 }, // dispatch_id
-    { wch: 10 }, // wsp
-    { wch: 10 }, // wd_code
-    { wch: 36 }, // wd_name
-    { wch: 14 }, // material_code
-    { wch: 36 }, // material_name
-    { wch: 14 }, // quantity_lost
-    { wch: 40 }, // issue_note
-    { wch: 14 }, // proof
-  ];
+  let wsL: XLSX.WorkSheet;
+  if (lossRows.length === 0) {
+    wsL = XLSX.utils.aoa_to_sheet([["No loss events recorded"]]);
+    wsL["!cols"] = [{ wch: 60 }];
+  } else {
+    const lossAoa: (string | number)[][] = [
+      lossHeader,
+      ...lossRows.map((r) => [
+        r.closed_at || r.date,
+        r.dispatch_id,
+        r.wsp_name,
+        r.wd_code,
+        r.wd_name,
+        r.material_code,
+        r.material_name,
+        r.quantity,
+        r.issue_note,
+        r.proof_url ? "View Proof" : "",
+      ]),
+      [],
+      ["TOTAL", "", "", "", "", "", `${lossRows.length} loss events`, totalLostUnits, "", ""],
+    ];
+    wsL = XLSX.utils.aoa_to_sheet(lossAoa);
+    lossRows.forEach((r, i) => {
+      if (!r.proof_url) return;
+      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: lossProofCol });
+      wsL[cellRef] = {
+        t: "s",
+        v: "View Proof",
+        l: { Target: r.proof_url, Tooltip: "Open proof" },
+      };
+    });
+    wsL["!cols"] = [
+      { wch: 18 },
+      { wch: 32 },
+      { wch: 8 },
+      { wch: 10 },
+      { wch: 32 },
+      { wch: 14 },
+      { wch: 36 },
+      { wch: 14 },
+      { wch: 40 },
+      { wch: 14 },
+    ];
+    finalizeSheet(wsL, 0, lossHeader.length);
+  }
   XLSX.utils.book_append_sheet(wb, wsL, "Losses");
 
-  // ----- Receive Log -----
+  // ============================================================
+  // Sheet 4: Receive Log
+  // ============================================================
   const receiveHeader = [
-    "date",
-    "wsp",
-    "material_code",
-    "material_name",
-    "invoice_number",
-    "batch_type",
-    "received_date",
-    "current_date",
-    "age_days",
-    "quantity",
-    "available_at_wsp",
-    "in_transit_to_wd",
-    "total_stock",
-    "invoice_file",
-    "proof",
+    "Date",
+    "WSP",
+    "Material Code",
+    "Material Name",
+    "Invoice Number",
+    "Batch Type",
+    "Received Date",
+    "Age (Days)",
+    "Quantity",
+    "WSP SOH",
+    "In Transit",
+    "Total Stock",
+    "Invoice",
+    "Proof",
   ];
   const invoiceColIdx = receiveHeader.length - 2;
   const proofColIdxR = receiveHeader.length - 1;
-  // Mark the latest receive row per (wsp, material) so it shows live
-  // Available / In Transit / Total Stock that match the app UI exactly.
-  // receiveRows is sorted DESC by created_at, so the FIRST occurrence wins.
   const latestReceiveIdx = new Map<string, number>();
   receiveRows.forEach((r, i) => {
     const k = `${r.wsp}::${r.material_code}`;
@@ -515,7 +586,7 @@ export async function exportDispatchReport() {
       const k = `${r.wsp}::${r.material_code}`;
       const isLatest = latestReceiveIdx.get(k) === i;
       const transit = isLatest ? inTransitByWspMaterial.get(k) ?? 0 : 0;
-      const total = isLatest ? r.closing_quantity : r.closing_quantity;
+      const total = r.closing_quantity;
       const available = isLatest ? Math.max(0, total - transit) : r.closing_quantity;
       return [
         r.date,
@@ -525,7 +596,6 @@ export async function exportDispatchReport() {
         r.invoice_number,
         r.batch_type,
         r.received_date,
-        r.current_date,
         r.age_days,
         r.quantity,
         available,
@@ -563,66 +633,62 @@ export async function exportDispatchReport() {
     { wch: 18 },
     { wch: 12 },
     { wch: 13 },
-    { wch: 13 },
     { wch: 10 },
     { wch: 10 },
-    { wch: 18 }, // available_at_wsp
-    { wch: 18 }, // in_transit_to_wd
-    { wch: 14 }, // total_stock
+    { wch: 12 },
+    { wch: 12 },
+    { wch: 14 },
     { wch: 14 },
     { wch: 14 },
   ];
+  finalizeSheet(wsR, 0, receiveHeader.length);
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
-  // ----- WSP Stock Ledger -----
-  const ws2 = XLSX.utils.json_to_sheet(ledgerRows, {
-    header: [
-      "date",
-      "material_code",
-      "material_name",
-      "opening_quantity",
-      "received_from_HO",
-      "dispatched_to_WD",
-      "lost",
-      "available_at_wsp",
-      "in_transit_to_wd",
-      "total_stock",
-    ],
-  });
+  // ============================================================
+  // Sheet 5: Stock Movement Ledger (renamed from WSP Stock Ledger)
+  // ============================================================
+  const ledgerHeader = [
+    "Date",
+    "Material Code",
+    "Material Name",
+    "Opening",
+    "Received from HO",
+    "Dispatched to WD",
+    "Lost",
+    "WSP SOH",
+    "In Transit",
+    "Total Stock",
+  ];
+  const ledgerAoa: (string | number)[][] = [
+    ledgerHeader,
+    ...ledgerRows.map((r) => [
+      r.date,
+      r.material_code,
+      r.material_name,
+      r.opening_quantity,
+      r.received_from_HO,
+      r.dispatched_to_WD,
+      r.lost,
+      r.available_at_wsp,
+      r.in_transit_to_wd,
+      r.total_stock,
+    ]),
+  ];
+  const ws2 = XLSX.utils.aoa_to_sheet(ledgerAoa);
   ws2["!cols"] = [
     { wch: 12 },
     { wch: 14 },
     { wch: 36 },
-    { wch: 16 },
+    { wch: 12 },
     { wch: 16 },
     { wch: 16 },
     { wch: 10 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 14 },
-  ];
-  XLSX.utils.book_append_sheet(wb, ws2, "WSP Stock Ledger");
-
-  // ----- Current Stock -----
-  const ws3 = XLSX.utils.json_to_sheet(currentStockRows, {
-    header: [
-      "material_code",
-      "material_name",
-      "available_at_wsp",
-      "in_transit_to_wd",
-      "total_stock",
-      "total_lost",
-    ],
-  });
-  ws3["!cols"] = [
-    { wch: 14 },
-    { wch: 40 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 14 },
     { wch: 12 },
+    { wch: 12 },
+    { wch: 14 },
   ];
-  XLSX.utils.book_append_sheet(wb, ws3, "Current Stock");
+  finalizeSheet(ws2, 0, ledgerHeader.length);
+  XLSX.utils.book_append_sheet(wb, ws2, "Stock Movement Ledger");
 
   const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
   XLSX.writeFile(wb, filename);
