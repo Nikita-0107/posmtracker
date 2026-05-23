@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send, MessageSquareWarning } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { SuperAdminWspSwitcher } from "@/components/SuperAdminWspSwitcher";
+import { useAuth } from "@/hooks/use-auth";
+import { useRoles } from "@/hooks/use-roles";
 import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useOpenIssuesCount } from "@/hooks/use-wsp-issues";
 import { useLossesSummary } from "@/hooks/use-losses";
@@ -52,13 +54,31 @@ const issueOps: Op[] = [
 ];
 
 function WspOperationsPage() {
+  const { loading: authLoading, rolesLoading, user } = useAuth();
+  const { roles, isAdmin } = useRoles();
+
+  // Only mount WSP queries/content for users actually authorized to view this page.
+  // AppShell will render its spinner overlay while loading and redirect non-WSP users.
+  const canViewWsp =
+    !!user &&
+    !authLoading &&
+    !rolesLoading &&
+    (isAdmin || roles.includes("wsp") || roles.includes("wsp_admin"));
+
+  return (
+    <AppShell>
+      {canViewWsp ? <WspOperationsContent /> : null}
+    </AppShell>
+  );
+}
+
+function WspOperationsContent() {
   const { wsp, isSuperAdmin } = useEffectiveWsp();
   const { count: openIssuesCount } = useOpenIssuesCount();
   const { totalQty: lossQty, count: lossCount } = useLossesSummary();
 
   return (
-    <AppShell>
-      <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-5">
         <div className="flex items-center gap-2.5">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
             <Building2 size={20} className="text-primary" />
@@ -123,7 +143,6 @@ function WspOperationsPage() {
           }
         />
       </div>
-    </AppShell>
   );
 }
 
