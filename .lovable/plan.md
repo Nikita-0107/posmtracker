@@ -1,89 +1,56 @@
-# WD/AE Export Report — Structure & Usability Upgrade
+## Goal
 
-Scope: only `src/lib/export-wd-report.ts`. No changes to stock, dispatch, issuance, return logic, RLS, or any UI flow. The exporter already pulls live data on each click (`wd_stock`, `tl_issuance_items`, `tl_returns`, `wd_transfer*`), so "live stock" is preserved — we restructure how it's presented.
+1. Make first paint after login noticeably faster.
+2. Stop non-WSP users (TL / WD / WD-admin) from briefly seeing the WSP Operations page on cold load or after sign-in.
 
-## 1. Split TL ID and TL Name everywhere
+## Why it's slow / flashing today
 
-Today `tlLabel()` jams `tl_name + legacy_tl_id + tl_type` into a single `tl` column. Replace with three separate columns wherever a TL appears:
+- **Sequential auth bootstrap.** `useAuth` does `getSession` → `loadProfile` (1 query). Only then does `useRoles` start, which itself runs up to **3 sequential queries** (`user_roles`, `hierarchy_wd` or legacy `ae_assignments`, `hierarchy_tl`). Until all of that finishes, `AppShell` shows a spinner. That's typically 4–6 round trips before the app is usable.
+- **WSP page fires its own queries during the auth wait.** `src/routes/index.tsx` (`WspOperationsPage`) is the route component for `/`, so even when `AppShell` is showing the loading overlay, the page itself has already executed `useEffectiveWsp`, `useOpenIssuesCount`, and `useLossesSummary` — three more queries + a realtime channel — for users who will be redirected away.
+- **WSP-screen flash for TL/WD users.** The redirect logic lives in an `AppShell` `useEffect` that only runs after `rolesLoading` becomes false. There is a render frame between "roles loaded" and "navigate fires" where, in practice, the WSP page chrome (header + Building2 icon + "WSP Operations") becomes visible because content sits inside the route component, not behind the overlay. Symptom matches what the user reports.
+- **Big route bundles.** `tl.tsx` (1.2k lines), `wd-issue-tl.tsx` (1.7k), `wd.tsx` (1.2k), `wd-issue.tsx`, `wd-transfer.tsx`, `wd-stock-track.tsx`, `movements.tsx`, `receive.tsx` — all imported eagerly via the generated route tree. First load downloads code for every role.
+- **No caching across navigations.** Every page mount re-fetches profile, roles, materials, stock, notifications. No TanStack Query in the app even though the template ships with it.
 
-- **TL ID** — `legacy_tl_id` (fallback blank)
-- **TL Name** — `tl_name`
-- **TL Type** — `tl_type` (kept, but in its own column)
+## Plan
 
-Affected sheets: TL Summary, Allocation Log, Return Log, and the new TL Movement sheet.
+### 1. Fix the WSP flash (highest priority, smallest change)
 
-## 2. Reorganised sheet list
+In `src/routes/index.tsx`:
+- Move the WSP-only hooks (`useEffectiveWsp`, `useOpenIssuesCount`, `useLossesSummary`) and the entire WSP UI into a new internal `WspOperationsContent` component.
+- The route component becomes a thin gate: read `useAuth` + `useRoles`; while `authLoading || rolesLoading` render `<AppShell>{null}</AppShell>` (the existing overlay handles the spinner); if user is not WSP/WSP-admin/admin, render `<AppShell>{null}</AppShell>` and let `AppShell`'s redirect effect fire — never mount `WspOperationsContent`.
+- Tighten `AppShell`: when `pendingRedirect` is true OR the user isn't allowed on the current path, force the overlay regardless of children. This guarantees no role-mismatched content ever paints.
 
-Final workbook (in this order):
+Result: TL/WD users never see WSP chrome or fire WSP queries.
 
-1. **WD Stock Summary** — material-wise live SOH
-2. **TL Movement** — TL × material live balance (new)
-3. **Allocation Log** — per-issuance line history
-4. **Return Log** — per-return line history
-5. **Transfer Log** — incoming + outgoing WD transfers
-6. **Stock Update History** — physical-count snapshots
+### 2. Parallelize and cache auth bootstrap
 
-"TL Summary" (the per-TL totals sheet) is merged into the new **TL Movement** sheet, which already shows the same numbers split by material — more useful and removes a redundant tab.
+- In `useAuth.loadProfile`, fire `profiles` + `user_roles` + (`hierarchy_wd` when `ae_id`) + (`hierarchy_tl` when `tl_id`) in **parallel** via `Promise.all`, and expose roles/aeWds/tlReceiver through context so `useRoles` doesn't have to re-query.
+- Refactor `useRoles` to read from that context (keep the same public API) — eliminates the second round of 1-3 queries.
+- Adopt TanStack Query (already a transitive dep via the template) for the bootstrap: cache `profile+roles` under a stable key with `staleTime: 5 min` so subsequent navigations don't refetch. If adding `@tanstack/react-query` isn't already wired in, do the minimal QueryClient setup in `__root.tsx`.
 
-### Sheet A — WD Stock Summary
-Columns: `Material Code | Material Description | WD SOH | Incoming In Transit | Outgoing In Transit | Available Stock | Last Updated`
+Expected: 4–6 sequential round trips collapsed to ~2 parallel ones, and zero refetch on in-app navigation.
 
-- `WD SOH` = current `wd_stock.qty` (live)
-- `Incoming In Transit` = sum of pending dispatch lines from WSP to this WD (`stock_movements` where `movement='dispatch'`, `distributor=wd`, `item_status in ('pending','issue')`) — new, but read-only aggregation
-- `Outgoing In Transit` = existing pending outgoing transfer logic
-- `Available Stock` = `WD SOH − Outgoing In Transit` (unchanged formula)
+### 3. Code-split heavy routes
 
-### Sheet B — TL Movement (new, replaces TL Summary)
-One row per (TL, material) with non-zero activity. Columns:
+- Convert the largest route files to lazy split (`tl.lazy.tsx`, `wd-issue-tl.lazy.tsx`, `wd.lazy.tsx`, `wd-issue.lazy.tsx`, `wd-transfer.lazy.tsx`, `wd-stock-track.lazy.tsx`, `movements.lazy.tsx`, `receive.lazy.tsx`, `admin.users.lazy.tsx`). Each becomes a `createFileRoute` shell + `createLazyFileRoute` component file per the TanStack code-splitting rules.
+- This drops the initial JS bundle a lot — a TL user no longer downloads WSP / WD / admin code.
 
-`TL ID | TL Name | TL Type | Material Code | Material Description | Received Qty | Used Qty | Returned Qty | Current TL Balance | Last Activity`
+### 4. Small cleanups
 
-- `Received Qty` = Σ `tl_issuance_items.qty_issued` for that TL+material
-- `Used Qty` = Σ `tl_issuance_items.qty_used` for that TL+material
-- `Returned Qty` = Σ `tl_returns.qty` for that TL+material
-- `Current TL Balance` = `Received − Used − Returned` (matches existing remaining logic; no new business rule)
-- `Last Activity` = max(created_at across issuance items, returns) for that pair
+- Memoize `useEffectiveWsp`'s default-WSP effect so super-admin switching doesn't re-render the tree.
+- Throttle the `useOpenIssuesCount` realtime listener: it currently re-runs the count on **any** `stock_movements` change. Filter the `postgres_changes` subscription to `event: 'UPDATE'` (or add a column filter on `item_status`) so dispatch inserts don't trigger unnecessary work.
+- In `AppShell`, hide the WSP-related tab calculations behind the role-loaded gate to avoid an extra render with empty `roles`.
 
-Sorted by TL Name, then Material Code.
+## Out of scope
 
-### Sheet C — Allocation Log
-`Date | TL ID | TL Name | TL Type | Material Code | Material Description | Quantity Allocated`
+- Visual / UX redesign — no styling changes.
+- Backend / RLS changes.
+- Touching the auto-generated Supabase client files.
 
-### Sheet D — Return Log
-`Date | TL ID | TL Name | TL Type | Material Code | Material Description | Quantity Returned`
+## Verification
 
-### Sheet E — Transfer Log
-`Date | Direction (IN/OUT) | From WD | To WD | Material Code | Material Description | Quantity | Status`
-(adds explicit Direction column for AE clarity; rest unchanged.)
-
-### Sheet F — Stock Update History
-Unchanged columns, just header polish.
-
-## 3. Excel formatting polish
-
-Applied uniformly to every sheet via a small helper:
-
-- **Freeze top row** (`ws['!freeze'] = { ySplit: 1 }` via `XLSX.utils` panes)
-- **Bold header row** with light grey fill
-- **Title-Case headers** ("Material Code" not "material_code")
-- **Numeric columns** right-aligned; qty columns formatted as integers, dates as `yyyy-mm-dd hh:mm`
-- **Auto-width** based on max content length (cap 40)
-- Empty/`0` numeric cells render as blank for readability
-
-(`xlsx` community build supports header styling via `cellStyles: true` on write; if a style escapes, fall back to bold header only — no blocker.)
-
-## 4. Filename
-Keep `WD_{code}_Report_{YYYY-MM-DD}.xlsx`. Unchanged.
-
-## 5. What is explicitly NOT changing
-- `wd_stock`, dispatch, issuance, return, transfer SQL — untouched
-- No new tables, RPCs, or migrations
-- No permission or RLS edits
-- The call site in `src/routes/wd.tsx` keeps the same signature
-- No reconstruction/derivation of stock from scratch — all numbers come straight from existing live queries
-
-## Technical notes
-- Single file touched: `src/lib/export-wd-report.ts`
-- `materials` map already loaded → reused for descriptions
-- TL Movement aggregation done in-memory from already-fetched `issItems` + `returns` + `tls` — no extra queries
-- "Incoming In Transit" adds one extra Supabase query (`stock_movements` filtered by WD + dispatch + pending/issue). Cheap, indexed.
+- TL login → land directly on `/tl` with no WSP header/icon ever visible.
+- Cold load to first interactive < ~1.5 s on a warm cache, vs current ~3–4 s.
+- Navigating between pages does not re-show the top spinner (profile/roles cached).
+- Network panel: at most 2 parallel auth queries on first load instead of the current 4–6 serial ones.
+- Initial JS payload for a TL-only user drops measurably (TL/WD/admin chunks no longer in the entry bundle).
