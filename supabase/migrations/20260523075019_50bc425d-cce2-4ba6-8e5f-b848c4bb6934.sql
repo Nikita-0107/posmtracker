@@ -1,0 +1,1 @@
+UPDATE public.stock_movements SET proof_image_path = 'CEVL/319147fa-d805-4c00-8d5c-86b1f0cacc88/receive-1779522589-replacement.jpg' WHERE id IN ('2f0af6c6-0c83-48b3-8abc-bc068fb416b4','a7d097d7-cea7-4f0b-8e1a-a85d5ccbb8b9','6cfd270a-d2a9-4931-9e8d-cc6f700f7a42','f0f3d1b1-547f-4ed2-82bd-fa84762f5b84','093a672e-b164-49e4-bfab-62ac66af1b0f');
