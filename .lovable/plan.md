@@ -1,34 +1,25 @@
-## Plan
+## Why "— no WD —" shows up
 
-Fix the TL linkage as a data-only backfill, without changing permissions, workflows, stock, or history.
+The admin Users page reads `profiles.wd_code` (via the `list_manageable_users` RPC) to render each user's WD. The recently-seeded TL accounts have their WD linkage on the `wd_tls` table (which is what the runtime RLS helpers actually use), but `profiles.wd_code` was left `NULL` — so the admin UI thinks they have no WD.
 
-## What I found
+Verified: every TL user shown as "— no WD —" has a populated `wd_tls.wd_code`.
 
-- The app uses `wd_tls.user_id` for several TL-specific features via `current_user_wd_tl_id()`.
-- The account seeding created/ensured TL auth users and `profiles.tl_id`, but it did not create/link matching `wd_tls` rows.
-- Current counts:
-  - Active hierarchy TLs: 200
-  - Linked `wd_tls` rows: 38
-  - Missing TL-to-WD links: 162
+## Fix
 
-## Implementation steps
+Backfill `profiles.wd_code` for all TL users from their `wd_tls` row. One SQL update, no app code, no schema or RLS changes:
 
-1. Read active rows from `hierarchy_tl` with their `tl_id`, `tl_name`, `wd_code`, and `tl_type`.
-2. Match each hierarchy TL to its user through `profiles.tl_id`.
-3. Upsert/link `wd_tls` rows so each TL user has:
-   - `user_id` = matching TL user
-   - `wd_code` = mapped WD from `hierarchy_tl`
-   - `tl_name` = hierarchy TL name
-   - `tl_type` = hierarchy TL type if available
-   - `legacy_tl_id` = numeric TL ID when applicable
-4. Preserve existing `wd_tls.id` rows where possible, only filling/updating linkage fields.
-5. Verify that all active hierarchy TLs now resolve to a linked `wd_tls` row.
-6. Optionally update the existing seed function afterward so future TL seeding also links `wd_tls` automatically.
+```sql
+UPDATE profiles p
+SET wd_code = t.wd_code, updated_at = now()
+FROM wd_tls t
+WHERE t.user_id = p.id
+  AND p.wd_code IS NULL
+  AND t.wd_code IS NOT NULL
+  AND EXISTS (SELECT 1 FROM user_roles ur WHERE ur.user_id = p.id AND ur.role = 'tl');
+```
 
-## Safety boundaries
+Then verify zero TLs remain with `profile.wd_code IS NULL` while having a `wd_tls.wd_code`.
 
-- No schema changes.
-- No RLS or permission changes.
-- No hierarchy logic changes.
-- No stock/history resets.
-- No recreation of existing users.
+## Out of scope
+- No changes to RLS, hierarchy, seeding logic, or the admin RPC.
+- AE/WD-admin rows are untouched.
