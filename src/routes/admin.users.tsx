@@ -7,6 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
 import { createAeAccount, createTlAccount, seedAccountsFromHierarchy } from "@/server/admin.functions";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/users")({
@@ -571,6 +572,8 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
   const [password, setPassword] = useState("");
   const [wds, setWds] = useState<{ wd_code: string; wd_name: string }[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const createAeAccountFn = useServerFn(createAeAccount);
+  const createTlAccountFn = useServerFn(createTlAccount);
 
   useEffect(() => {
     if (kind !== "tl") return;
@@ -584,13 +587,13 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
     setSubmitting(true);
     try {
       if (kind === "ae") {
-        await createAeAccount({ data: {
+        await createAeAccountFn({ data: {
           ae_id: id.trim(), ae_name: name.trim(),
           password: password.trim() || undefined,
         } });
         toast.success(`AE ${id} created (password: ${password.trim() || "123456"})`);
       } else {
-        await createTlAccount({ data: {
+        await createTlAccountFn({ data: {
           tl_id: id.trim(), tl_name: name.trim(), wd_code: wdCode,
           password: password.trim() || undefined,
         } });
@@ -658,11 +661,12 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
 
 function SeedFromHierarchyButton({ reload }: { reload: () => Promise<void> }) {
   const [busy, setBusy] = useState(false);
+  const seedAccountsFromHierarchyFn = useServerFn(seedAccountsFromHierarchy);
   async function run() {
     if (!confirm("Create login accounts for every AE and TL in the hierarchy? Existing users are skipped. Default password: 123456")) return;
     setBusy(true);
     try {
-      const r = await seedAccountsFromHierarchy({ data: undefined as never });
+      const r = await seedAccountsFromHierarchyFn({ data: undefined as never });
       toast.success(`Seeded: ${r.ae_created} AE + ${r.tl_created} TL created, ${r.skipped} skipped${r.errors.length ? `, ${r.errors.length} errors` : ""}`);
       if (r.errors.length) console.warn("Seed errors:", r.errors);
       await reload();
