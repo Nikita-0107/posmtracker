@@ -1,16 +1,34 @@
-## Goal
-Run "Seed accounts from hierarchy" on `/admin/users` to create accounts for the AEs and TLs already imported into `hierarchy_ae` / `hierarchy_wd` / `hierarchy_tl`.
-
-## Current blocker
-The preview is throwing `Failed to fetch dynamically imported module: virtual:tanstack-start-client-entry`. That's the TanStack Start client entry failing to load — almost always a stale dev server after `src/start.ts` was added in the previous turn. `src/start.ts` itself is correct (registers `attachSupabaseAuth` as a `functionMiddleware`).
-
 ## Plan
 
-1. Restart the dev server so the new `src/start.ts` is picked up and the virtual client entry rebuilds.
-2. Once the preview loads, click **Seed accounts from hierarchy** on `/admin/users` (already wired with `useServerFn`, so the bearer token will attach).
-3. If it still 401s, check server-function logs for `seedAccountsFromHierarchy` and confirm the caller has the `admin` role in `user_roles` (the handler requires it).
+Fix the TL linkage as a data-only backfill, without changing permissions, workflows, stock, or history.
 
-## What I will NOT change
-- No edits to hierarchy logic, RLS, permissions, or existing users.
-- No schema changes — Step 1 (data import) is already done.
-- No rebuild of `src/start.ts`, `auth-attacher.ts`, or the admin server functions; they're already correct.
+## What I found
+
+- The app uses `wd_tls.user_id` for several TL-specific features via `current_user_wd_tl_id()`.
+- The account seeding created/ensured TL auth users and `profiles.tl_id`, but it did not create/link matching `wd_tls` rows.
+- Current counts:
+  - Active hierarchy TLs: 200
+  - Linked `wd_tls` rows: 38
+  - Missing TL-to-WD links: 162
+
+## Implementation steps
+
+1. Read active rows from `hierarchy_tl` with their `tl_id`, `tl_name`, `wd_code`, and `tl_type`.
+2. Match each hierarchy TL to its user through `profiles.tl_id`.
+3. Upsert/link `wd_tls` rows so each TL user has:
+   - `user_id` = matching TL user
+   - `wd_code` = mapped WD from `hierarchy_tl`
+   - `tl_name` = hierarchy TL name
+   - `tl_type` = hierarchy TL type if available
+   - `legacy_tl_id` = numeric TL ID when applicable
+4. Preserve existing `wd_tls.id` rows where possible, only filling/updating linkage fields.
+5. Verify that all active hierarchy TLs now resolve to a linked `wd_tls` row.
+6. Optionally update the existing seed function afterward so future TL seeding also links `wd_tls` automatically.
+
+## Safety boundaries
+
+- No schema changes.
+- No RLS or permission changes.
+- No hierarchy logic changes.
+- No stock/history resets.
+- No recreation of existing users.
