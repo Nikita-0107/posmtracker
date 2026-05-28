@@ -316,9 +316,9 @@ function ConcernsPage() {
           </label>
 
           {/* Proof */}
-          {profile?.wsp && user?.id && (
+          {activeWsp && user?.id && (
             <ProofImageUpload
-              wsp={profile.wsp}
+              wsp={activeWsp}
               userId={user.id}
               kind="dispatch"
               value={proof}
