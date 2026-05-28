@@ -172,7 +172,7 @@ function WdIssuePage() {
   }, []);
 
   function selectWd(code: string) {
-    const found = wdMaster.find((d) => d.wd_code === code);
+    const found = wdList.find((d) => d.wd_code === code);
     setWd(code);
     setWdQuery(found ? `${found.wd_code} - ${found.wd_name}` : code);
     setWdOpen(false);
