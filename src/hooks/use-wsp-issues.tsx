@@ -76,15 +76,18 @@ export async function resolveDispatchIssue(
  */
 export function useOpenIssuesCount() {
   const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { count: c, error } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select("id", { count: "exact", head: true })
       .eq("movement", "dispatch")
       .eq("item_status", "issue");
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { count: c, error } = await q;
     if (error) {
       console.error("Failed to load open issue count", error);
       setCount(0);
@@ -92,7 +95,7 @@ export function useOpenIssuesCount() {
       setCount(c ?? 0);
     }
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     if (!user) {
