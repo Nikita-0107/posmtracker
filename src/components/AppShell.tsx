@@ -156,7 +156,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         <div className="flex items-center gap-1.5">
-          <WspBadge />
+          <WspBadge hideForSuperAdmin={location.pathname === "/"} />
           {user && <NotificationBell />}
           {(isAdmin || isWspAdmin || profile) && (
             <div className="flex flex-col gap-1">
