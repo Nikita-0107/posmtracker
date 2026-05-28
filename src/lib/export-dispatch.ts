@@ -394,14 +394,15 @@ export async function exportDispatchReport(wsp?: string | null) {
     "Total Loss",
   ];
   const csAoa: (string | number)[][] = [
-    ["WSP Stock Summary"],
+    [`WSP: ${wsp}`],
+    ["Stock Summary"],
     [`Generated: ${todayStamp()}`],
     [],
-    ["Total Active Materials", activeStock.length],
-    ["Total WSP SOH", totalWspSoh],
-    ["Total In Transit", totalInTransit],
-    ["Total Dispatches", totalDispatches],
-    ["Total Loss Events", totalLossEvents],
+    ["Active Materials", activeStock.length],
+    ["WSP SOH (Available)", totalWspSoh],
+    ["In Transit to WD", totalInTransit],
+    ["Dispatches (all-time)", totalDispatches],
+    ["Loss Events (all-time)", totalLossEvents],
     [],
     csHeader,
     ...activeStock.map((r) => [
