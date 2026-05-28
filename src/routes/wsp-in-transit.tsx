@@ -14,6 +14,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials } from "@/hooks/use-stock";
 import { wdMaster } from "@/lib/posm-data";
 
