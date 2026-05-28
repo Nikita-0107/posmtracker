@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, type Material } from "@/hooks/use-stock";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
