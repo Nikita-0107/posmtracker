@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Search, Boxes, X, Loader2, Download, Truck, PackageCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
-import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock } from "@/hooks/use-stock";
 import { exportDispatchReport } from "@/lib/export-dispatch";
 import { matchesSearch } from "@/lib/search";
