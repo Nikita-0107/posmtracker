@@ -348,6 +348,14 @@ export async function exportDispatchReport(wsp?: string | null) {
     lostByMaterial.set(code, (lostByMaterial.get(code) ?? 0) + lost);
   }
 
+  // Override with live `stock` table — this is the source of truth used by the
+  // WSP UI, and the only source for WSPs whose SOH was seeded via snapshot
+  // import (no movement history).
+  for (const row of (stockRes.data ?? []) as { material_code: string; qty: number }[]) {
+    currentByMaterial.set(row.material_code, row.qty);
+  }
+
+
   const currentStockRows = Array.from(currentByMaterial.entries())
     .map(([code, total]) => {
       const transit = inTransitByMaterial.get(code) ?? 0;
