@@ -57,8 +57,8 @@ export function useMaterialImageMap(): Record<string, string | null> {
 }
 
 export function useStock() {
-  const { profile } = useAuth();
-  const wsp = profile?.wsp ?? null;
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const wsp = effectiveWsp ?? null;
   const [stock, setStock] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
