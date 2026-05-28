@@ -30,6 +30,7 @@ export type LossFilters = {
  */
 export function useLosses(filters: LossFilters = {}) {
   const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const { wd = null, material = null, sinceDays = null } = filters;
   const [rows, setRows] = useState<LossRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +47,7 @@ export function useLosses(filters: LossFilters = {}) {
       .order("resolved_at", { ascending: false })
       .limit(500);
 
+    if (effectiveWsp) query = query.eq("wsp", effectiveWsp);
     if (wd) query = query.eq("distributor", wd);
     if (material) query = query.eq("material_code", material);
     if (sinceDays && sinceDays > 0) {
@@ -61,7 +63,7 @@ export function useLosses(filters: LossFilters = {}) {
       setRows((data ?? []) as LossRow[]);
     }
     setLoading(false);
-  }, [wd, material, sinceDays]);
+  }, [wd, material, sinceDays, effectiveWsp]);
 
   useEffect(() => {
     if (!user) {
