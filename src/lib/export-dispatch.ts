@@ -86,13 +86,15 @@ function statusLabel(m: MovementRow): string {
   return "pending";
 }
 
-export async function exportDispatchReport() {
+export async function exportDispatchReport(wsp?: string | null) {
+  if (!wsp) throw new Error("No WSP selected for export");
   const [movementsRes, materialsRes] = await Promise.all([
     supabase
       .from("stock_movements")
       .select(
         "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, invoice_file_path, received_date, batch_type, dispatch_id, dispatch_date, item_status, issue_note, resolved_at, confirmed_at",
       )
+      .eq("wsp", wsp)
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
   ]);
