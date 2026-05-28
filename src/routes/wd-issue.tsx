@@ -151,11 +151,11 @@ function WdIssuePage() {
 
   const wdResults = useMemo(() => {
     const q = wdQuery.trim().toLowerCase();
-    if (!q) return wdMaster;
-    return wdMaster.filter(
+    if (!q) return wdList;
+    return wdList.filter(
       (d) => d.wd_code.toLowerCase().includes(q) || d.wd_name.toLowerCase().includes(q),
     );
-  }, [wdQuery]);
+  }, [wdQuery, wdList]);
 
   useEffect(() => {
     setWdHighlight(0);
