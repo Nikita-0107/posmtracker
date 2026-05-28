@@ -24,6 +24,7 @@ import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageU
 import { MaterialImagePicker, type StagedImage } from "@/components/MaterialImagePicker";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import {
   useMaterials,
   useStock,
