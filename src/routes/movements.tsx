@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { toast } from "sonner";
 import { matchesSearch } from "@/lib/search";
 
