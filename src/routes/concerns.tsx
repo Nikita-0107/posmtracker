@@ -141,7 +141,7 @@ function ConcernsPage() {
     void refreshStock();
   }
 
-  if (!profile?.wsp) {
+  if (!activeWsp) {
     return (
       <AppShell>
         <div className="mx-auto max-w-md py-10 text-center text-sm text-muted-foreground">
