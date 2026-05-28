@@ -673,6 +673,8 @@ export async function exportDispatchReport(wsp?: string | null) {
     "Total Stock",
   ];
   const ledgerAoa: (string | number)[][] = [
+    [`WSP: ${wsp} — Stock Movement Ledger`],
+    [],
     ledgerHeader,
     ...ledgerRows.map((r) => [
       r.date,
@@ -688,6 +690,7 @@ export async function exportDispatchReport(wsp?: string | null) {
     ]),
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(ledgerAoa);
+  ws2["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: ledgerHeader.length - 1 } }];
   ws2["!cols"] = [
     { wch: 12 },
     { wch: 14 },
@@ -700,10 +703,10 @@ export async function exportDispatchReport(wsp?: string | null) {
     { wch: 12 },
     { wch: 14 },
   ];
-  finalizeSheet(ws2, 0, ledgerHeader.length);
+  finalizeSheet(ws2, 2, ledgerHeader.length);
   XLSX.utils.book_append_sheet(wb, ws2, "Stock Movement Ledger");
 
-  const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
+  const filename = `POSM_${wsp}_Report_${todayStamp()}.xlsx`;
   XLSX.writeFile(wb, filename);
 
   return {
