@@ -62,7 +62,8 @@ function todayISO() {
 
 function WdIssuePage() {
   const { profile, user } = useAuth();
-  const wsp = profile?.wsp;
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const wsp = effectiveWsp ?? profile?.wsp;
   const wspEnabled = !!wsp;
 
   const { materials } = useMaterials();
