@@ -21,7 +21,7 @@ import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageU
 import { useAuth } from "@/hooks/use-auth";
 import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, dispatchMaterials, type Material } from "@/hooks/use-stock";
-import { wdMaster } from "@/lib/posm-data";
+import { supabase } from "@/integrations/supabase/client";
 import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue")({
