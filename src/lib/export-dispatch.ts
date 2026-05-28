@@ -591,6 +591,8 @@ export async function exportDispatchReport(wsp?: string | null) {
     if (!latestReceiveIdx.has(k)) latestReceiveIdx.set(k, i);
   });
   const receiveAoa: (string | number)[][] = [
+    [`WSP: ${wsp} — Receive Log`],
+    [],
     receiveHeader,
     ...receiveRows.map((r, i) => {
       const k = `${r.wsp}::${r.material_code}`;
@@ -619,7 +621,7 @@ export async function exportDispatchReport(wsp?: string | null) {
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
     if (r.invoice_url) {
-      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: invoiceColIdx });
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: invoiceColIdx });
       wsR[cellRef] = {
         t: "s",
         v: "View Invoice",
@@ -627,7 +629,7 @@ export async function exportDispatchReport(wsp?: string | null) {
       };
     }
     if (r.proof_url) {
-      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: proofColIdxR });
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: proofColIdxR });
       wsR[cellRef] = {
         t: "s",
         v: "View Proof",
@@ -635,6 +637,7 @@ export async function exportDispatchReport(wsp?: string | null) {
       };
     }
   });
+  wsR["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: receiveHeader.length - 1 } }];
   wsR["!cols"] = [
     { wch: 18 },
     { wch: 8 },
@@ -651,7 +654,7 @@ export async function exportDispatchReport(wsp?: string | null) {
     { wch: 14 },
     { wch: 14 },
   ];
-  finalizeSheet(wsR, 0, receiveHeader.length);
+  finalizeSheet(wsR, 2, receiveHeader.length);
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
   // ============================================================
