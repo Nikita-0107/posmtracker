@@ -85,7 +85,7 @@ function WspInTransitPage() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select(
         "id, created_at, dispatch_id, dispatch_date, wsp, distributor, material_code, qty, item_status, issue_note",
@@ -93,6 +93,8 @@ function WspInTransitPage() {
       .eq("movement", "dispatch")
       .in("item_status", ["pending", "received", "issue"])
       .order("created_at", { ascending: false });
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { data, error } = await q;
     if (error) {
       console.error("Failed to load in-transit dispatches", error);
       setRows([]);
@@ -101,7 +103,7 @@ function WspInTransitPage() {
     }
     setRows((data ?? []) as Row[]);
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     void refresh();
