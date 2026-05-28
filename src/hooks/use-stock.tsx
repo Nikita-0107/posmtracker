@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 
 export type Material = { code: string; name: string; image_path?: string | null };
 export type StockRow = { material_code: string; qty: number };
