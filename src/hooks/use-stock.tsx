@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 
 export type Material = { code: string; name: string; image_path?: string | null };
 export type StockRow = { material_code: string; qty: number };
@@ -57,8 +57,8 @@ export function useMaterialImageMap(): Record<string, string | null> {
 }
 
 export function useStock() {
-  const { profile } = useAuth();
-  const wsp = profile?.wsp ?? null;
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const wsp = effectiveWsp ?? null;
   const [stock, setStock] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 

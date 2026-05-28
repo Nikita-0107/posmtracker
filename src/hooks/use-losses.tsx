@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 
 export type LossRow = {
   id: string;
@@ -29,6 +30,7 @@ export type LossFilters = {
  */
 export function useLosses(filters: LossFilters = {}) {
   const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const { wd = null, material = null, sinceDays = null } = filters;
   const [rows, setRows] = useState<LossRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -45,6 +47,7 @@ export function useLosses(filters: LossFilters = {}) {
       .order("resolved_at", { ascending: false })
       .limit(500);
 
+    if (effectiveWsp) query = query.eq("wsp", effectiveWsp);
     if (wd) query = query.eq("distributor", wd);
     if (material) query = query.eq("material_code", material);
     if (sinceDays && sinceDays > 0) {
@@ -60,7 +63,7 @@ export function useLosses(filters: LossFilters = {}) {
       setRows((data ?? []) as LossRow[]);
     }
     setLoading(false);
-  }, [wd, material, sinceDays]);
+  }, [wd, material, sinceDays, effectiveWsp]);
 
   useEffect(() => {
     if (!user) {
@@ -101,16 +104,19 @@ export function useLosses(filters: LossFilters = {}) {
  */
 export function useLossesSummary() {
   const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const [totalQty, setTotalQty] = useState(0);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error, count: c } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select("qty", { count: "exact" })
       .eq("movement", "dispatch")
       .eq("item_status", "closed_loss");
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { data, error, count: c } = await q;
     if (error) {
       console.error("Failed to load losses summary", error);
       setTotalQty(0);
@@ -121,7 +127,7 @@ export function useLossesSummary() {
       setCount(c ?? (data?.length ?? 0));
     }
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     if (!user) {

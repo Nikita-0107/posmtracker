@@ -19,6 +19,7 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, dispatchMaterials, type Material } from "@/hooks/use-stock";
 import { wdMaster } from "@/lib/posm-data";
 import { matchesSearch } from "@/lib/search";
@@ -61,7 +62,8 @@ function todayISO() {
 
 function WdIssuePage() {
   const { profile, user } = useAuth();
-  const wsp = profile?.wsp;
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const wsp = effectiveWsp ?? profile?.wsp;
   const wspEnabled = !!wsp;
 
   const { materials } = useMaterials();

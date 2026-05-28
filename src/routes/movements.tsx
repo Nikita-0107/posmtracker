@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { toast } from "sonner";
 import { matchesSearch } from "@/lib/search";
 
@@ -97,6 +98,7 @@ function formatDateTime(iso: string) {
 function MovementsPage() {
   const { profile } = useAuth();
   const { isSuperAdmin } = useRoles();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
 
@@ -188,13 +190,14 @@ function MovementsPage() {
   const filtered = useMemo(() => {
     const q = query.trim();
     return rows.filter((r) => {
+      if (effectiveWsp && r.wsp !== effectiveWsp) return false;
       if (!isSuperAdmin && r.movement !== "receive" && r.movement !== "dispatch") return false;
       if (filter !== "all" && r.movement !== filter) return false;
       if (!q) return true;
       const name = matMap.get(r.material_code) ?? "";
       return matchesSearch(q, r.material_code, name, r.reference_number, r.distributor);
     });
-  }, [rows, filter, query, matMap, isSuperAdmin]);
+  }, [rows, filter, query, matMap, isSuperAdmin, effectiveWsp]);
 
   // Decide if a row is editable by the current WSP user
   function getEditState(r: Movement): { canEdit: boolean; reason?: string } {

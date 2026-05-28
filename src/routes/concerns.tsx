@@ -5,6 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, type Material } from "@/hooks/use-stock";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -41,6 +42,8 @@ type ConcernRow = {
 
 function ConcernsPage() {
   const { profile, user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const activeWsp = effectiveWsp ?? profile?.wsp ?? null;
   const { materials } = useMaterials();
   const { stock, refresh: refreshStock } = useStock();
 
@@ -78,7 +81,7 @@ function ConcernsPage() {
   const difference = material && actualNum !== null && !Number.isNaN(actualNum) ? actualNum - systemQty : null;
 
   async function loadHistory() {
-    if (!profile?.wsp) {
+    if (!activeWsp) {
       setLoadingHistory(false);
       return;
     }
@@ -86,7 +89,7 @@ function ConcernsPage() {
     const { data, error } = await supabase
       .from("stock_concerns")
       .select("id, material_code, system_qty, actual_qty, difference, reason, status, note, created_at")
-      .eq("wsp", profile.wsp)
+      .eq("wsp", activeWsp)
       .order("created_at", { ascending: false })
       .limit(20);
     if (error) console.error(error);
@@ -97,7 +100,7 @@ function ConcernsPage() {
   useEffect(() => {
     void loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.wsp]);
+  }, [activeWsp]);
 
   function reset() {
     setMaterial(null);
@@ -138,7 +141,7 @@ function ConcernsPage() {
     void refreshStock();
   }
 
-  if (!profile?.wsp) {
+  if (!activeWsp) {
     return (
       <AppShell>
         <div className="mx-auto max-w-md py-10 text-center text-sm text-muted-foreground">
@@ -313,9 +316,9 @@ function ConcernsPage() {
           </label>
 
           {/* Proof */}
-          {profile?.wsp && user?.id && (
+          {activeWsp && user?.id && (
             <ProofImageUpload
-              wsp={profile.wsp}
+              wsp={activeWsp}
               userId={user.id}
               kind="dispatch"
               value={proof}

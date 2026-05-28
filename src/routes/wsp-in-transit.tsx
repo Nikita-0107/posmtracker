@@ -14,6 +14,7 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials } from "@/hooks/use-stock";
 import { wdMaster } from "@/lib/posm-data";
 
@@ -72,7 +73,8 @@ function itemStatusBadge(status: string) {
 }
 
 function WspInTransitPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const { materials } = useMaterials();
   const matMap = useMemo(
     () => new Map(materials.map((m) => [m.code, m.name])),
@@ -83,7 +85,7 @@ function WspInTransitPage() {
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select(
         "id, created_at, dispatch_id, dispatch_date, wsp, distributor, material_code, qty, item_status, issue_note",
@@ -91,6 +93,8 @@ function WspInTransitPage() {
       .eq("movement", "dispatch")
       .in("item_status", ["pending", "received", "issue"])
       .order("created_at", { ascending: false });
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { data, error } = await q;
     if (error) {
       console.error("Failed to load in-transit dispatches", error);
       setRows([]);
@@ -99,7 +103,7 @@ function WspInTransitPage() {
     }
     setRows((data ?? []) as Row[]);
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     void refresh();
@@ -155,9 +159,9 @@ function WspInTransitPage() {
           <div className="min-w-0">
             <h2 className="font-heading text-lg font-bold leading-tight">In Transit to WD</h2>
             <p className="truncate text-[11px] text-muted-foreground">
-              {profile?.wsp ? (
+              {effectiveWsp ? (
                 <>
-                  Dispatches from <strong className="text-primary">{profile.wsp}</strong> awaiting
+                  Dispatches from <strong className="text-primary">{effectiveWsp}</strong> awaiting
                   WD confirmation
                 </>
               ) : (

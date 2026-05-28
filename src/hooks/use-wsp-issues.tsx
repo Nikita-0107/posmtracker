@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 
 export type WspIssueRow = {
   id: string;
@@ -20,12 +21,13 @@ export type WspIssueRow = {
  * (or admin) can act on them. RLS already restricts to the user's own WSP.
  */
 export function useWspIssues() {
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const [rows, setRows] = useState<WspIssueRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select(
         "id, created_at, dispatch_id, dispatch_date, distributor, material_code, qty, issue_note, confirmed_at, item_status",
@@ -33,6 +35,8 @@ export function useWspIssues() {
       .eq("movement", "dispatch")
       .eq("item_status", "issue")
       .order("confirmed_at", { ascending: false });
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { data, error } = await q;
     if (error) {
       console.error("Failed to load WSP issues", error);
       setRows([]);
@@ -41,7 +45,7 @@ export function useWspIssues() {
     }
     setRows((data ?? []) as WspIssueRow[]);
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     void refresh();
@@ -72,15 +76,18 @@ export async function resolveDispatchIssue(
  */
 export function useOpenIssuesCount() {
   const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const [count, setCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { count: c, error } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select("id", { count: "exact", head: true })
       .eq("movement", "dispatch")
       .eq("item_status", "issue");
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { count: c, error } = await q;
     if (error) {
       console.error("Failed to load open issue count", error);
       setCount(0);
@@ -88,7 +95,7 @@ export function useOpenIssuesCount() {
       setCount(c ?? 0);
     }
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     if (!user) {
