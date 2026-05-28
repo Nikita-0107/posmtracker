@@ -73,7 +73,7 @@ function itemStatusBadge(status: string) {
 }
 
 function WspInTransitPage() {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const { wsp: effectiveWsp } = useEffectiveWsp();
   const { materials } = useMaterials();
   const matMap = useMemo(
