@@ -86,13 +86,15 @@ function statusLabel(m: MovementRow): string {
   return "pending";
 }
 
-export async function exportDispatchReport() {
+export async function exportDispatchReport(wsp?: string | null) {
+  if (!wsp) throw new Error("No WSP selected for export");
   const [movementsRes, materialsRes] = await Promise.all([
     supabase
       .from("stock_movements")
       .select(
         "created_at, material_code, qty, movement, distributor, wsp, reference_number, proof_image_path, invoice_file_path, received_date, batch_type, dispatch_id, dispatch_date, item_status, issue_note, resolved_at, confirmed_at",
       )
+      .eq("wsp", wsp as "CEVJ" | "CEVL" | "CEVY")
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
   ]);
@@ -392,14 +394,15 @@ export async function exportDispatchReport() {
     "Total Loss",
   ];
   const csAoa: (string | number)[][] = [
-    ["WSP Stock Summary"],
+    [`WSP: ${wsp}`],
+    ["Stock Summary"],
     [`Generated: ${todayStamp()}`],
     [],
-    ["Total Active Materials", activeStock.length],
-    ["Total WSP SOH", totalWspSoh],
-    ["Total In Transit", totalInTransit],
-    ["Total Dispatches", totalDispatches],
-    ["Total Loss Events", totalLossEvents],
+    ["Active Materials", activeStock.length],
+    ["WSP SOH (Available)", totalWspSoh],
+    ["In Transit to WD", totalInTransit],
+    ["Dispatches (all-time)", totalDispatches],
+    ["Loss Events (all-time)", totalLossEvents],
     [],
     csHeader,
     ...activeStock.map((r) => [
@@ -423,8 +426,9 @@ export async function exportDispatchReport() {
   wsCS["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 5 } },
   ];
-  finalizeSheet(wsCS, 9, csHeader.length);
+  finalizeSheet(wsCS, 10, csHeader.length);
   XLSX.utils.book_append_sheet(wb, wsCS, "Current Stock");
 
   // ============================================================
@@ -446,6 +450,8 @@ export async function exportDispatchReport() {
   ];
   const dispatchProofCol = dispatchHeader.length - 1;
   const dispatchAoa: (string | number)[][] = [
+    [`WSP: ${wsp} — Dispatch Log`],
+    [],
     dispatchHeader,
     ...dispatchRows.map((r) => [
       r.date,
@@ -465,13 +471,14 @@ export async function exportDispatchReport() {
   const ws1 = XLSX.utils.aoa_to_sheet(dispatchAoa);
   dispatchRows.forEach((r, i) => {
     if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: dispatchProofCol });
+    const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: dispatchProofCol });
     ws1[cellRef] = {
       t: "s",
       v: "View Proof",
       l: { Target: r.proof_url, Tooltip: "Open proof" },
     };
   });
+  ws1["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: dispatchHeader.length - 1 } }];
   ws1["!cols"] = [
     { wch: 18 },
     { wch: 32 },
@@ -486,7 +493,7 @@ export async function exportDispatchReport() {
     { wch: 18 },
     { wch: 14 },
   ];
-  finalizeSheet(ws1, 0, dispatchHeader.length);
+  finalizeSheet(ws1, 2, dispatchHeader.length);
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
   // ============================================================
@@ -508,10 +515,12 @@ export async function exportDispatchReport() {
   const totalLostUnits = lossRows.reduce((s, r) => s + (r.quantity ?? 0), 0);
   let wsL: XLSX.WorkSheet;
   if (lossRows.length === 0) {
-    wsL = XLSX.utils.aoa_to_sheet([["No loss events recorded"]]);
+    wsL = XLSX.utils.aoa_to_sheet([[`WSP: ${wsp} — Losses`], [], ["No loss events recorded"]]);
     wsL["!cols"] = [{ wch: 60 }];
   } else {
     const lossAoa: (string | number)[][] = [
+      [`WSP: ${wsp} — Losses`],
+      [],
       lossHeader,
       ...lossRows.map((r) => [
         r.closed_at || r.date,
@@ -531,13 +540,14 @@ export async function exportDispatchReport() {
     wsL = XLSX.utils.aoa_to_sheet(lossAoa);
     lossRows.forEach((r, i) => {
       if (!r.proof_url) return;
-      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: lossProofCol });
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: lossProofCol });
       wsL[cellRef] = {
         t: "s",
         v: "View Proof",
         l: { Target: r.proof_url, Tooltip: "Open proof" },
       };
     });
+    wsL["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: lossHeader.length - 1 } }];
     wsL["!cols"] = [
       { wch: 18 },
       { wch: 32 },
@@ -550,7 +560,7 @@ export async function exportDispatchReport() {
       { wch: 40 },
       { wch: 14 },
     ];
-    finalizeSheet(wsL, 0, lossHeader.length);
+    finalizeSheet(wsL, 2, lossHeader.length);
   }
   XLSX.utils.book_append_sheet(wb, wsL, "Losses");
 
@@ -581,6 +591,8 @@ export async function exportDispatchReport() {
     if (!latestReceiveIdx.has(k)) latestReceiveIdx.set(k, i);
   });
   const receiveAoa: (string | number)[][] = [
+    [`WSP: ${wsp} — Receive Log`],
+    [],
     receiveHeader,
     ...receiveRows.map((r, i) => {
       const k = `${r.wsp}::${r.material_code}`;
@@ -609,7 +621,7 @@ export async function exportDispatchReport() {
   const wsR = XLSX.utils.aoa_to_sheet(receiveAoa);
   receiveRows.forEach((r, i) => {
     if (r.invoice_url) {
-      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: invoiceColIdx });
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: invoiceColIdx });
       wsR[cellRef] = {
         t: "s",
         v: "View Invoice",
@@ -617,7 +629,7 @@ export async function exportDispatchReport() {
       };
     }
     if (r.proof_url) {
-      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: proofColIdxR });
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: proofColIdxR });
       wsR[cellRef] = {
         t: "s",
         v: "View Proof",
@@ -625,6 +637,7 @@ export async function exportDispatchReport() {
       };
     }
   });
+  wsR["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: receiveHeader.length - 1 } }];
   wsR["!cols"] = [
     { wch: 18 },
     { wch: 8 },
@@ -641,7 +654,7 @@ export async function exportDispatchReport() {
     { wch: 14 },
     { wch: 14 },
   ];
-  finalizeSheet(wsR, 0, receiveHeader.length);
+  finalizeSheet(wsR, 2, receiveHeader.length);
   XLSX.utils.book_append_sheet(wb, wsR, "Receive Log");
 
   // ============================================================
@@ -660,6 +673,8 @@ export async function exportDispatchReport() {
     "Total Stock",
   ];
   const ledgerAoa: (string | number)[][] = [
+    [`WSP: ${wsp} — Stock Movement Ledger`],
+    [],
     ledgerHeader,
     ...ledgerRows.map((r) => [
       r.date,
@@ -675,6 +690,7 @@ export async function exportDispatchReport() {
     ]),
   ];
   const ws2 = XLSX.utils.aoa_to_sheet(ledgerAoa);
+  ws2["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: ledgerHeader.length - 1 } }];
   ws2["!cols"] = [
     { wch: 12 },
     { wch: 14 },
@@ -687,10 +703,10 @@ export async function exportDispatchReport() {
     { wch: 12 },
     { wch: 14 },
   ];
-  finalizeSheet(ws2, 0, ledgerHeader.length);
+  finalizeSheet(ws2, 2, ledgerHeader.length);
   XLSX.utils.book_append_sheet(wb, ws2, "Stock Movement Ledger");
 
-  const filename = `POSM_WSP_Report_${todayStamp()}.xlsx`;
+  const filename = `POSM_${wsp}_Report_${todayStamp()}.xlsx`;
   XLSX.writeFile(wb, filename);
 
   return {

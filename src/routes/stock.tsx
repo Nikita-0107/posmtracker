@@ -65,7 +65,7 @@ function StockPage() {
   async function handleExport() {
     setExporting(true);
     try {
-      const { rows, lossRows, ledgerRows, currentStockRows, filename } = await exportDispatchReport();
+      const { rows, lossRows, ledgerRows, currentStockRows, filename } = await exportDispatchReport(wsp);
       toast.success(
         `Exported ${rows} dispatches · ${lossRows} losses · ${ledgerRows} ledger rows · ${currentStockRows} materials`,
         { description: filename },
