@@ -288,7 +288,7 @@ function WdIssuePage() {
       return;
     }
 
-    const wdRow = wdMaster.find((d) => d.wd_code === wd);
+    const wdRow = wdList.find((d) => d.wd_code === wd);
     setResult({
       wd,
       wdName: wdRow?.wd_name ?? "",
