@@ -426,8 +426,9 @@ export async function exportDispatchReport(wsp?: string | null) {
   wsCS["!merges"] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 5 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 5 } },
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 5 } },
   ];
-  finalizeSheet(wsCS, 9, csHeader.length);
+  finalizeSheet(wsCS, 10, csHeader.length);
   XLSX.utils.book_append_sheet(wb, wsCS, "Current Stock");
 
   // ============================================================
