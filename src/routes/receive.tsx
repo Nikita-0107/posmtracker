@@ -85,7 +85,8 @@ function newLine(): LineItem {
 
 function ReceivePage() {
   const { profile, user } = useAuth();
-  const wsp = profile?.wsp;
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const wsp = effectiveWsp ?? profile?.wsp;
   const wspEnabled = !!wsp;
   const { materials, loading: matLoading, refresh: refreshMaterials } = useMaterials();
   const { stock, loading: stockLoading, refresh } = useStock();
