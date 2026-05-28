@@ -88,7 +88,7 @@ function statusLabel(m: MovementRow): string {
 
 export async function exportDispatchReport(wsp?: string | null) {
   if (!wsp) throw new Error("No WSP selected for export");
-  const [movementsRes, materialsRes] = await Promise.all([
+  const [movementsRes, materialsRes, stockRes] = await Promise.all([
     supabase
       .from("stock_movements")
       .select(
@@ -97,10 +97,16 @@ export async function exportDispatchReport(wsp?: string | null) {
       .eq("wsp", wsp as "CEVJ" | "CEVL" | "CEVY")
       .order("created_at", { ascending: true }),
     supabase.from("materials").select("code, name"),
+    supabase
+      .from("stock")
+      .select("material_code, qty")
+      .eq("wsp", wsp as "CEVJ" | "CEVL" | "CEVY"),
   ]);
 
   if (movementsRes.error) throw movementsRes.error;
   if (materialsRes.error) throw materialsRes.error;
+  if (stockRes.error) throw stockRes.error;
+
 
   const movements = (movementsRes.data ?? []) as MovementRow[];
   const materials = (materialsRes.data ?? []) as MaterialRow[];
@@ -341,6 +347,14 @@ export async function exportDispatchReport(wsp?: string | null) {
     currentByMaterial.set(code, (currentByMaterial.get(code) ?? 0) + running);
     lostByMaterial.set(code, (lostByMaterial.get(code) ?? 0) + lost);
   }
+
+  // Override with live `stock` table — this is the source of truth used by the
+  // WSP UI, and the only source for WSPs whose SOH was seeded via snapshot
+  // import (no movement history).
+  for (const row of (stockRes.data ?? []) as { material_code: string; qty: number }[]) {
+    currentByMaterial.set(row.material_code, row.qty);
+  }
+
 
   const currentStockRows = Array.from(currentByMaterial.entries())
     .map(([code, total]) => {
