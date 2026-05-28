@@ -21,8 +21,7 @@ export const Route = createFileRoute("/stock")({
 });
 
 function StockPage() {
-  const { profile } = useAuth();
-  const wsp = profile?.wsp;
+  const { wsp } = useEffectiveWsp();
   const { materials, loading: matLoading } = useMaterials();
   const { stock, loading: stockLoading } = useStock();
   const [query, setQuery] = useState("");
