@@ -81,7 +81,7 @@ function ConcernsPage() {
   const difference = material && actualNum !== null && !Number.isNaN(actualNum) ? actualNum - systemQty : null;
 
   async function loadHistory() {
-    if (!profile?.wsp) {
+    if (!activeWsp) {
       setLoadingHistory(false);
       return;
     }
@@ -89,7 +89,7 @@ function ConcernsPage() {
     const { data, error } = await supabase
       .from("stock_concerns")
       .select("id, material_code, system_qty, actual_qty, difference, reason, status, note, created_at")
-      .eq("wsp", profile.wsp)
+      .eq("wsp", activeWsp)
       .order("created_at", { ascending: false })
       .limit(20);
     if (error) console.error(error);
@@ -100,7 +100,7 @@ function ConcernsPage() {
   useEffect(() => {
     void loadHistory();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profile?.wsp]);
+  }, [activeWsp]);
 
   function reset() {
     setMaterial(null);
