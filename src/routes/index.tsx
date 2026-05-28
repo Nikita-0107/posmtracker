@@ -78,18 +78,20 @@ function WspOperationsContent() {
   const { totalQty: lossQty, count: lossCount } = useLossesSummary();
 
   return (
-    <div className="mx-auto max-w-2xl space-y-5">
+    <div className="mx-auto max-w-2xl space-y-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <Building2 size={20} className="text-primary" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10">
+            <Building2 size={18} className="text-primary" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h2 className="font-heading text-base font-bold leading-tight">WSP Operations</h2>
-            <p className="text-[11px] text-muted-foreground leading-tight">
-              {wsp ? (
-                <>Active WSP: <strong className="text-primary">{wsp}</strong>{isSuperAdmin && <span className="ml-1">(viewing)</span>}</>
-              ) : "No WSP assigned"}
-            </p>
+            {!isSuperAdmin && (
+              <p className="text-[11px] text-muted-foreground leading-tight">
+                {wsp ? (
+                  <><strong className="text-primary">{wsp}</strong></>
+                ) : "No WSP assigned"}
+              </p>
+            )}
           </div>
         </div>
 
@@ -101,15 +103,12 @@ function WspOperationsContent() {
             <Link
               key={op.to}
               to={op.to}
-              className="group relative flex flex-col gap-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.06] to-card p-4 shadow-sm transition active:scale-[0.98]"
+              className="group relative flex flex-col gap-2 rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/[0.08] to-card p-3.5 shadow-sm transition active:scale-[0.98]"
             >
               <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${op.iconColor}`}>
                 <op.icon size={20} />
               </div>
-              <div>
-                <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
-                <p className="text-[11px] text-muted-foreground leading-snug">{op.desc}</p>
-              </div>
+              <p className="text-sm font-bold leading-tight text-foreground">{op.label}</p>
             </Link>
           ))}
         </section>
@@ -117,7 +116,7 @@ function WspOperationsContent() {
         <CompactGroup title="Stock" ops={stockOps} />
 
         <CompactGroup
-          title="Issues & exceptions"
+          title="Issues"
           ops={issueOps}
           badge={(to) => {
             if (to === "/wsp-issues" && openIssuesCount > 0) {
