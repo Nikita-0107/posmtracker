@@ -159,9 +159,9 @@ function WspInTransitPage() {
           <div className="min-w-0">
             <h2 className="font-heading text-lg font-bold leading-tight">In Transit to WD</h2>
             <p className="truncate text-[11px] text-muted-foreground">
-              {profile?.wsp ? (
+              {effectiveWsp ? (
                 <>
-                  Dispatches from <strong className="text-primary">{profile.wsp}</strong> awaiting
+                  Dispatches from <strong className="text-primary">{effectiveWsp}</strong> awaiting
                   WD confirmation
                 </>
               ) : (
