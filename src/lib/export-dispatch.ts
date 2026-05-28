@@ -450,6 +450,8 @@ export async function exportDispatchReport(wsp?: string | null) {
   ];
   const dispatchProofCol = dispatchHeader.length - 1;
   const dispatchAoa: (string | number)[][] = [
+    [`WSP: ${wsp} — Dispatch Log`],
+    [],
     dispatchHeader,
     ...dispatchRows.map((r) => [
       r.date,
@@ -469,13 +471,14 @@ export async function exportDispatchReport(wsp?: string | null) {
   const ws1 = XLSX.utils.aoa_to_sheet(dispatchAoa);
   dispatchRows.forEach((r, i) => {
     if (!r.proof_url) return;
-    const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: dispatchProofCol });
+    const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: dispatchProofCol });
     ws1[cellRef] = {
       t: "s",
       v: "View Proof",
       l: { Target: r.proof_url, Tooltip: "Open proof" },
     };
   });
+  ws1["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: dispatchHeader.length - 1 } }];
   ws1["!cols"] = [
     { wch: 18 },
     { wch: 32 },
@@ -490,7 +493,7 @@ export async function exportDispatchReport(wsp?: string | null) {
     { wch: 18 },
     { wch: 14 },
   ];
-  finalizeSheet(ws1, 0, dispatchHeader.length);
+  finalizeSheet(ws1, 2, dispatchHeader.length);
   XLSX.utils.book_append_sheet(wb, ws1, "Dispatch Log");
 
   // ============================================================
