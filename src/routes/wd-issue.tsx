@@ -116,6 +116,24 @@ function WdIssuePage() {
   // Line items
   const [items, setItems] = useState<LineItem[]>([newLine()]);
 
+  // WDs assigned to current WSP (replaces static wdMaster)
+  type WdRow = { wd_code: string; wd_name: string };
+  const [wdList, setWdList] = useState<WdRow[]>([]);
+  useEffect(() => {
+    if (!wsp) { setWdList([]); return; }
+    let alive = true;
+    void (async () => {
+      const { data: assigns } = await supabase
+        .from("wd_assignments").select("wd_code").eq("wsp", wsp);
+      const codes = (assigns ?? []).map((r: { wd_code: string }) => r.wd_code);
+      if (codes.length === 0) { if (alive) setWdList([]); return; }
+      const { data: wds } = await supabase
+        .from("hierarchy_wd").select("wd_code, wd_name").in("wd_code", codes).order("wd_code");
+      if (alive) setWdList((wds ?? []) as WdRow[]);
+    })();
+    return () => { alive = false; };
+  }, [wsp]);
+
   // Proof + status
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
