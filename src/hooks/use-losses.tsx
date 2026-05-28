@@ -104,16 +104,19 @@ export function useLosses(filters: LossFilters = {}) {
  */
 export function useLossesSummary() {
   const { user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
   const [totalQty, setTotalQty] = useState(0);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    const { data, error, count: c } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select("qty", { count: "exact" })
       .eq("movement", "dispatch")
       .eq("item_status", "closed_loss");
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { data, error, count: c } = await q;
     if (error) {
       console.error("Failed to load losses summary", error);
       setTotalQty(0);
@@ -124,7 +127,7 @@ export function useLossesSummary() {
       setCount(c ?? (data?.length ?? 0));
     }
     setLoading(false);
-  }, []);
+  }, [effectiveWsp]);
 
   useEffect(() => {
     if (!user) {
