@@ -21,7 +21,7 @@ import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageU
 import { useAuth } from "@/hooks/use-auth";
 import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, dispatchMaterials, type Material } from "@/hooks/use-stock";
-import { wdMaster } from "@/lib/posm-data";
+import { supabase } from "@/integrations/supabase/client";
 import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue")({
@@ -116,6 +116,24 @@ function WdIssuePage() {
   // Line items
   const [items, setItems] = useState<LineItem[]>([newLine()]);
 
+  // WDs assigned to current WSP (replaces static wdMaster)
+  type WdRow = { wd_code: string; wd_name: string };
+  const [wdList, setWdList] = useState<WdRow[]>([]);
+  useEffect(() => {
+    if (!wsp) { setWdList([]); return; }
+    let alive = true;
+    void (async () => {
+      const { data: assigns } = await supabase
+        .from("wd_assignments").select("wd_code").eq("wsp", wsp);
+      const codes = (assigns ?? []).map((r: { wd_code: string }) => r.wd_code);
+      if (codes.length === 0) { if (alive) setWdList([]); return; }
+      const { data: wds } = await supabase
+        .from("hierarchy_wd").select("wd_code, wd_name").in("wd_code", codes).order("wd_code");
+      if (alive) setWdList((wds ?? []) as WdRow[]);
+    })();
+    return () => { alive = false; };
+  }, [wsp]);
+
   // Proof + status
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
@@ -133,11 +151,11 @@ function WdIssuePage() {
 
   const wdResults = useMemo(() => {
     const q = wdQuery.trim().toLowerCase();
-    if (!q) return wdMaster;
-    return wdMaster.filter(
+    if (!q) return wdList;
+    return wdList.filter(
       (d) => d.wd_code.toLowerCase().includes(q) || d.wd_name.toLowerCase().includes(q),
     );
-  }, [wdQuery]);
+  }, [wdQuery, wdList]);
 
   useEffect(() => {
     setWdHighlight(0);
@@ -154,7 +172,7 @@ function WdIssuePage() {
   }, []);
 
   function selectWd(code: string) {
-    const found = wdMaster.find((d) => d.wd_code === code);
+    const found = wdList.find((d) => d.wd_code === code);
     setWd(code);
     setWdQuery(found ? `${found.wd_code} - ${found.wd_name}` : code);
     setWdOpen(false);
@@ -270,7 +288,7 @@ function WdIssuePage() {
       return;
     }
 
-    const wdRow = wdMaster.find((d) => d.wd_code === wd);
+    const wdRow = wdList.find((d) => d.wd_code === wd);
     setResult({
       wd,
       wdName: wdRow?.wd_name ?? "",
