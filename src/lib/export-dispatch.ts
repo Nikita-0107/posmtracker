@@ -515,10 +515,12 @@ export async function exportDispatchReport(wsp?: string | null) {
   const totalLostUnits = lossRows.reduce((s, r) => s + (r.quantity ?? 0), 0);
   let wsL: XLSX.WorkSheet;
   if (lossRows.length === 0) {
-    wsL = XLSX.utils.aoa_to_sheet([["No loss events recorded"]]);
+    wsL = XLSX.utils.aoa_to_sheet([[`WSP: ${wsp} — Losses`], [], ["No loss events recorded"]]);
     wsL["!cols"] = [{ wch: 60 }];
   } else {
     const lossAoa: (string | number)[][] = [
+      [`WSP: ${wsp} — Losses`],
+      [],
       lossHeader,
       ...lossRows.map((r) => [
         r.closed_at || r.date,
@@ -538,13 +540,14 @@ export async function exportDispatchReport(wsp?: string | null) {
     wsL = XLSX.utils.aoa_to_sheet(lossAoa);
     lossRows.forEach((r, i) => {
       if (!r.proof_url) return;
-      const cellRef = XLSX.utils.encode_cell({ r: i + 1, c: lossProofCol });
+      const cellRef = XLSX.utils.encode_cell({ r: i + 3, c: lossProofCol });
       wsL[cellRef] = {
         t: "s",
         v: "View Proof",
         l: { Target: r.proof_url, Tooltip: "Open proof" },
       };
     });
+    wsL["!merges"] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: lossHeader.length - 1 } }];
     wsL["!cols"] = [
       { wch: 18 },
       { wch: 32 },
@@ -557,7 +560,7 @@ export async function exportDispatchReport(wsp?: string | null) {
       { wch: 40 },
       { wch: 14 },
     ];
-    finalizeSheet(wsL, 0, lossHeader.length);
+    finalizeSheet(wsL, 2, lossHeader.length);
   }
   XLSX.utils.book_append_sheet(wb, wsL, "Losses");
 
