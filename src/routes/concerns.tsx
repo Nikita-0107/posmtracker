@@ -42,6 +42,8 @@ type ConcernRow = {
 
 function ConcernsPage() {
   const { profile, user } = useAuth();
+  const { wsp: effectiveWsp } = useEffectiveWsp();
+  const activeWsp = effectiveWsp ?? profile?.wsp ?? null;
   const { materials } = useMaterials();
   const { stock, refresh: refreshStock } = useStock();
 
