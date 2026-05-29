@@ -329,12 +329,24 @@ function WdIssuePage() {
       .filter((it) => it.material && it.qty)
       .map((it) => ({ material_code: it.material!.code, qty: Number(it.qty) }));
 
-    const { error: rpcError } = await dispatchMaterials(wd, proof.path, payload, date);
-    setBusy(false);
+    const { dispatchId, error: rpcError } = await dispatchMaterials(wd, proof.path, payload, date);
     if (rpcError) {
+      setBusy(false);
       setError(rpcError.message);
       return;
     }
+
+    // If executing a plan, mark it executed and write back actual quantities
+    if (activePlan && dispatchId) {
+      const actuals = items
+        .filter((it) => it.material && planItemMap[it.id])
+        .map((it) => ({
+          itemId: planItemMap[it.id].itemId,
+          actualQty: Number(it.qty) || 0,
+        }));
+      await markPlanExecuted(activePlan.id, dispatchId, actuals);
+    }
+    setBusy(false);
 
     const wdRow = wdList.find((d) => d.wd_code === wd);
     setResult({
@@ -352,12 +364,15 @@ function WdIssuePage() {
       totalQty,
     });
 
-    // Reset form
+    // Reset form + plan state, clear ?planId from URL
     setItems([newLine()]);
     setWd("");
     setWdQuery("");
     setDate(todayISO());
     setSubmitted(false);
+    setActivePlan(null);
+    setPlanItemMap({});
+    if (planId) navigate({ search: {}, replace: true });
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
     void refresh();
