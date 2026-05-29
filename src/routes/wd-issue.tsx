@@ -147,6 +147,41 @@ function WdIssuePage() {
     return () => { alive = false; };
   }, [wsp]);
 
+  // Prefill from a Dispatch Plan when ?planId= is present
+  useEffect(() => {
+    if (!planId) return;
+    if (activePlan && activePlan.id === planId) return;
+    if (materials.length === 0 || wdList.length === 0) return;
+    let alive = true;
+    void (async () => {
+      const plan = await fetchDispatchPlan(planId);
+      if (!alive || !plan) return;
+      // Lock WD to plan's WD
+      const wdRow = wdList.find((d) => d.wd_code === plan.wd_code);
+      setWd(plan.wd_code);
+      setWdQuery(wdRow ? `${wdRow.wd_code} - ${wdRow.wd_name}` : plan.wd_code);
+      // Map items to LineItems (actual_qty defaults to planned_qty)
+      const lines: LineItem[] = [];
+      const map: Record<string, { itemId: string; planned: number }> = {};
+      for (const it of plan.items) {
+        const mat = materials.find((m) => m.code === it.material_code) ?? null;
+        const lineId = crypto.randomUUID();
+        lines.push({
+          id: lineId,
+          material: mat,
+          query: mat ? `${mat.code} - ${mat.name}` : it.material_code,
+          qty: String(it.planned_qty),
+          open: false,
+        });
+        map[lineId] = { itemId: it.id, planned: it.planned_qty };
+      }
+      setItems(lines.length > 0 ? lines : [newLine()]);
+      setPlanItemMap(map);
+      setActivePlan(plan);
+    })();
+    return () => { alive = false; };
+  }, [planId, materials, wdList, activePlan]);
+
   // Proof + status
   const [proof, setProof] = useState<ProofImageValue>(null);
   const [proofError, setProofError] = useState<string | null>(null);
