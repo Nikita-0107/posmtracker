@@ -1,11 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Users, MessageSquareWarning, Network } from "lucide-react";
+import { Users, MessageSquareWarning, Network, FileSpreadsheet } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
 
 const ALL_TABS = [
   { to: "/admin/users" as const, label: "Users", icon: Users, superOnly: false },
   { to: "/admin/hierarchy" as const, label: "Hierarchy", icon: Network, superOnly: true },
   { to: "/admin/concerns" as const, label: "Concerns", icon: MessageSquareWarning, superOnly: false },
+  { to: "/admin/bulk-dispatch" as const, label: "Bulk Dispatch", icon: FileSpreadsheet, superOnly: false },
 ];
 
 export function AdminTabs() {

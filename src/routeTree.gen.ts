@@ -30,6 +30,7 @@ import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
+import { Route as AdminBulkDispatchRouteImport } from './routes/admin.bulk-dispatch'
 
 const WspIssuesRoute = WspIssuesRouteImport.update({
   id: '/wsp-issues',
@@ -136,6 +137,11 @@ const AdminConcernsRoute = AdminConcernsRouteImport.update({
   path: '/admin/concerns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBulkDispatchRoute = AdminBulkDispatchRouteImport.update({
+  id: '/admin/bulk-dispatch',
+  path: '/admin/bulk-dispatch',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/wd-transfer': typeof WdTransferRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
+  '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
@@ -178,6 +185,7 @@ export interface FileRoutesByTo {
   '/wd-transfer': typeof WdTransferRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
+  '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
@@ -202,6 +210,7 @@ export interface FileRoutesById {
   '/wd-transfer': typeof WdTransferRoute
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
+  '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
@@ -227,6 +236,7 @@ export interface FileRouteTypes {
     | '/wd-transfer'
     | '/wsp-in-transit'
     | '/wsp-issues'
+    | '/admin/bulk-dispatch'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/users'
@@ -250,6 +260,7 @@ export interface FileRouteTypes {
     | '/wd-transfer'
     | '/wsp-in-transit'
     | '/wsp-issues'
+    | '/admin/bulk-dispatch'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/users'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/wd-transfer'
     | '/wsp-in-transit'
     | '/wsp-issues'
+    | '/admin/bulk-dispatch'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/users'
@@ -297,6 +309,7 @@ export interface RootRouteChildren {
   WdTransferRoute: typeof WdTransferRoute
   WspInTransitRoute: typeof WspInTransitRoute
   WspIssuesRoute: typeof WspIssuesRoute
+  AdminBulkDispatchRoute: typeof AdminBulkDispatchRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
   AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -452,6 +465,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConcernsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/bulk-dispatch': {
+      id: '/admin/bulk-dispatch'
+      path: '/admin/bulk-dispatch'
+      fullPath: '/admin/bulk-dispatch'
+      preLoaderRoute: typeof AdminBulkDispatchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -473,6 +493,7 @@ const rootRouteChildren: RootRouteChildren = {
   WdTransferRoute: WdTransferRoute,
   WspInTransitRoute: WspInTransitRoute,
   WspIssuesRoute: WspIssuesRoute,
+  AdminBulkDispatchRoute: AdminBulkDispatchRoute,
   AdminConcernsRoute: AdminConcernsRoute,
   AdminHierarchyRoute: AdminHierarchyRoute,
   AdminUsersRoute: AdminUsersRoute,
