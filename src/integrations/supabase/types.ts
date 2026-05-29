@@ -35,6 +35,89 @@ export type Database = {
         }
         Relationships: []
       }
+      dispatch_plan_items: {
+        Row: {
+          actual_qty: number | null
+          created_at: string
+          id: string
+          material_code: string
+          plan_id: string
+          planned_qty: number
+        }
+        Insert: {
+          actual_qty?: number | null
+          created_at?: string
+          id?: string
+          material_code: string
+          plan_id: string
+          planned_qty: number
+        }
+        Update: {
+          actual_qty?: number | null
+          created_at?: string
+          id?: string
+          material_code?: string
+          plan_id?: string
+          planned_qty?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispatch_plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "dispatch_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dispatch_plans: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          created_at: string
+          created_by: string
+          dispatch_id: string | null
+          executed_at: string | null
+          executed_by: string | null
+          id: string
+          plan_code: string
+          plan_date: string
+          status: Database["public"]["Enums"]["dispatch_plan_status"]
+          wd_code: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by: string
+          dispatch_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          plan_code: string
+          plan_date?: string
+          status?: Database["public"]["Enums"]["dispatch_plan_status"]
+          wd_code: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          created_at?: string
+          created_by?: string
+          dispatch_id?: string | null
+          executed_at?: string | null
+          executed_by?: string | null
+          id?: string
+          plan_code?: string
+          plan_date?: string
+          status?: Database["public"]["Enums"]["dispatch_plan_status"]
+          wd_code?: string
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: []
+      }
       hierarchy_ae: {
         Row: {
           ae_id: string
@@ -1393,6 +1476,7 @@ export type Database = {
         | "issue"
         | "closed_loss"
         | "resolved"
+      dispatch_plan_status: "pending" | "executed" | "cancelled"
       movement_type: "receive" | "dispatch" | "tl_issue"
       tl_alloc_status: "open" | "closed"
       wd_transfer_item_status: "pending" | "received" | "partial" | "issue"
@@ -1536,6 +1620,7 @@ export const Constants = {
         "closed_loss",
         "resolved",
       ],
+      dispatch_plan_status: ["pending", "executed", "cancelled"],
       movement_type: ["receive", "dispatch", "tl_issue"],
       tl_alloc_status: ["open", "closed"],
       wd_transfer_item_status: ["pending", "received", "partial", "issue"],
