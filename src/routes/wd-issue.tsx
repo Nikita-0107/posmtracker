@@ -14,6 +14,7 @@ import {
   Minus,
   Trash2,
   Calendar,
+  ClipboardList,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
