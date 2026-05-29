@@ -71,6 +71,9 @@ function WdIssuePage() {
   const wsp = effectiveWsp ?? profile?.wsp;
   const wspEnabled = !!wsp;
 
+  const { planId } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
   const { materials } = useMaterials();
   const { stock, refresh, loading: stockLoading } = useStock();
   // Only allow selecting materials that are actually present at this WSP
@@ -78,6 +81,11 @@ function WdIssuePage() {
     () => materials.filter((m) => (stock[m.code] ?? 0) > 0),
     [materials, stock],
   );
+
+  // Active plan being executed (if user opened a planned dispatch)
+  const [activePlan, setActivePlan] = useState<DispatchPlan | null>(null);
+  // Map of line item id → plan item id, so we can write back actuals on success
+  const [planItemMap, setPlanItemMap] = useState<Record<string, { itemId: string; planned: number }>>({});
 
   // In-transit per material = pending/issue dispatch lines from this WSP
   const [inTransit, setInTransit] = useState<Record<string, number>>({});
