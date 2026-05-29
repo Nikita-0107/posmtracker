@@ -387,7 +387,38 @@ function WdIssuePage() {
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <Truck size={20} className="text-accent" />
+        </div>
+
+        {!activePlan && wspEnabled && <DispatchPlanQueue />}
+
+        {activePlan && (
+          <div className="flex items-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-3 py-2">
+            <ClipboardList size={16} className="text-primary" />
+            <div className="flex-1 text-xs">
+              <p className="font-bold text-foreground">
+                Executing plan{" "}
+                <span className="font-mono text-primary">{activePlan.plan_code}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Planned date {activePlan.plan_date} · adjust Actual Qty if needed
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActivePlan(null);
+                setPlanItemMap({});
+                setItems([newLine()]);
+                setWd("");
+                setWdQuery("");
+                navigate({ search: {}, replace: true });
+              }}
+              className="rounded-lg border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:bg-muted"
+            >
+              Clear
+            </button>
           </div>
+        )}
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
               <h2 className="font-heading text-lg font-bold leading-tight">Dispatch to Distributor</h2>
