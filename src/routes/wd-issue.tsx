@@ -14,18 +14,24 @@ import {
   Minus,
   Trash2,
   Calendar,
+  ClipboardList,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
+import { DispatchPlanQueue } from "@/components/DispatchPlanQueue";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, dispatchMaterials, type Material } from "@/hooks/use-stock";
+import { fetchDispatchPlan, markPlanExecuted, type DispatchPlan } from "@/hooks/use-dispatch-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue")({
   component: WdIssuePage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    planId: typeof s.planId === "string" ? s.planId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Dispatch to Distributor — POSM Tracker" },
@@ -66,6 +72,9 @@ function WdIssuePage() {
   const wsp = effectiveWsp ?? profile?.wsp;
   const wspEnabled = !!wsp;
 
+  const { planId } = Route.useSearch();
+  const navigate = Route.useNavigate();
+
   const { materials } = useMaterials();
   const { stock, refresh, loading: stockLoading } = useStock();
   // Only allow selecting materials that are actually present at this WSP
@@ -73,6 +82,11 @@ function WdIssuePage() {
     () => materials.filter((m) => (stock[m.code] ?? 0) > 0),
     [materials, stock],
   );
+
+  // Active plan being executed (if user opened a planned dispatch)
+  const [activePlan, setActivePlan] = useState<DispatchPlan | null>(null);
+  // Map of line item id → plan item id, so we can write back actuals on success
+  const [planItemMap, setPlanItemMap] = useState<Record<string, { itemId: string; planned: number }>>({});
 
   // In-transit per material = pending/issue dispatch lines from this WSP
   const [inTransit, setInTransit] = useState<Record<string, number>>({});
@@ -133,6 +147,41 @@ function WdIssuePage() {
     })();
     return () => { alive = false; };
   }, [wsp]);
+
+  // Prefill from a Dispatch Plan when ?planId= is present
+  useEffect(() => {
+    if (!planId) return;
+    if (activePlan && activePlan.id === planId) return;
+    if (materials.length === 0 || wdList.length === 0) return;
+    let alive = true;
+    void (async () => {
+      const plan = await fetchDispatchPlan(planId);
+      if (!alive || !plan) return;
+      // Lock WD to plan's WD
+      const wdRow = wdList.find((d) => d.wd_code === plan.wd_code);
+      setWd(plan.wd_code);
+      setWdQuery(wdRow ? `${wdRow.wd_code} - ${wdRow.wd_name}` : plan.wd_code);
+      // Map items to LineItems (actual_qty defaults to planned_qty)
+      const lines: LineItem[] = [];
+      const map: Record<string, { itemId: string; planned: number }> = {};
+      for (const it of plan.items) {
+        const mat = materials.find((m) => m.code === it.material_code) ?? null;
+        const lineId = crypto.randomUUID();
+        lines.push({
+          id: lineId,
+          material: mat,
+          query: mat ? `${mat.code} - ${mat.name}` : it.material_code,
+          qty: String(it.planned_qty),
+          open: false,
+        });
+        map[lineId] = { itemId: it.id, planned: it.planned_qty };
+      }
+      setItems(lines.length > 0 ? lines : [newLine()]);
+      setPlanItemMap(map);
+      setActivePlan(plan);
+    })();
+    return () => { alive = false; };
+  }, [planId, materials, wdList, activePlan]);
 
   // Proof + status
   const [proof, setProof] = useState<ProofImageValue>(null);
@@ -281,12 +330,24 @@ function WdIssuePage() {
       .filter((it) => it.material && it.qty)
       .map((it) => ({ material_code: it.material!.code, qty: Number(it.qty) }));
 
-    const { error: rpcError } = await dispatchMaterials(wd, proof.path, payload, date);
-    setBusy(false);
+    const { dispatchId, error: rpcError } = await dispatchMaterials(wd, proof.path, payload, date);
     if (rpcError) {
+      setBusy(false);
       setError(rpcError.message);
       return;
     }
+
+    // If executing a plan, mark it executed and write back actual quantities
+    if (activePlan && dispatchId) {
+      const actuals = items
+        .filter((it) => it.material && planItemMap[it.id])
+        .map((it) => ({
+          itemId: planItemMap[it.id].itemId,
+          actualQty: Number(it.qty) || 0,
+        }));
+      await markPlanExecuted(activePlan.id, dispatchId, actuals);
+    }
+    setBusy(false);
 
     const wdRow = wdList.find((d) => d.wd_code === wd);
     setResult({
@@ -304,12 +365,15 @@ function WdIssuePage() {
       totalQty,
     });
 
-    // Reset form
+    // Reset form + plan state, clear ?planId from URL
     setItems([newLine()]);
     setWd("");
     setWdQuery("");
     setDate(todayISO());
     setSubmitted(false);
+    setActivePlan(null);
+    setPlanItemMap({});
+    if (planId) navigate({ search: {}, replace: true });
     if (proof.previewUrl) URL.revokeObjectURL(proof.previewUrl);
     setProof(null);
     void refresh();
@@ -324,7 +388,38 @@ function WdIssuePage() {
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <Truck size={20} className="text-accent" />
+        </div>
+
+        {!activePlan && wspEnabled && <DispatchPlanQueue />}
+
+        {activePlan && (
+          <div className="flex items-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-3 py-2">
+            <ClipboardList size={16} className="text-primary" />
+            <div className="flex-1 text-xs">
+              <p className="font-bold text-foreground">
+                Executing plan{" "}
+                <span className="font-mono text-primary">{activePlan.plan_code}</span>
+              </p>
+              <p className="text-[10px] text-muted-foreground">
+                Planned date {activePlan.plan_date} · adjust Actual Qty if needed
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setActivePlan(null);
+                setPlanItemMap({});
+                setItems([newLine()]);
+                setWd("");
+                setWdQuery("");
+                navigate({ search: {}, replace: true });
+              }}
+              className="rounded-lg border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:bg-muted"
+            >
+              Clear
+            </button>
           </div>
+        )}
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
               <h2 className="font-heading text-lg font-bold leading-tight">Dispatch to Distributor</h2>
