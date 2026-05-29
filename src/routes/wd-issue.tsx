@@ -388,38 +388,7 @@ function WdIssuePage() {
         <div className="flex items-center gap-2">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/10">
             <Truck size={20} className="text-accent" />
-        </div>
-
-        {!activePlan && wspEnabled && <DispatchPlanQueue />}
-
-        {activePlan && (
-          <div className="flex items-center gap-2 rounded-xl border-2 border-primary/30 bg-primary/5 px-3 py-2">
-            <ClipboardList size={16} className="text-primary" />
-            <div className="flex-1 text-xs">
-              <p className="font-bold text-foreground">
-                Executing plan{" "}
-                <span className="font-mono text-primary">{activePlan.plan_code}</span>
-              </p>
-              <p className="text-[10px] text-muted-foreground">
-                Planned date {activePlan.plan_date} · adjust Actual Qty if needed
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setActivePlan(null);
-                setPlanItemMap({});
-                setItems([newLine()]);
-                setWd("");
-                setWdQuery("");
-                navigate({ search: {}, replace: true });
-              }}
-              className="rounded-lg border px-2 py-1 text-[10px] font-bold text-muted-foreground hover:bg-muted"
-            >
-              Clear
-            </button>
           </div>
-        )}
           <div className="flex-1">
             <div className="flex items-center gap-1.5">
               <h2 className="font-heading text-lg font-bold leading-tight">Dispatch to Distributor</h2>
@@ -428,6 +397,42 @@ function WdIssuePage() {
             <p className="text-[11px] text-muted-foreground">Issue multiple items in one dispatch</p>
           </div>
         </div>
+
+        {!activePlan && wspEnabled && <DispatchPlanQueue />}
+
+        {activePlan && (
+          <div className="overflow-hidden rounded-xl border-2 border-primary/40 bg-gradient-to-br from-primary/10 to-primary/5 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-primary/20 bg-primary/10 px-3 py-1.5">
+              <ClipboardList size={13} className="text-primary" />
+              <span className="text-[10px] font-bold uppercase tracking-wide text-primary">Executing Plan</span>
+              <span className="ml-auto font-mono text-[11px] font-bold text-primary">{activePlan.plan_code}</span>
+            </div>
+            <div className="flex items-center gap-3 px-3 py-2.5">
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold text-foreground">
+                  Planned {activePlan.plan_date}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  Adjust Actual Qty if needed before dispatching
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setActivePlan(null);
+                  setPlanItemMap({});
+                  setItems([newLine()]);
+                  setWd("");
+                  setWdQuery("");
+                  navigate({ search: {}, replace: true });
+                }}
+                className="shrink-0 rounded-lg border border-border bg-card px-2.5 py-1 text-[10px] font-bold text-muted-foreground transition hover:bg-muted active:scale-95"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        )}
 
         {!wspEnabled && (
           <div className="rounded-xl border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-4 text-center">
