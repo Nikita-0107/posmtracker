@@ -18,14 +18,19 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
+import { DispatchPlanQueue } from "@/components/DispatchPlanQueue";
 import { useAuth } from "@/hooks/use-auth";
 import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock, dispatchMaterials, type Material } from "@/hooks/use-stock";
+import { fetchDispatchPlan, markPlanExecuted, type DispatchPlan } from "@/hooks/use-dispatch-plans";
 import { supabase } from "@/integrations/supabase/client";
 import { matchesSearch } from "@/lib/search";
 
 export const Route = createFileRoute("/wd-issue")({
   component: WdIssuePage,
+  validateSearch: (s: Record<string, unknown>) => ({
+    planId: typeof s.planId === "string" ? s.planId : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Dispatch to Distributor — POSM Tracker" },
