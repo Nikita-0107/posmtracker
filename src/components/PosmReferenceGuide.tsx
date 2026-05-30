@@ -31,7 +31,7 @@ export const posmReferenceData: MaterialRef[] = [
   { type: "Kappa Units", description: "Kappa Display Unit", codes: ["KAPPA"] },
   { type: "Dummy Packets", description: "Dummy / BSS Packet", codes: ["BSS"], synonyms: ["dummy"] },
   { type: "Danglers", description: "Dangler / Hanging Display", codes: ["DANGL"], synonyms: ["dangle"] },
-  { type: "RIBB", description: "RIBB / IBB / IU_ALT_PP", codes: ["IBB", "IU_ALT_PP"], synonyms: ["ribb"] },
+  { type: "IBB", description: "IBB / IU_ALT_PP", codes: ["IBB", "IU_ALT_PP"], synonyms: ["ribb"] },
   { type: "Backing Sheets", description: "Backing / RWB Sheet", codes: ["BS"], synonyms: ["rwb", "backing"] },
   { type: "Counter Tops", description: "Counter Top Unit", codes: ["CTU"], synonyms: ["counter"] },
   { type: "Horizontal Ceiling in Shop", description: "Horizontal Ceiling in Shop", codes: ["HORI_CIS", "HORI CIS"], synonyms: ["horizontal", "cis"] },
