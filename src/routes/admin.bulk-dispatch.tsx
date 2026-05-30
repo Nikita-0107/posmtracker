@@ -1,17 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Download } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Download, Trash2, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useRoles } from "@/hooks/use-roles";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   parseDispatchPlanXlsx,
   type ParseResult,
 } from "@/lib/parse-dispatch-plan-xlsx";
-import { createBulkPlans, type BulkPlanResult } from "@/hooks/use-dispatch-plans";
+import { createBulkPlans, cancelPlan, type BulkPlanResult } from "@/hooks/use-dispatch-plans";
 import type { WspCode } from "@/hooks/use-auth";
+
+type PendingPlanRow = {
+  id: string;
+  plan_code: string;
+  wsp: WspCode;
+  wd_code: string;
+  plan_date: string;
+  created_at: string;
+  items_count: number;
+  total_qty: number;
+};
 
 export const Route = createFileRoute("/admin/bulk-dispatch")({
   component: BulkDispatchUploadPage,
