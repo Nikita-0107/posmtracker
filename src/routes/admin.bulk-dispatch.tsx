@@ -284,6 +284,75 @@ function BulkDispatchUploadPage() {
             </div>
           </section>
         )}
+
+        <section className="space-y-2 pt-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold">Pending plans</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Remove before WSP user executes. Executed plans can't be removed.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshPending()}
+              className="rounded-lg border bg-card p-1.5 text-muted-foreground transition hover:bg-muted"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={14} className={pendingLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+
+          {cancelError && (
+            <p className="rounded-lg bg-destructive/10 px-2 py-1.5 text-[11px] font-semibold text-destructive">
+              {cancelError}
+            </p>
+          )}
+
+          {pendingLoading ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" /> Loading…
+            </p>
+          ) : pending.length === 0 ? (
+            <p className="rounded-lg border bg-card px-3 py-4 text-center text-xs text-muted-foreground">
+              No pending plans.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {pending.map((p) => (
+                <li key={p.id} className="rounded-xl border bg-card p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-xs font-bold">{p.plan_code}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <span className="font-mono">{p.wsp}</span> ·{" "}
+                        <span className="font-mono">{p.wd_code}</span> ·{" "}
+                        {p.items_count} item{p.items_count === 1 ? "" : "s"} ·{" "}
+                        Qty {p.total_qty}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {new Date(p.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleCancel(p)}
+                      disabled={cancellingId === p.id}
+                      className="flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[11px] font-bold text-destructive transition hover:bg-destructive/20 disabled:opacity-50"
+                    >
+                      {cancellingId === p.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={12} />
+                      )}
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </AppShell>
   );
