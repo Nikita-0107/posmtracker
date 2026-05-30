@@ -131,6 +131,7 @@ function BulkDispatchUploadPage() {
     setResult(r);
     setParsed(null);
     setFileName(null);
+    void refreshPending();
   }
 
   function downloadTemplate() {
