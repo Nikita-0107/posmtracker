@@ -134,7 +134,7 @@ export function PosmReferenceGuide({ compact = false }: { compact?: boolean }) {
                         {ref.codes.map((code) => (
                           <span
                             key={code}
-                            className="shrink-0 rounded-md bg-primary/10 px-2 py-0.5 font-mono text-[10px] font-bold text-primary"
+                            className="shrink-0 rounded-md bg-primary/15 px-2.5 py-1 font-mono text-sm font-bold text-primary"
                           >
                             {code}
                           </span>
