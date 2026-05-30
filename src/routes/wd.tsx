@@ -660,6 +660,7 @@ function IssuePopup({
     "shortage",
   );
   const [otherReason, setOtherReason] = useState("");
+  const [mismatchComment, setMismatchComment] = useState("");
 
   const total = item.qty;
   const issueQty = Math.max(0, Math.min(total, Number(issueQtyStr) || 0));
@@ -671,10 +672,16 @@ function IssuePopup({
       : reasonType === "damaged"
         ? "Damaged"
         : reasonType === "mismatched"
-          ? "Mismatched"
+          ? `Mismatched: ${mismatchComment.trim()}`
           : otherReason.trim() || "";
 
-  const valid = issueQty > 0 && issueQty <= total && reason.length > 0;
+  const reasonValid =
+    reasonType === "mismatched"
+      ? mismatchComment.trim().length > 0
+      : reasonType === "other"
+        ? otherReason.trim().length > 0
+        : true;
+  const valid = issueQty > 0 && issueQty <= total && reasonValid;
 
   function submit() {
     if (!valid) return;
@@ -758,6 +765,15 @@ function IssuePopup({
               value={otherReason}
               onChange={(e) => setOtherReason(e.target.value)}
               placeholder="Enter reason"
+              className="w-full rounded-md border bg-background px-3 py-2 text-xs text-foreground"
+            />
+          )}
+          {reasonType === "mismatched" && (
+            <textarea
+              value={mismatchComment}
+              onChange={(e) => setMismatchComment(e.target.value)}
+              placeholder="Describe the mismatch (required)"
+              rows={2}
               className="w-full rounded-md border bg-background px-3 py-2 text-xs text-foreground"
             />
           )}
