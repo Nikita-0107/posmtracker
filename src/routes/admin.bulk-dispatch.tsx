@@ -62,6 +62,62 @@ function BulkDispatchUploadPage() {
     setParsing(false);
   }
 
+  // ----- Pending (removable) plans -----
+  const [pending, setPending] = useState<PendingPlanRow[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const refreshPending = useCallback(async () => {
+    if (!canUse) return;
+    setPendingLoading(true);
+    let q = supabase
+      .from("dispatch_plans")
+      .select("id, plan_code, wsp, wd_code, plan_date, created_at, dispatch_plan_items(planned_qty)")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (!isSuperAdmin && profile?.wsp) q = q.eq("wsp", profile.wsp);
+    const { data, error } = await q;
+    if (error) {
+      setPending([]);
+      setPendingLoading(false);
+      return;
+    }
+    type Row = {
+      id: string; plan_code: string; wsp: WspCode; wd_code: string;
+      plan_date: string; created_at: string;
+      dispatch_plan_items: { planned_qty: number }[] | null;
+    };
+    setPending(
+      ((data ?? []) as Row[]).map((p) => ({
+        id: p.id,
+        plan_code: p.plan_code,
+        wsp: p.wsp,
+        wd_code: p.wd_code,
+        plan_date: p.plan_date,
+        created_at: p.created_at,
+        items_count: p.dispatch_plan_items?.length ?? 0,
+        total_qty: (p.dispatch_plan_items ?? []).reduce((s, it) => s + (it.planned_qty ?? 0), 0),
+      })),
+    );
+    setPendingLoading(false);
+  }, [canUse, isSuperAdmin, profile?.wsp]);
+
+  useEffect(() => { void refreshPending(); }, [refreshPending]);
+
+  async function handleCancel(plan: PendingPlanRow) {
+    if (!confirm(`Remove plan ${plan.plan_code} (${plan.wd_code})? This cannot be undone.`)) return;
+    setCancellingId(plan.id);
+    setCancelError(null);
+    const { error } = await cancelPlan(plan.id);
+    setCancellingId(null);
+    if (error) {
+      setCancelError(error.message);
+      return;
+    }
+    await refreshPending();
+  }
+
   async function handleSubmit() {
     if (!parsed || parsed.rows.length === 0 || parsed.errors.length > 0) return;
     setSubmitting(true);
