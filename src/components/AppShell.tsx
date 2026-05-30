@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { NotificationBell } from "@/components/NotificationBell";
+import { PosmReferenceGuide } from "@/components/PosmReferenceGuide";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
 
