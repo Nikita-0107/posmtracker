@@ -768,6 +768,15 @@ function IssuePopup({
               className="w-full rounded-md border bg-background px-3 py-2 text-xs text-foreground"
             />
           )}
+          {reasonType === "mismatched" && (
+            <textarea
+              value={mismatchComment}
+              onChange={(e) => setMismatchComment(e.target.value)}
+              placeholder="Describe the mismatch (required)"
+              rows={2}
+              className="w-full rounded-md border bg-background px-3 py-2 text-xs text-foreground"
+            />
+          )}
         </div>
 
         {/* Actions */}
