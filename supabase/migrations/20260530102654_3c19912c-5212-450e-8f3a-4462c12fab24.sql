@@ -1,0 +1,1 @@
+DELETE FROM public.hierarchy_wd WHERE wd_code IN ('VI3601','VI3896');
