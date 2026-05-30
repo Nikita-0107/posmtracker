@@ -1,17 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Download } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Download, Trash2, RefreshCw } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useRoles } from "@/hooks/use-roles";
 import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
 import {
   parseDispatchPlanXlsx,
   type ParseResult,
 } from "@/lib/parse-dispatch-plan-xlsx";
-import { createBulkPlans, type BulkPlanResult } from "@/hooks/use-dispatch-plans";
+import { createBulkPlans, cancelPlan, type BulkPlanResult } from "@/hooks/use-dispatch-plans";
 import type { WspCode } from "@/hooks/use-auth";
+
+type PendingPlanRow = {
+  id: string;
+  plan_code: string;
+  wsp: WspCode;
+  wd_code: string;
+  plan_date: string;
+  created_at: string;
+  items_count: number;
+  total_qty: number;
+};
 
 export const Route = createFileRoute("/admin/bulk-dispatch")({
   component: BulkDispatchUploadPage,
@@ -50,6 +62,62 @@ function BulkDispatchUploadPage() {
     setParsing(false);
   }
 
+  // ----- Pending (removable) plans -----
+  const [pending, setPending] = useState<PendingPlanRow[]>([]);
+  const [pendingLoading, setPendingLoading] = useState(true);
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const refreshPending = useCallback(async () => {
+    if (!canUse) return;
+    setPendingLoading(true);
+    let q = supabase
+      .from("dispatch_plans")
+      .select("id, plan_code, wsp, wd_code, plan_date, created_at, dispatch_plan_items(planned_qty)")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
+    if (!isSuperAdmin && profile?.wsp) q = q.eq("wsp", profile.wsp);
+    const { data, error } = await q;
+    if (error) {
+      setPending([]);
+      setPendingLoading(false);
+      return;
+    }
+    type Row = {
+      id: string; plan_code: string; wsp: WspCode; wd_code: string;
+      plan_date: string; created_at: string;
+      dispatch_plan_items: { planned_qty: number }[] | null;
+    };
+    setPending(
+      ((data ?? []) as Row[]).map((p) => ({
+        id: p.id,
+        plan_code: p.plan_code,
+        wsp: p.wsp,
+        wd_code: p.wd_code,
+        plan_date: p.plan_date,
+        created_at: p.created_at,
+        items_count: p.dispatch_plan_items?.length ?? 0,
+        total_qty: (p.dispatch_plan_items ?? []).reduce((s, it) => s + (it.planned_qty ?? 0), 0),
+      })),
+    );
+    setPendingLoading(false);
+  }, [canUse, isSuperAdmin, profile?.wsp]);
+
+  useEffect(() => { void refreshPending(); }, [refreshPending]);
+
+  async function handleCancel(plan: PendingPlanRow) {
+    if (!confirm(`Remove plan ${plan.plan_code} (${plan.wd_code})? This cannot be undone.`)) return;
+    setCancellingId(plan.id);
+    setCancelError(null);
+    const { error } = await cancelPlan(plan.id);
+    setCancellingId(null);
+    if (error) {
+      setCancelError(error.message);
+      return;
+    }
+    await refreshPending();
+  }
+
   async function handleSubmit() {
     if (!parsed || parsed.rows.length === 0 || parsed.errors.length > 0) return;
     setSubmitting(true);
@@ -63,6 +131,7 @@ function BulkDispatchUploadPage() {
     setResult(r);
     setParsed(null);
     setFileName(null);
+    void refreshPending();
   }
 
   function downloadTemplate() {
@@ -216,6 +285,75 @@ function BulkDispatchUploadPage() {
             </div>
           </section>
         )}
+
+        <section className="space-y-2 pt-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold">Pending plans</h3>
+              <p className="text-[11px] text-muted-foreground">
+                Remove before WSP user executes. Executed plans can't be removed.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void refreshPending()}
+              className="rounded-lg border bg-card p-1.5 text-muted-foreground transition hover:bg-muted"
+              aria-label="Refresh"
+            >
+              <RefreshCw size={14} className={pendingLoading ? "animate-spin" : ""} />
+            </button>
+          </div>
+
+          {cancelError && (
+            <p className="rounded-lg bg-destructive/10 px-2 py-1.5 text-[11px] font-semibold text-destructive">
+              {cancelError}
+            </p>
+          )}
+
+          {pendingLoading ? (
+            <p className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 size={14} className="animate-spin" /> Loading…
+            </p>
+          ) : pending.length === 0 ? (
+            <p className="rounded-lg border bg-card px-3 py-4 text-center text-xs text-muted-foreground">
+              No pending plans.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {pending.map((p) => (
+                <li key={p.id} className="rounded-xl border bg-card p-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-mono text-xs font-bold">{p.plan_code}</p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        <span className="font-mono">{p.wsp}</span> ·{" "}
+                        <span className="font-mono">{p.wd_code}</span> ·{" "}
+                        {p.items_count} item{p.items_count === 1 ? "" : "s"} ·{" "}
+                        Qty {p.total_qty}
+                      </p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        {new Date(p.created_at).toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleCancel(p)}
+                      disabled={cancellingId === p.id}
+                      className="flex items-center gap-1 rounded-lg bg-destructive/10 px-2.5 py-1.5 text-[11px] font-bold text-destructive transition hover:bg-destructive/20 disabled:opacity-50"
+                    >
+                      {cancellingId === p.id ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={12} />
+                      )}
+                      Remove
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </AppShell>
   );
