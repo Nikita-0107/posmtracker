@@ -138,6 +138,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !showWaitingScreen &&
     location.pathname !== homePath;
 
+  const showRefGuide =
+    !!user &&
+    !authLoading &&
+    !rolesLoading &&
+    !onPublicPath &&
+    !showWaitingScreen &&
+    (location.pathname.startsWith("/wd") ||
+      location.pathname.startsWith("/tl") ||
+      location.pathname === "/my-wds" ||
+      location.pathname.startsWith("/ae"));
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-30 flex items-center justify-between gap-2 border-b border-border/60 bg-card/95 px-3 py-2.5 shadow-[0_1px_0_rgba(15,23,42,0.04)] backdrop-blur supports-[backdrop-filter]:bg-card/80">
