@@ -1291,9 +1291,9 @@ function StreakCard({ wdTlId, refreshKey }: { wdTlId: string; refreshKey: number
 
   if (loading || !data) {
     return (
-      <div className="rounded-2xl border bg-card p-4 shadow-sm">
+      <div className="rounded-xl border bg-card px-3 py-2 shadow-sm">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="animate-spin" size={14} /> Loading streak…
+          <Loader2 className="animate-spin" size={12} /> Loading streak…
         </div>
       </div>
     );
@@ -1306,65 +1306,51 @@ function StreakCard({ wdTlId, refreshKey }: { wdTlId: string; refreshKey: number
     : 100;
 
   return (
-    <div className="rounded-2xl border bg-gradient-to-br from-orange-500/10 via-card to-card p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <Flame className="text-orange-500" size={20} />
-            <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-foreground">
-              Engagement Streak
-            </h2>
-          </div>
-          <div className="mt-2 flex items-baseline gap-1.5">
-            <span className="font-heading text-3xl font-extrabold text-orange-600 dark:text-orange-400">
-              {data.current_streak}
-            </span>
-            <span className="text-xs font-medium text-muted-foreground">
-              {data.current_streak === 1 ? "Day" : "Days"}
-            </span>
-          </div>
-          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-            <Trophy size={11} className="text-amber-500" />
-            Longest:&nbsp;<strong className="text-foreground">{data.longest_streak}</strong>&nbsp;
-            {data.longest_streak === 1 ? "day" : "days"}
-          </div>
+    <div className="rounded-xl border bg-gradient-to-r from-orange-500/10 to-card px-3 py-2 shadow-sm">
+      <div className="flex items-center gap-2.5">
+        <Flame className="shrink-0 text-orange-500" size={18} />
+        <div className="flex items-baseline gap-1">
+          <span className="font-heading text-lg font-extrabold leading-none text-orange-600 dark:text-orange-400">
+            {data.current_streak}
+          </span>
+          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            {data.current_streak === 1 ? "wk" : "wks"}
+          </span>
         </div>
-        <div className="shrink-0 rounded-xl border bg-background/60 px-3 py-2 text-center">
-          <div className="text-2xl leading-none">{current.emoji}</div>
-          <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+          <Trophy size={10} className="text-amber-500" />
+          <span className="text-foreground font-semibold">{data.longest_streak}</span>
+          <span>best</span>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-base leading-none">{current.emoji}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {current.name}
-          </div>
+          </span>
+          {data.at_risk && (
+            <AlertTriangle
+              className="text-amber-500"
+              size={13}
+              aria-label="Streak at risk"
+            />
+          )}
         </div>
       </div>
-
       {next && (
-        <div className="mt-3">
-          <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>
-              Next: <span className="text-foreground">{next.emoji} {next.name}</span>
-            </span>
-            <span>
-              {toNext === 0 ? "Unlocked!" : `${toNext} day${toNext === 1 ? "" : "s"} to go`}
-            </span>
-          </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        <div className="mt-1.5 flex items-center gap-2">
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all"
               style={{ width: `${progressPct}%` }}
             />
           </div>
-        </div>
-      )}
-
-      {data.at_risk && (
-        <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/50 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-          <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={14} />
-          <div>
-            <strong>Your streak is at risk.</strong> Complete an activity to keep it going.
-          </div>
+          <span className="shrink-0 text-[10px] text-muted-foreground">
+            {toNext === 0 ? "Unlocked" : `${toNext} to ${next.name}`}
+          </span>
         </div>
       )}
     </div>
   );
 }
+
 
