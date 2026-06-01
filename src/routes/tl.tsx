@@ -1272,7 +1272,8 @@ function FloatingStreak({
     };
   }, [wdTlId, refreshKey]);
 
-  if (!data || data.current_streak <= 0) return null;
+  if (!data) return null;
+  const isZero = data.current_streak <= 0;
 
   const atRisk = data.at_risk;
   const lastActivityLabel = lastActivityDate
