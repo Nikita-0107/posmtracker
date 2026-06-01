@@ -23,7 +23,7 @@ type Cell = string | number;
 export async function exportWdReport(wdCode: string) {
   const monthStart = monthStartIso();
 
-  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, receivedRes] =
+  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, receivedRes, inactRes] =
     await Promise.all([
       supabase.from("materials").select("code, name"),
       supabase.from("wd_stock").select("material_code, qty, updated_at").eq("wd_code", wdCode),
@@ -55,6 +55,11 @@ export async function exportWdReport(wdCode: string) {
         .eq("distributor", wdCode)
         .eq("item_status", "received")
         .gte("confirmed_at", monthStart),
+      supabase
+        .from("tl_inactivity_reasons")
+        .select("wd_tl_id, reason, leave_until, expires_at, created_at")
+        .eq("wd_code", wdCode)
+        .order("created_at", { ascending: false }),
     ]);
 
   const materials = (matsRes.data ?? []) as { code: string; name: string }[];
