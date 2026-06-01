@@ -380,8 +380,7 @@ function TlPortalPage() {
           </div>
         </div>
 
-        {/* Engagement streak */}
-        <StreakCard wdTlId={tl.id} refreshKey={activity.length} />
+        {/* Engagement streak — floating widget (rendered outside the scroll container below) */}
 
         {/* WD Receiver banner */}
         {isTlWdReceiver && tlReceiverWd && (
