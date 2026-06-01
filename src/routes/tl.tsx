@@ -542,6 +542,7 @@ function TlPortalPage() {
           }}
         />
       )}
+      <FloatingStreak wdTlId={tl.id} refreshKey={activity.length} lastActivityDate={lastActivityDate} />
     </AppShell>
   );
 }
