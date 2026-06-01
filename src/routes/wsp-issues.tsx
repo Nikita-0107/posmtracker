@@ -129,9 +129,10 @@ function IssueCard({
   currentStock: number;
   onChange: () => Promise<void> | void;
 }) {
-  const [busy, setBusy] = useState<ResolveAction | null>(null);
+  const [busy, setBusy] = useState<ResolveAction | "submit_loss" | null>(null);
   const [showRedispatch, setShowRedispatch] = useState(false);
   const [redispatchQty, setRedispatchQty] = useState(String(row.qty));
+  const [showLossModal, setShowLossModal] = useState(false);
 
   const wdName =
     wdMaster.find((w) => w.wd_code === row.distributor)?.wd_name ?? row.distributor ?? "—";
@@ -156,8 +157,7 @@ function IssueCard({
       toast.error(error.message);
       return;
     }
-    if (action === "accept_loss") toast.success("Marked as Closed — Loss");
-    else if (action === "redispatch") toast.success("Re-dispatch created, issue resolved");
+    if (action === "redispatch") toast.success("Re-dispatch created, issue resolved");
     else toast.message("Kept pending");
     setShowRedispatch(false);
     await onChange();
@@ -168,110 +168,251 @@ function IssueCard({
     : row.dispatch_date ?? "—";
 
   return (
-    <div className="overflow-hidden rounded-xl border border-destructive/30 bg-card shadow-sm">
-      <div className="flex items-start gap-2 border-b bg-destructive/5 px-3 py-2.5">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15">
-          <Package size={16} className="text-destructive" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5">
-            <span className="truncate font-mono text-[10px] font-bold text-muted-foreground">
-              {(row.dispatch_id ?? row.id).slice(0, 8)}
-            </span>
-            <span className="shrink-0 rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive">
-              Issue
-            </span>
+    <>
+      <div className="overflow-hidden rounded-xl border border-destructive/30 bg-card shadow-sm">
+        <div className="flex items-start gap-2 border-b bg-destructive/5 px-3 py-2.5">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destructive/15">
+            <Package size={16} className="text-destructive" />
           </div>
-          <p className="truncate text-xs font-bold text-foreground">
-            To <span className="text-muted-foreground">{wdName}</span>
-            <span className="ml-1 text-[10px] font-normal text-muted-foreground">
-              ({row.distributor})
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="truncate font-mono text-[10px] font-bold text-muted-foreground">
+                {(row.dispatch_id ?? row.id).slice(0, 8)}
+              </span>
+              <span className="shrink-0 rounded-md bg-destructive/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-destructive">
+                Issue
+              </span>
+            </div>
+            <p className="truncate text-xs font-bold text-foreground">
+              To <span className="text-muted-foreground">{wdName}</span>
+              <span className="ml-1 text-[10px] font-normal text-muted-foreground">
+                ({row.distributor})
+              </span>
+            </p>
+            <p className="text-[10px] text-muted-foreground">{dateStr}</p>
+          </div>
+          <div className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-right">
+            <p className="font-mono text-sm font-bold text-foreground">{row.qty}</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 p-3">
+          <div>
+            <p className="font-mono text-[11px] font-bold text-foreground">
+              {row.material_code}
+            </p>
+            <p className="text-[10px] text-muted-foreground">{materialName}</p>
+          </div>
+
+          <div className="rounded-md bg-destructive/10 px-2 py-1.5 text-[11px] font-semibold text-destructive">
+            <span className="mr-1 font-bold uppercase tracking-wide text-[9px]">Reason:</span>
+            {row.issue_note?.trim() || "(no reason given)"}
+          </div>
+
+          {showRedispatch && (
+            <label className="block space-y-1">
+              <span className="text-[10px] font-semibold uppercase text-muted-foreground">
+                Re-dispatch quantity
+              </span>
+              <input
+                type="number"
+                min={1}
+                value={redispatchQty}
+                onChange={(e) => setRedispatchQty(e.target.value)}
+                className="w-full rounded-md border bg-background px-2 py-1.5 text-sm font-mono text-foreground"
+              />
+            </label>
+          )}
+
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            <button
+              onClick={() => setShowLossModal(true)}
+              disabled={busy !== null}
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-destructive/10 py-2 text-[10px] font-bold text-destructive transition active:scale-[0.98] disabled:opacity-50"
+            >
+              <XOctagon size={14} />
+              Submit Loss
+            </button>
+            <button
+              onClick={() => act("redispatch")}
+              disabled={busy !== null}
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-primary py-2 text-[10px] font-bold text-primary-foreground transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {busy === "redispatch" ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <RotateCw size={14} />
+              )}
+              {showRedispatch ? "Confirm" : "Check & Re-dispatch"}
+            </button>
+            <button
+              onClick={() => act("keep_pending")}
+              disabled={busy !== null}
+              className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-muted py-2 text-[10px] font-bold text-foreground transition active:scale-[0.98] disabled:opacity-50"
+            >
+              {busy === "keep_pending" ? (
+                <Loader2 size={12} className="animate-spin" />
+              ) : (
+                <Clock size={14} />
+              )}
+              Keep Pending
+            </button>
+          </div>
+
+          <p className="pt-1 text-center text-[10px] text-muted-foreground">
+            Available stock at WSP:{" "}
+            <span
+              className={`font-mono font-bold ${
+                currentStock < row.qty ? "text-destructive" : "text-foreground"
+              }`}
+            >
+              {currentStock}
             </span>
           </p>
-          <p className="text-[10px] text-muted-foreground">{dateStr}</p>
-        </div>
-        <div className="shrink-0 rounded-md bg-muted px-2 py-0.5 text-right">
-          <p className="font-mono text-sm font-bold text-foreground">{row.qty}</p>
+          <p className="text-center text-[10px] text-muted-foreground">
+            Losses require approval before stock is deducted.
+          </p>
         </div>
       </div>
 
-      <div className="space-y-2 p-3">
-        <div>
-          <p className="font-mono text-[11px] font-bold text-foreground">
-            {row.material_code}
-          </p>
-          <p className="text-[10px] text-muted-foreground">{materialName}</p>
+      {showLossModal && (
+        <SubmitLossModal
+          movementId={row.id}
+          material={`${row.material_code} · ${materialName}`}
+          qty={row.qty}
+          wd={`${wdName} (${row.distributor ?? "—"})`}
+          onClose={() => setShowLossModal(false)}
+          onDone={async () => {
+            setShowLossModal(false);
+            await onChange();
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function SubmitLossModal({
+  movementId,
+  material,
+  qty,
+  wd,
+  onClose,
+  onDone,
+}: {
+  movementId: string;
+  material: string;
+  qty: number;
+  wd: string;
+  onClose: () => void;
+  onDone: () => Promise<void> | void;
+}) {
+  const { user } = useAuth();
+  const { wsp } = useEffectiveWsp();
+  const [reason, setReason] = useState("");
+  const [proof, setProof] = useState<ProofImageValue>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function handleSubmit() {
+    if (!reason.trim()) {
+      toast.error("Please enter a reason for the loss");
+      return;
+    }
+    if (!proof) {
+      toast.error("Please attach supporting image");
+      return;
+    }
+    setBusy(true);
+    const { error } = await submitLossApproval(movementId, reason.trim(), proof.path);
+    setBusy(false);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success("Loss submitted for approval");
+    await onDone();
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-3 sm:items-center"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md overflow-hidden rounded-2xl bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between border-b px-4 py-3">
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Submit loss for approval</h3>
+            <p className="mt-0.5 text-[10px] text-muted-foreground">
+              Stock will only be deducted after an approver reviews.
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+            aria-label="Close"
+          >
+            <X size={16} />
+          </button>
         </div>
 
-        <div className="rounded-md bg-destructive/10 px-2 py-1.5 text-[11px] font-semibold text-destructive">
-          <span className="mr-1 font-bold uppercase tracking-wide text-[9px]">Reason:</span>
-          {row.issue_note?.trim() || "(no reason given)"}
-        </div>
+        <div className="space-y-3 p-4">
+          <div className="rounded-md bg-muted/50 p-2.5 text-[11px]">
+            <p className="font-bold text-foreground">{material}</p>
+            <p className="text-muted-foreground">
+              Qty <span className="font-mono font-bold text-foreground">{qty}</span> · {wd}
+            </p>
+          </div>
 
-        {showRedispatch && (
           <label className="block space-y-1">
-            <span className="text-[10px] font-semibold uppercase text-muted-foreground">
-              Re-dispatch quantity
+            <span className="text-[10px] font-bold uppercase text-muted-foreground">
+              Reason for loss <span className="text-destructive">*</span>
             </span>
-            <input
-              type="number"
-              min={1}
-              value={redispatchQty}
-              onChange={(e) => setRedispatchQty(e.target.value)}
-              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm font-mono text-foreground"
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Explain why this stock should be written off…"
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-xs text-foreground"
             />
           </label>
-        )}
 
-        <div className="grid grid-cols-3 gap-1.5 pt-1">
-          <button
-            onClick={() => act("accept_loss")}
-            disabled={busy !== null}
-            className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-destructive/10 py-2 text-[10px] font-bold text-destructive transition active:scale-[0.98] disabled:opacity-50"
-          >
-            {busy === "accept_loss" ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <XOctagon size={14} />
-            )}
-            Accept Loss
-          </button>
-          <button
-            onClick={() => act("redispatch")}
-            disabled={busy !== null}
-            className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-primary py-2 text-[10px] font-bold text-primary-foreground transition active:scale-[0.98] disabled:opacity-50"
-          >
-            {busy === "redispatch" ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <RotateCw size={14} />
-            )}
-            {showRedispatch ? "Confirm" : "Check & Re-dispatch"}
-          </button>
-          <button
-            onClick={() => act("keep_pending")}
-            disabled={busy !== null}
-            className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-muted py-2 text-[10px] font-bold text-foreground transition active:scale-[0.98] disabled:opacity-50"
-          >
-            {busy === "keep_pending" ? (
-              <Loader2 size={12} className="animate-spin" />
-            ) : (
-              <Clock size={14} />
-            )}
-            Keep Pending
-          </button>
+          {wsp && user ? (
+            <ProofImageUpload
+              wsp={wsp}
+              userId={user.id}
+              kind="dispatch"
+              value={proof}
+              onChange={setProof}
+              label="Supporting image *"
+            />
+          ) : (
+            <p className="text-[11px] text-destructive">
+              Cannot upload proof: WSP context missing.
+            </p>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              disabled={busy}
+              className="flex-1 rounded-md border bg-background py-2 text-xs font-bold text-foreground disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={busy || !reason.trim() || !proof}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-md bg-destructive py-2 text-xs font-bold text-destructive-foreground disabled:opacity-50"
+            >
+              {busy ? <Loader2 size={12} className="animate-spin" /> : <XOctagon size={12} />}
+              Submit for approval
+            </button>
+          </div>
         </div>
-
-        <p className="pt-1 text-center text-[10px] text-muted-foreground">
-          Available stock at WSP:{" "}
-          <span
-            className={`font-mono font-bold ${
-              currentStock < row.qty ? "text-destructive" : "text-foreground"
-            }`}
-          >
-            {currentStock}
-          </span>
-        </p>
       </div>
     </div>
   );
