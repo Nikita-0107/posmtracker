@@ -23,7 +23,7 @@ type Cell = string | number;
 export async function exportWdReport(wdCode: string) {
   const monthStart = monthStartIso();
 
-  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, receivedRes] =
+  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, receivedRes, inactRes] =
     await Promise.all([
       supabase.from("materials").select("code, name"),
       supabase.from("wd_stock").select("material_code, qty, updated_at").eq("wd_code", wdCode),
@@ -55,6 +55,11 @@ export async function exportWdReport(wdCode: string) {
         .eq("distributor", wdCode)
         .eq("item_status", "received")
         .gte("confirmed_at", monthStart),
+      supabase
+        .from("tl_inactivity_reasons")
+        .select("wd_tl_id, reason, leave_until, expires_at, created_at")
+        .eq("wd_code", wdCode)
+        .order("created_at", { ascending: false }),
     ]);
 
   const materials = (matsRes.data ?? []) as { code: string; name: string }[];
@@ -122,6 +127,28 @@ export async function exportWdReport(wdCode: string) {
   const issIdToTl = new Map(issuances.map((i) => [i.id, i.wd_tl_id]));
   const issIdToCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
   const tlById = new Map(tls.map((t) => [t.id, t]));
+
+  // Inactive TL map: latest non-expired inactivity record per wd_tl_id
+  const inactivity = (inactRes.data ?? []) as {
+    wd_tl_id: string;
+    reason: string;
+    leave_until: string | null;
+    expires_at: string | null;
+    created_at: string;
+  }[];
+  const nowMs = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const inactiveByTl = new Map<string, { reason: string; leave_until: string | null }>();
+  for (const r of inactivity) {
+    if (inactiveByTl.has(r.wd_tl_id)) continue; // ordered desc, keep latest
+    const expOk = !r.expires_at || new Date(r.expires_at).getTime() > nowMs;
+    const leaveOk = !r.leave_until || r.leave_until >= todayStr;
+    if (expOk && leaveOk) {
+      inactiveByTl.set(r.wd_tl_id, { reason: r.reason, leave_until: r.leave_until });
+    }
+  }
+  const tlStatus = (tlId: string | null | undefined) =>
+    tlId && inactiveByTl.has(tlId) ? "Inactive" : "Active";
 
   // ===== Sheet A: WD Stock Summary (monthly view) =====
   // Added Stock = received from WSP this month
@@ -204,6 +231,7 @@ export async function exportWdReport(wdCode: string) {
         "TL ID": tl?.legacy_tl_id ?? "",
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
+        "TL Status": tlStatus(tlId),
         "Material Code": mat,
         "Material Description": matName.get(mat) ?? "",
         "Received Qty": r,
@@ -229,6 +257,7 @@ export async function exportWdReport(wdCode: string) {
         "TL ID": tl?.legacy_tl_id ?? "",
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
+        "TL Status": tlStatus(tlId),
         "Material Code": it.material_code,
         "Material Description": matName.get(it.material_code) ?? "",
         "Quantity Allocated": it.qty_issued,
@@ -245,6 +274,7 @@ export async function exportWdReport(wdCode: string) {
         "TL ID": tl?.legacy_tl_id ?? "",
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
+        "TL Status": tlStatus(r.wd_tl_id),
         "Material Code": r.material_code,
         "Material Description": matName.get(r.material_code) ?? "",
         "Quantity Returned": r.qty,
@@ -322,6 +352,7 @@ export async function exportWdReport(wdCode: string) {
     "TL ID",
     "TL Name",
     "TL Type",
+    "TL Status",
     "Material Code",
     "Material Description",
     "Received Qty",
@@ -335,6 +366,7 @@ export async function exportWdReport(wdCode: string) {
     "TL ID",
     "TL Name",
     "TL Type",
+    "TL Status",
     "Material Code",
     "Material Description",
     "Quantity Allocated",
@@ -344,6 +376,7 @@ export async function exportWdReport(wdCode: string) {
     "TL ID",
     "TL Name",
     "TL Type",
+    "TL Status",
     "Material Code",
     "Material Description",
     "Quantity Returned",
