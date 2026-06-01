@@ -1287,10 +1287,12 @@ function FloatingStreak({
     <>
       <style>{`
         @keyframes streak-flicker {
-          0%, 100% { transform: scale(1) rotate(-1deg); filter: drop-shadow(0 0 6px rgba(249,115,22,0.55)); }
-          25% { transform: scale(1.06) rotate(1.5deg); filter: drop-shadow(0 0 10px rgba(249,115,22,0.75)); }
-          50% { transform: scale(0.98) rotate(-1.5deg); filter: drop-shadow(0 0 8px rgba(234,88,12,0.7)); }
-          75% { transform: scale(1.04) rotate(0.5deg); filter: drop-shadow(0 0 12px rgba(249,115,22,0.85)); }
+          0%   { transform: scale(1)    rotate(-3deg) translateY(0);    filter: drop-shadow(0 0 6px rgba(249,115,22,0.55)); }
+          20%  { transform: scale(1.15) rotate(4deg)  translateY(-1px); filter: drop-shadow(0 0 12px rgba(250,140,40,0.85)); }
+          40%  { transform: scale(0.92) rotate(-4deg) translateY(1px);  filter: drop-shadow(0 0 8px  rgba(234,88,12,0.75)); }
+          60%  { transform: scale(1.12) rotate(3deg)  translateY(-2px); filter: drop-shadow(0 0 14px rgba(251,146,60,0.9)); }
+          80%  { transform: scale(0.96) rotate(-2deg) translateY(0);    filter: drop-shadow(0 0 9px  rgba(249,115,22,0.7)); }
+          100% { transform: scale(1)    rotate(-3deg) translateY(0);    filter: drop-shadow(0 0 6px  rgba(249,115,22,0.55)); }
         }
         @keyframes streak-glow {
           0%, 100% { box-shadow: 0 8px 24px -6px rgba(249,115,22,0.45), 0 0 0 0 rgba(249,115,22,0.45); }
@@ -1300,7 +1302,8 @@ function FloatingStreak({
           0%, 100% { box-shadow: 0 8px 24px -6px rgba(220,38,38,0.55), 0 0 0 0 rgba(220,38,38,0.55); }
           50%      { box-shadow: 0 10px 28px -4px rgba(220,38,38,0.8),  0 0 0 10px rgba(220,38,38,0.0); }
         }
-        .streak-flame { animation: streak-flicker 2.4s ease-in-out infinite; transform-origin: 50% 70%; }
+        .streak-flame { animation: streak-flicker 1.4s ease-in-out infinite; transform-origin: 50% 80%; display: inline-block; }
+
         .streak-btn   { animation: streak-glow 2.8s ease-in-out infinite; }
         .streak-btn-risk { animation: streak-risk 1.6s ease-in-out infinite; }
       `}</style>
