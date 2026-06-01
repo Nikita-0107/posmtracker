@@ -16,6 +16,7 @@ import { Route as WdStockTrackRouteImport } from './routes/wd-stock-track'
 import { Route as WdIssueTlRouteImport } from './routes/wd-issue-tl'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as WdRouteImport } from './routes/wd'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
@@ -28,10 +29,14 @@ import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
+import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
 import { Route as AdminBulkDispatchRouteImport } from './routes/admin.bulk-dispatch'
+import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
+import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
+import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 
 const WspIssuesRoute = WspIssuesRouteImport.update({
@@ -67,6 +72,11 @@ const WdIssueRoute = WdIssueRouteImport.update({
 const WdRoute = WdRouteImport.update({
   id: '/wd',
   path: '/wd',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TlRoute = TlRouteImport.update({
@@ -129,6 +139,11 @@ const WdAdminUsersRoute = WdAdminUsersRouteImport.update({
   path: '/wd-admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
+  id: '/email/unsubscribe',
+  path: '/email/unsubscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -149,6 +164,23 @@ const AdminBulkDispatchRoute = AdminBulkDispatchRouteImport.update({
   path: '/admin/bulk-dispatch',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LovableEmailSuppressionRoute = LovableEmailSuppressionRouteImport.update({
+  id: '/lovable/email/suppression',
+  path: '/lovable/email/suppression',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LovableEmailTransactionalSendRoute =
+  LovableEmailTransactionalSendRouteImport.update({
+    id: '/lovable/email/transactional/send',
+    path: '/lovable/email/transactional/send',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const LovableEmailTransactionalPreviewRoute =
+  LovableEmailTransactionalPreviewRouteImport.update({
+    id: '/lovable/email/transactional/preview',
+    path: '/lovable/email/transactional/preview',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const LovableEmailQueueProcessRoute =
   LovableEmailQueueProcessRouteImport.update({
     id: '/lovable/email/queue/process',
@@ -168,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -179,8 +212,12 @@ export interface FileRoutesByFullPath {
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -194,6 +231,7 @@ export interface FileRoutesByTo {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -205,8 +243,12 @@ export interface FileRoutesByTo {
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -221,6 +263,7 @@ export interface FileRoutesById {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -232,8 +275,12 @@ export interface FileRoutesById {
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/users': typeof AdminUsersRoute
+  '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
+  '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
+  '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
+  '/lovable/email/transactional/send': typeof LovableEmailTransactionalSendRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -249,6 +296,7 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
+    | '/unsubscribe'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -260,8 +308,12 @@ export interface FileRouteTypes {
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/users'
+    | '/email/unsubscribe'
     | '/wd-admin/users'
+    | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -275,6 +327,7 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
+    | '/unsubscribe'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -286,8 +339,12 @@ export interface FileRouteTypes {
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/users'
+    | '/email/unsubscribe'
     | '/wd-admin/users'
+    | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
   id:
     | '__root__'
     | '/'
@@ -301,6 +358,7 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
+    | '/unsubscribe'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -312,8 +370,12 @@ export interface FileRouteTypes {
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/users'
+    | '/email/unsubscribe'
     | '/wd-admin/users'
+    | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
+    | '/lovable/email/transactional/preview'
+    | '/lovable/email/transactional/send'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -328,6 +390,7 @@ export interface RootRouteChildren {
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   WdRoute: typeof WdRoute
   WdIssueRoute: typeof WdIssueRoute
   WdIssueTlRoute: typeof WdIssueTlRoute
@@ -339,8 +402,12 @@ export interface RootRouteChildren {
   AdminConcernsRoute: typeof AdminConcernsRoute
   AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   WdAdminUsersRoute: typeof WdAdminUsersRoute
+  LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
+  LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
+  LovableEmailTransactionalSendRoute: typeof LovableEmailTransactionalSendRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -392,6 +459,13 @@ declare module '@tanstack/react-router' {
       path: '/wd'
       fullPath: '/wd'
       preLoaderRoute: typeof WdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tl': {
@@ -478,6 +552,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WdAdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/email/unsubscribe': {
+      id: '/email/unsubscribe'
+      path: '/email/unsubscribe'
+      fullPath: '/email/unsubscribe'
+      preLoaderRoute: typeof EmailUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -506,6 +587,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBulkDispatchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lovable/email/suppression': {
+      id: '/lovable/email/suppression'
+      path: '/lovable/email/suppression'
+      fullPath: '/lovable/email/suppression'
+      preLoaderRoute: typeof LovableEmailSuppressionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/transactional/send': {
+      id: '/lovable/email/transactional/send'
+      path: '/lovable/email/transactional/send'
+      fullPath: '/lovable/email/transactional/send'
+      preLoaderRoute: typeof LovableEmailTransactionalSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lovable/email/transactional/preview': {
+      id: '/lovable/email/transactional/preview'
+      path: '/lovable/email/transactional/preview'
+      fullPath: '/lovable/email/transactional/preview'
+      preLoaderRoute: typeof LovableEmailTransactionalPreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lovable/email/queue/process': {
       id: '/lovable/email/queue/process'
       path: '/lovable/email/queue/process'
@@ -528,6 +630,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   WdRoute: WdRoute,
   WdIssueRoute: WdIssueRoute,
   WdIssueTlRoute: WdIssueTlRoute,
@@ -539,8 +642,12 @@ const rootRouteChildren: RootRouteChildren = {
   AdminConcernsRoute: AdminConcernsRoute,
   AdminHierarchyRoute: AdminHierarchyRoute,
   AdminUsersRoute: AdminUsersRoute,
+  EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   WdAdminUsersRoute: WdAdminUsersRoute,
+  LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
+  LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
+  LovableEmailTransactionalSendRoute: LovableEmailTransactionalSendRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
