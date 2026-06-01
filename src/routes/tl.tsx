@@ -1234,3 +1234,137 @@ function TlMarkReasonModal({
     </div>
   );
 }
+
+// ───────────────── Streak ─────────────────
+
+type StreakData = {
+  current_streak: number;
+  longest_streak: number;
+  at_risk: boolean;
+  active_today: boolean;
+};
+
+const BADGES = [
+  { name: "Starter", emoji: "🔥", min: 1 },
+  { name: "Bronze", emoji: "🥉", min: 7 },
+  { name: "Silver", emoji: "🥈", min: 30 },
+  { name: "Gold", emoji: "🥇", min: 90 },
+  { name: "Champion", emoji: "🏆", min: 180 },
+] as const;
+
+function badgeFor(streak: number) {
+  let current = { name: "—", emoji: "✨", min: 0 } as { name: string; emoji: string; min: number };
+  let next: { name: string; emoji: string; min: number } | null = BADGES[0];
+  for (const b of BADGES) {
+    if (streak >= b.min) {
+      current = b;
+      const idx = BADGES.indexOf(b);
+      next = idx < BADGES.length - 1 ? BADGES[idx + 1] : null;
+    }
+  }
+  return { current, next };
+}
+
+function StreakCard({ wdTlId, refreshKey }: { wdTlId: string; refreshKey: number }) {
+  const [data, setData] = useState<StreakData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    supabase
+      .rpc("get_tl_streak", { _wd_tl_id: wdTlId })
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) {
+          console.error("streak load failed", error);
+          setData(null);
+        } else {
+          setData(data as unknown as StreakData);
+        }
+        setLoading(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [wdTlId, refreshKey]);
+
+  if (loading || !data) {
+    return (
+      <div className="rounded-2xl border bg-card p-4 shadow-sm">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Loader2 className="animate-spin" size={14} /> Loading streak…
+        </div>
+      </div>
+    );
+  }
+
+  const { current, next } = badgeFor(data.current_streak);
+  const toNext = next ? Math.max(0, next.min - data.current_streak) : 0;
+  const progressPct = next
+    ? Math.min(100, Math.round((data.current_streak / next.min) * 100))
+    : 100;
+
+  return (
+    <div className="rounded-2xl border bg-gradient-to-br from-orange-500/10 via-card to-card p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <Flame className="text-orange-500" size={20} />
+            <h2 className="font-heading text-sm font-bold uppercase tracking-wide text-foreground">
+              Engagement Streak
+            </h2>
+          </div>
+          <div className="mt-2 flex items-baseline gap-1.5">
+            <span className="font-heading text-3xl font-extrabold text-orange-600 dark:text-orange-400">
+              {data.current_streak}
+            </span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {data.current_streak === 1 ? "Day" : "Days"}
+            </span>
+          </div>
+          <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+            <Trophy size={11} className="text-amber-500" />
+            Longest:&nbsp;<strong className="text-foreground">{data.longest_streak}</strong>&nbsp;
+            {data.longest_streak === 1 ? "day" : "days"}
+          </div>
+        </div>
+        <div className="shrink-0 rounded-xl border bg-background/60 px-3 py-2 text-center">
+          <div className="text-2xl leading-none">{current.emoji}</div>
+          <div className="mt-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+            {current.name}
+          </div>
+        </div>
+      </div>
+
+      {next && (
+        <div className="mt-3">
+          <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>
+              Next: <span className="text-foreground">{next.emoji} {next.name}</span>
+            </span>
+            <span>
+              {toNext === 0 ? "Unlocked!" : `${toNext} day${toNext === 1 ? "" : "s"} to go`}
+            </span>
+          </div>
+          <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {data.at_risk && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-500/50 bg-amber-50 p-2.5 text-[11px] text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+          <AlertTriangle className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" size={14} />
+          <div>
+            <strong>Your streak is at risk.</strong> Complete an activity to keep it going.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
