@@ -20,6 +20,8 @@ import {
   PackagePlus,
   ClipboardList,
   ChevronLeft,
+  Flame,
+  Trophy,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
 import { matchesSearch } from "@/lib/search";
