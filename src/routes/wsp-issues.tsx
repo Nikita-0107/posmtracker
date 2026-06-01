@@ -8,12 +8,17 @@ import {
   Clock,
   XOctagon,
   Package,
+  X,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { WspBadge } from "@/components/WspSelector";
+import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
+import { useAuth } from "@/hooks/use-auth";
+import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
 import { useMaterials, useStock } from "@/hooks/use-stock";
 import { useWspIssues, resolveDispatchIssue, type ResolveAction } from "@/hooks/use-wsp-issues";
 import { useLossesSummary } from "@/hooks/use-losses";
+import { submitLossApproval } from "@/hooks/use-loss-approvals";
 import { wdMaster } from "@/lib/posm-data";
 import { toast } from "sonner";
 
