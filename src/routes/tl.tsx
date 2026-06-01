@@ -1244,34 +1244,20 @@ type StreakData = {
   active_today: boolean;
 };
 
-const BADGES = [
-  { name: "Starter", emoji: "🔥", min: 1 },
-  { name: "Bronze", emoji: "🥉", min: 7 },
-  { name: "Silver", emoji: "🥈", min: 30 },
-  { name: "Gold", emoji: "🥇", min: 90 },
-  { name: "Champion", emoji: "🏆", min: 180 },
-] as const;
-
-function badgeFor(streak: number) {
-  let current = { name: "—", emoji: "✨", min: 0 } as { name: string; emoji: string; min: number };
-  let next: { name: string; emoji: string; min: number } | null = BADGES[0];
-  for (const b of BADGES) {
-    if (streak >= b.min) {
-      current = b;
-      const idx = BADGES.indexOf(b);
-      next = idx < BADGES.length - 1 ? BADGES[idx + 1] : null;
-    }
-  }
-  return { current, next };
-}
-
-function StreakCard({ wdTlId, refreshKey }: { wdTlId: string; refreshKey: number }) {
+function FloatingStreak({
+  wdTlId,
+  refreshKey,
+  lastActivityDate,
+}: {
+  wdTlId: string;
+  refreshKey: number;
+  lastActivityDate: string | null;
+}) {
   const [data, setData] = useState<StreakData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
     supabase
       .rpc("get_tl_streak", { _wd_tl_id: wdTlId })
       .then(({ data, error }) => {
@@ -1282,75 +1268,145 @@ function StreakCard({ wdTlId, refreshKey }: { wdTlId: string; refreshKey: number
         } else {
           setData(data as unknown as StreakData);
         }
-        setLoading(false);
       });
     return () => {
       alive = false;
     };
   }, [wdTlId, refreshKey]);
 
-  if (loading || !data) {
-    return (
-      <div className="rounded-xl border bg-card px-3 py-2 shadow-sm">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Loader2 className="animate-spin" size={12} /> Loading streak…
-        </div>
-      </div>
-    );
-  }
+  if (!data || data.current_streak <= 0) return null;
 
-  const { current, next } = badgeFor(data.current_streak);
-  const toNext = next ? Math.max(0, next.min - data.current_streak) : 0;
-  const progressPct = next
-    ? Math.min(100, Math.round((data.current_streak / next.min) * 100))
-    : 100;
+  const atRisk = data.at_risk;
+  const lastActivityLabel = lastActivityDate
+    ? new Date(lastActivityDate).toLocaleDateString(undefined, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : "—";
 
   return (
-    <div className="rounded-xl border bg-gradient-to-r from-orange-500/10 to-card px-3 py-2 shadow-sm">
-      <div className="flex items-center gap-2.5">
-        <Flame className="shrink-0 text-orange-500" size={18} />
-        <div className="flex items-baseline gap-1">
-          <span className="font-heading text-lg font-extrabold leading-none text-orange-600 dark:text-orange-400">
-            {data.current_streak}
-          </span>
-          <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {data.current_streak === 1 ? "wk" : "wks"}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-          <Trophy size={10} className="text-amber-500" />
-          <span className="text-foreground font-semibold">{data.longest_streak}</span>
-          <span>best</span>
-        </div>
-        <div className="ml-auto flex items-center gap-1.5">
-          <span className="text-base leading-none">{current.emoji}</span>
-          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            {current.name}
-          </span>
-          {data.at_risk && (
-            <AlertTriangle
-              className="text-amber-500"
-              size={13}
-              aria-label="Streak at risk"
-            />
-          )}
-        </div>
-      </div>
-      {next && (
-        <div className="mt-1.5 flex items-center gap-2">
-          <div className="h-1 flex-1 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-orange-500 to-amber-500 transition-all"
-              style={{ width: `${progressPct}%` }}
-            />
+    <>
+      <style>{`
+        @keyframes streak-flicker {
+          0%, 100% { transform: scale(1) rotate(-1deg); filter: drop-shadow(0 0 6px rgba(249,115,22,0.55)); }
+          25% { transform: scale(1.06) rotate(1.5deg); filter: drop-shadow(0 0 10px rgba(249,115,22,0.75)); }
+          50% { transform: scale(0.98) rotate(-1.5deg); filter: drop-shadow(0 0 8px rgba(234,88,12,0.7)); }
+          75% { transform: scale(1.04) rotate(0.5deg); filter: drop-shadow(0 0 12px rgba(249,115,22,0.85)); }
+        }
+        @keyframes streak-glow {
+          0%, 100% { box-shadow: 0 8px 24px -6px rgba(249,115,22,0.45), 0 0 0 0 rgba(249,115,22,0.45); }
+          50%      { box-shadow: 0 10px 28px -4px rgba(249,115,22,0.65), 0 0 0 8px rgba(249,115,22,0.0); }
+        }
+        @keyframes streak-risk {
+          0%, 100% { box-shadow: 0 8px 24px -6px rgba(220,38,38,0.55), 0 0 0 0 rgba(220,38,38,0.55); }
+          50%      { box-shadow: 0 10px 28px -4px rgba(220,38,38,0.8),  0 0 0 10px rgba(220,38,38,0.0); }
+        }
+        .streak-flame { animation: streak-flicker 2.4s ease-in-out infinite; transform-origin: 50% 70%; }
+        .streak-btn   { animation: streak-glow 2.8s ease-in-out infinite; }
+        .streak-btn-risk { animation: streak-risk 1.6s ease-in-out infinite; }
+      `}</style>
+
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`Streak: ${data.current_streak}${atRisk ? " — at risk" : ""}`}
+        className={`fixed right-4 z-40 flex items-center gap-1.5 rounded-full border px-3.5 py-2 font-heading text-base font-extrabold leading-none text-white transition active:scale-95 ${
+          atRisk
+            ? "streak-btn-risk border-red-300/60 bg-gradient-to-br from-red-500 via-orange-500 to-amber-500"
+            : "streak-btn border-orange-300/60 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-500"
+        }`}
+        style={{ bottom: "calc(env(safe-area-inset-bottom) + 5rem)" }}
+      >
+        <span className="streak-flame text-lg" aria-hidden>
+          🔥
+        </span>
+        <span className="tabular-nums">{data.current_streak}</span>
+      </button>
+
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm animate-fade-in sm:items-center"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-2xl border bg-card p-5 shadow-2xl animate-scale-in sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="streak-flame text-2xl" aria-hidden>
+                  🔥
+                </span>
+                <h3 className="font-heading text-lg font-bold text-foreground">
+                  Streak Details
+                </h3>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-md p-1 text-muted-foreground hover:bg-muted"
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {atRisk && (
+              <div className="mt-3 flex items-start gap-2 rounded-xl border border-red-500/40 bg-red-50 p-3 text-xs text-red-900 dark:bg-red-950/30 dark:text-red-100">
+                <AlertTriangle className="mt-0.5 shrink-0 text-red-600 dark:text-red-400" size={16} />
+                <div>
+                  <strong>Your streak is at risk.</strong>
+                  <p className="mt-0.5 opacity-90">Complete an activity to keep it going.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4 space-y-2.5">
+              <Row label="Current Streak" value={`${data.current_streak}`} accent />
+              <Row label="Longest Streak" value={`${data.longest_streak}`} />
+              <Row label="Last Activity" value={lastActivityLabel} />
+              <Row
+                label="Status"
+                value={
+                  atRisk
+                    ? "At risk"
+                    : data.active_today
+                      ? "Active today"
+                      : "On track"
+                }
+              />
+            </div>
           </div>
-          <span className="shrink-0 text-[10px] text-muted-foreground">
-            {toNext === 0 ? "Unlocked" : `${toNext} to ${next.name}`}
-          </span>
         </div>
       )}
+    </>
+  );
+}
+
+function Row({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between rounded-lg border bg-background px-3 py-2.5">
+      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={`font-heading text-base font-extrabold tabular-nums ${
+          accent ? "text-orange-600 dark:text-orange-400" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
+
 
 
