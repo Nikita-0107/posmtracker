@@ -1319,7 +1319,7 @@ function FloatingStreak({
         }`}
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 5rem)" }}
       >
-        <span className="streak-flame text-lg" aria-hidden>
+        <span className="streak-flame text-2xl leading-none" aria-hidden>
           🔥
         </span>
         <span className="tabular-nums">{data.current_streak}</span>
