@@ -16,6 +16,7 @@ import { Route as WdStockTrackRouteImport } from './routes/wd-stock-track'
 import { Route as WdIssueTlRouteImport } from './routes/wd-issue-tl'
 import { Route as WdIssueRouteImport } from './routes/wd-issue'
 import { Route as WdRouteImport } from './routes/wd'
+import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
@@ -71,6 +72,11 @@ const WdIssueRoute = WdIssueRouteImport.update({
 const WdRoute = WdRouteImport.update({
   id: '/wd',
   path: '/wd',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const UnsubscribeRoute = UnsubscribeRouteImport.update({
+  id: '/unsubscribe',
+  path: '/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TlRoute = TlRouteImport.update({
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
+  '/unsubscribe': typeof UnsubscribeRoute
   '/wd': typeof WdRoute
   '/wd-issue': typeof WdIssueRoute
   '/wd-issue-tl': typeof WdIssueTlRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
+    | '/unsubscribe'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
+    | '/unsubscribe'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -347,6 +358,7 @@ export interface FileRouteTypes {
     | '/receive'
     | '/stock'
     | '/tl'
+    | '/unsubscribe'
     | '/wd'
     | '/wd-issue'
     | '/wd-issue-tl'
@@ -378,6 +390,7 @@ export interface RootRouteChildren {
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
+  UnsubscribeRoute: typeof UnsubscribeRoute
   WdRoute: typeof WdRoute
   WdIssueRoute: typeof WdIssueRoute
   WdIssueTlRoute: typeof WdIssueTlRoute
@@ -446,6 +459,13 @@ declare module '@tanstack/react-router' {
       path: '/wd'
       fullPath: '/wd'
       preLoaderRoute: typeof WdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/unsubscribe': {
+      id: '/unsubscribe'
+      path: '/unsubscribe'
+      fullPath: '/unsubscribe'
+      preLoaderRoute: typeof UnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/tl': {
@@ -610,6 +630,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
+  UnsubscribeRoute: UnsubscribeRoute,
   WdRoute: WdRoute,
   WdIssueRoute: WdIssueRoute,
   WdIssueTlRoute: WdIssueTlRoute,
