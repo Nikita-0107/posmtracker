@@ -128,6 +128,28 @@ export async function exportWdReport(wdCode: string) {
   const issIdToCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
   const tlById = new Map(tls.map((t) => [t.id, t]));
 
+  // Inactive TL map: latest non-expired inactivity record per wd_tl_id
+  const inactivity = (inactRes.data ?? []) as {
+    wd_tl_id: string;
+    reason: string;
+    leave_until: string | null;
+    expires_at: string | null;
+    created_at: string;
+  }[];
+  const nowMs = Date.now();
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const inactiveByTl = new Map<string, { reason: string; leave_until: string | null }>();
+  for (const r of inactivity) {
+    if (inactiveByTl.has(r.wd_tl_id)) continue; // ordered desc, keep latest
+    const expOk = !r.expires_at || new Date(r.expires_at).getTime() > nowMs;
+    const leaveOk = !r.leave_until || r.leave_until >= todayStr;
+    if (expOk && leaveOk) {
+      inactiveByTl.set(r.wd_tl_id, { reason: r.reason, leave_until: r.leave_until });
+    }
+  }
+  const tlStatus = (tlId: string | null | undefined) =>
+    tlId && inactiveByTl.has(tlId) ? "Inactive" : "Active";
+
   // ===== Sheet A: WD Stock Summary (monthly view) =====
   // Added Stock = received from WSP this month
   const addedByMat = new Map<string, number>();
