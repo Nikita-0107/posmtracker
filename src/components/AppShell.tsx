@@ -172,6 +172,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <WspBadge hideForSuperAdmin={location.pathname === "/"} />
           {user && <NotificationBell />}
           {showRefGuide && <PosmReferenceGuide compact />}
+          <LossApproverLink />
+
           {(isAdmin || isWspAdmin || profile) && (
             <div className="flex flex-col gap-1">
               {(isAdmin || isWspAdmin) && (
