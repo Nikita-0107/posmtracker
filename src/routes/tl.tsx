@@ -1316,7 +1316,9 @@ function FloatingStreak({
         className={`fixed right-4 z-40 flex items-center gap-1.5 rounded-full border px-3.5 py-2 font-heading text-base font-extrabold leading-none text-white transition active:scale-95 ${
           atRisk
             ? "streak-btn-risk border-red-300/60 bg-gradient-to-br from-red-500 via-orange-500 to-amber-500"
-            : "streak-btn border-orange-300/60 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-500"
+            : isZero
+              ? "border-muted-foreground/30 bg-gradient-to-br from-muted-foreground/70 to-muted-foreground/50"
+              : "streak-btn border-orange-300/60 bg-gradient-to-br from-orange-500 via-orange-600 to-amber-500"
         }`}
         style={{ bottom: "calc(env(safe-area-inset-bottom) + 5rem)" }}
       >
