@@ -212,6 +212,68 @@ export type Database = {
           },
         ]
       }
+      loss_approvals: {
+        Row: {
+          decided_at: string | null
+          decided_by: string | null
+          decision_remarks: string | null
+          distributor: string | null
+          id: string
+          material_code: string
+          movement_id: string
+          proof_image_path: string | null
+          qty: number
+          reason: string
+          status: Database["public"]["Enums"]["loss_approval_status"]
+          submitted_at: string
+          submitted_by: string
+          submitted_by_role: string | null
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_remarks?: string | null
+          distributor?: string | null
+          id?: string
+          material_code: string
+          movement_id: string
+          proof_image_path?: string | null
+          qty: number
+          reason: string
+          status?: Database["public"]["Enums"]["loss_approval_status"]
+          submitted_at?: string
+          submitted_by: string
+          submitted_by_role?: string | null
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_remarks?: string | null
+          distributor?: string | null
+          id?: string
+          material_code?: string
+          movement_id?: string
+          proof_image_path?: string | null
+          qty?: number
+          reason?: string
+          status?: Database["public"]["Enums"]["loss_approval_status"]
+          submitted_at?: string
+          submitted_by?: string
+          submitted_by_role?: string | null
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loss_approvals_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       materials: {
         Row: {
           code: string
@@ -1243,6 +1305,10 @@ export type Database = {
         Args: never
         Returns: Database["public"]["Enums"]["wsp_code"]
       }
+      decide_loss_approval: {
+        Args: { _approval_id: string; _decision: string; _remarks?: string }
+        Returns: Database["public"]["Enums"]["loss_approval_status"]
+      }
       dispatch_material: {
         Args: {
           _distributor: string
@@ -1292,6 +1358,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_loss_approver: { Args: { _uid: string }; Returns: boolean }
       iso_week_monday: { Args: { _d: string }; Returns: string }
       issue_to_tl: {
         Args: { _issue_date: string; _items: Json; _tl_user_id: string }
@@ -1426,6 +1493,14 @@ export type Database = {
         Args: { _items: Json; _note?: string; _wd_tl_id: string }
         Returns: string
       }
+      submit_loss_approval: {
+        Args: {
+          _movement_id: string
+          _proof_image_path?: string
+          _reason: string
+        }
+        Returns: string
+      }
       submit_stock_concern: {
         Args: {
           _actual_qty: number
@@ -1476,7 +1551,9 @@ export type Database = {
         | "issue"
         | "closed_loss"
         | "resolved"
+        | "pending_loss_approval"
       dispatch_plan_status: "pending" | "executed" | "cancelled"
+      loss_approval_status: "pending" | "approved" | "rejected"
       movement_type: "receive" | "dispatch" | "tl_issue"
       tl_alloc_status: "open" | "closed"
       wd_transfer_item_status: "pending" | "received" | "partial" | "issue"
@@ -1619,8 +1696,10 @@ export const Constants = {
         "issue",
         "closed_loss",
         "resolved",
+        "pending_loss_approval",
       ],
       dispatch_plan_status: ["pending", "executed", "cancelled"],
+      loss_approval_status: ["pending", "approved", "rejected"],
       movement_type: ["receive", "dispatch", "tl_issue"],
       tl_alloc_status: ["open", "closed"],
       wd_transfer_item_status: ["pending", "received", "partial", "issue"],

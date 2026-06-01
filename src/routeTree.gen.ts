@@ -22,6 +22,7 @@ import { Route as ReceiveRouteImport } from './routes/receive'
 import { Route as MyWdsRouteImport } from './routes/my-wds'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as LossesRouteImport } from './routes/losses'
+import { Route as LossApprovalsRouteImport } from './routes/loss-approvals'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AccountRouteImport } from './routes/account'
@@ -97,6 +98,11 @@ const LossesRoute = LossesRouteImport.update({
   path: '/losses',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LossApprovalsRoute = LossApprovalsRouteImport.update({
+  id: '/loss-approvals',
+  path: '/loss-approvals',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -148,6 +154,7 @@ export interface FileRoutesByFullPath {
   '/account': typeof AccountRoute
   '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
+  '/loss-approvals': typeof LossApprovalsRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
@@ -172,6 +179,7 @@ export interface FileRoutesByTo {
   '/account': typeof AccountRoute
   '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
+  '/loss-approvals': typeof LossApprovalsRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/account': typeof AccountRoute
   '/concerns': typeof ConcernsRoute
   '/login': typeof LoginRoute
+  '/loss-approvals': typeof LossApprovalsRoute
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
@@ -223,6 +232,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/concerns'
     | '/login'
+    | '/loss-approvals'
     | '/losses'
     | '/movements'
     | '/my-wds'
@@ -247,6 +257,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/concerns'
     | '/login'
+    | '/loss-approvals'
     | '/losses'
     | '/movements'
     | '/my-wds'
@@ -271,6 +282,7 @@ export interface FileRouteTypes {
     | '/account'
     | '/concerns'
     | '/login'
+    | '/loss-approvals'
     | '/losses'
     | '/movements'
     | '/my-wds'
@@ -296,6 +308,7 @@ export interface RootRouteChildren {
   AccountRoute: typeof AccountRoute
   ConcernsRoute: typeof ConcernsRoute
   LoginRoute: typeof LoginRoute
+  LossApprovalsRoute: typeof LossApprovalsRoute
   LossesRoute: typeof LossesRoute
   MovementsRoute: typeof MovementsRoute
   MyWdsRoute: typeof MyWdsRoute
@@ -409,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LossesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/loss-approvals': {
+      id: '/loss-approvals'
+      path: '/loss-approvals'
+      fullPath: '/loss-approvals'
+      preLoaderRoute: typeof LossApprovalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -480,6 +500,7 @@ const rootRouteChildren: RootRouteChildren = {
   AccountRoute: AccountRoute,
   ConcernsRoute: ConcernsRoute,
   LoginRoute: LoginRoute,
+  LossApprovalsRoute: LossApprovalsRoute,
   LossesRoute: LossesRoute,
   MovementsRoute: MovementsRoute,
   MyWdsRoute: MyWdsRoute,
@@ -502,13 +523,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

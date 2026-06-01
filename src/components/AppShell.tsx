@@ -17,6 +17,7 @@ import { NotificationBell } from "@/components/NotificationBell";
 import { PosmReferenceGuide } from "@/components/PosmReferenceGuide";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
+import { useIsLossApprover, usePendingApprovalsCount } from "@/hooks/use-loss-approvals";
 
 const tabs = [
   { to: "/" as const, label: "WSP", icon: Building2, roles: ["wsp", "wsp_admin", "admin"] as const },
@@ -171,6 +172,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <WspBadge hideForSuperAdmin={location.pathname === "/"} />
           {user && <NotificationBell />}
           {showRefGuide && <PosmReferenceGuide compact />}
+          <LossApproverLink />
+
           {(isAdmin || isWspAdmin || profile) && (
             <div className="flex flex-col gap-1">
               {(isAdmin || isWspAdmin) && (
