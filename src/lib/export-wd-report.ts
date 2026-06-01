@@ -274,6 +274,7 @@ export async function exportWdReport(wdCode: string) {
         "TL ID": tl?.legacy_tl_id ?? "",
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
+        "TL Status": tlStatus(r.wd_tl_id),
         "Material Code": r.material_code,
         "Material Description": matName.get(r.material_code) ?? "",
         "Quantity Returned": r.qty,
