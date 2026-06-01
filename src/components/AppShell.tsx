@@ -25,6 +25,27 @@ const tabs = [
   { to: "/tl" as const, label: "TL", icon: Camera, roles: ["tl"] as const },
 ];
 
+function LossApproverLink() {
+  const { isApprover } = useIsLossApprover();
+  const { count } = usePendingApprovalsCount(isApprover);
+  if (!isApprover) return null;
+  return (
+    <Link
+      to="/loss-approvals"
+      className="relative flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-semibold text-amber-700 transition hover:bg-amber-500/20 dark:text-amber-300"
+      aria-label="Loss approvals"
+    >
+      <AlertTriangle size={12} />
+      <span className="hidden sm:inline">Approvals</span>
+      {count > 0 && (
+        <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-600 px-1 text-[9px] font-bold text-white">
+          {count}
+        </span>
+      )}
+    </Link>
+  );
+}
+
 // Map URL prefixes to the role(s) that can view them.
 // IMPORTANT: order matters — more specific prefixes MUST come before shorter ones
 // (e.g. "/wd-issue" before "/wd", otherwise "/wd-issue" matches the "/wd" rule).
