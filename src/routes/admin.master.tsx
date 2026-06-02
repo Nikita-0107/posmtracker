@@ -376,3 +376,22 @@ function AuditTable({ rows }: { rows: AuditRow[] }) {
     </div>
   );
 }
+
+function DownloadTlActivityButton() {
+  const [busy, setBusy] = useState(false);
+  async function go() {
+    setBusy(true);
+    try {
+      const n = await exportTlActivityReport();
+      toast.success(`Exported ${n} TLs`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return (
+    <button onClick={go} disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-60">
+      {busy ? <Loader2 className="animate-spin" size={12}/> : <Download size={12}/>}
+      TL Activity Report
+    </button>
+  );
+}
