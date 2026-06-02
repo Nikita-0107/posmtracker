@@ -1237,9 +1237,11 @@ function TlMarkReasonModal({
 
 type StreakData = {
   current_streak: number;
-  longest_streak: number;
   at_risk: boolean;
   active_today: boolean;
+  champion_name: string | null;
+  champion_wd: string | null;
+  champion_streak: number;
 };
 
 function FloatingStreak({
