@@ -83,9 +83,12 @@ function MasterDataPage() {
       <div className="mx-auto max-w-6xl space-y-4">
         <AdminTabs />
 
-        <div className="flex items-center gap-2">
-          <Database className="text-primary" size={20} />
-          <h1 className="font-heading text-lg font-bold text-foreground">Master Data Management</h1>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Database className="text-primary" size={20} />
+            <h1 className="font-heading text-lg font-bold text-foreground">Master Data Management</h1>
+          </div>
+          <DownloadTlActivityButton />
         </div>
         <p className="text-xs text-muted-foreground">
           Maintain WD, AE and TL names, mappings and active status. Edits do not affect stock,
