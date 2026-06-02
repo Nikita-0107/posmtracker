@@ -1,0 +1,1 @@
+ALTER FUNCTION public._compute_streak_from_dates(date[], date) SET search_path = public;
