@@ -145,9 +145,9 @@ export const updateWdMaster = createServerFn({ method: "POST" })
       const { data: existing } = await supabaseAdmin
         .from("wd_assignments").select("wsp").eq("wd_code", data.wd_code);
       const cur_wsps = new Set((existing ?? []).map((r) => r.wsp as string));
-      const new_wsps = new Set(data.wsps);
-      const toAdd = [...new_wsps].filter((w) => !cur_wsps.has(w));
-      const toRemove = [...cur_wsps].filter((w) => !new_wsps.has(w));
+      const new_wsps = new Set<string>(data.wsps);
+      const toAdd = [...new_wsps].filter((w) => !cur_wsps.has(w)) as ("CEVL"|"CEVJ"|"CEVY")[];
+      const toRemove = [...cur_wsps].filter((w) => !new_wsps.has(w)) as ("CEVL"|"CEVJ"|"CEVY")[];
       if (toAdd.length > 0) {
         await supabaseAdmin.from("wd_assignments")
           .insert(toAdd.map((w) => ({ wd_code: data.wd_code, wsp: w as "CEVL" | "CEVJ" | "CEVY" })));
