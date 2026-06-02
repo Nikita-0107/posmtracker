@@ -1514,6 +1514,20 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_tl_activity_report: {
+        Args: { _inactivity_days?: number }
+        Returns: {
+          ae_id: string
+          ae_name: string
+          current_streak: number
+          last_activity: string
+          status: string
+          tl_id: string
+          tl_name: string
+          wd_code: string
+          wd_name: string
+        }[]
+      }
       get_tl_streak: { Args: { _wd_tl_id: string }; Returns: Json }
       has_role: {
         Args: {
