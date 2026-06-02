@@ -91,7 +91,7 @@ export const updateAeMaster = createServerFn({ method: "POST" })
         old_value: String(cur.active), new_value: String(data.active) });
     }
     if (Object.keys(patch).length === 1) return { ok: true };
-    const { error } = await supabaseAdmin.from("hierarchy_ae").update(patch).eq("ae_id", data.ae_id);
+    const { error } = await supabaseAdmin.from("hierarchy_ae").update(patch as never).eq("ae_id", data.ae_id);
     if (error) throw new Error(error.message);
     await logAudit(context.userId, audits);
     return { ok: true };
@@ -136,7 +136,7 @@ export const updateWdMaster = createServerFn({ method: "POST" })
         old_value: String(cur.active), new_value: String(data.active) });
     }
     if (Object.keys(patch).length > 1) {
-      const { error } = await supabaseAdmin.from("hierarchy_wd").update(patch).eq("wd_code", data.wd_code);
+      const { error } = await supabaseAdmin.from("hierarchy_wd").update(patch as never).eq("wd_code", data.wd_code);
       if (error) throw new Error(error.message);
     }
 
@@ -204,7 +204,7 @@ export const updateTlMaster = createServerFn({ method: "POST" })
         old_value: String(cur.active), new_value: String(data.active) });
     }
     if (Object.keys(patch).length === 1) return { ok: true };
-    const { error } = await supabaseAdmin.from("hierarchy_tl").update(patch).eq("tl_id", data.tl_id);
+    const { error } = await supabaseAdmin.from("hierarchy_tl").update(patch as never).eq("tl_id", data.tl_id);
     if (error) throw new Error(error.message);
     await logAudit(context.userId, audits);
     return { ok: true };
