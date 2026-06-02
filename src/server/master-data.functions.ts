@@ -78,7 +78,7 @@ export const updateAeMaster = createServerFn({ method: "POST" })
     if (e1) throw new Error(e1.message);
     if (!cur) throw new Error("AE not found");
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: Record<string, any> = { updated_at: new Date().toISOString() };
     const audits: Parameters<typeof logAudit>[1] = [];
     if (data.ae_name !== undefined && data.ae_name !== cur.ae_name) {
       patch.ae_name = data.ae_name;
@@ -116,7 +116,7 @@ export const updateWdMaster = createServerFn({ method: "POST" })
     if (e1) throw new Error(e1.message);
     if (!cur) throw new Error("WD not found");
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: Record<string, any> = { updated_at: new Date().toISOString() };
     const audits: Parameters<typeof logAudit>[1] = [];
     if (data.wd_name !== undefined && data.wd_name !== cur.wd_name) {
       patch.wd_name = data.wd_name;
@@ -154,7 +154,7 @@ export const updateWdMaster = createServerFn({ method: "POST" })
       }
       if (toRemove.length > 0) {
         await supabaseAdmin.from("wd_assignments")
-          .delete().eq("wd_code", data.wd_code).in("wsp", toRemove);
+          .delete().eq("wd_code", data.wd_code).in("wsp", toRemove as ("CEVL"|"CEVJ"|"CEVY")[]);
       }
       if (toAdd.length || toRemove.length) {
         audits.push({ entity_type: "wd", entity_id: data.wd_code, field_changed: "wsps",
@@ -184,7 +184,7 @@ export const updateTlMaster = createServerFn({ method: "POST" })
     if (e1) throw new Error(e1.message);
     if (!cur) throw new Error("TL not found");
 
-    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const patch: Record<string, any> = { updated_at: new Date().toISOString() };
     const audits: Parameters<typeof logAudit>[1] = [];
     if (data.tl_name !== undefined && data.tl_name !== cur.tl_name) {
       patch.tl_name = data.tl_name;
