@@ -61,19 +61,63 @@ function HierarchyPage() {
     if (!user) navigate({ to: "/login" });
   }, [user, authLoading, rolesLoading, navigate]);
 
+  function parseSheetRows(aoa: unknown[][]): Row[] {
+    if (aoa.length < 2) return [];
+    const headers = (aoa[0] as unknown[]).map((h) =>
+      String(h ?? "").trim().toLowerCase().replace(/\s+/g, "_")
+    );
+    const idx = (k: string) => headers.indexOf(k);
+    const aeIdIdx = idx("ae_id"), aeNameIdx = idx("ae_name");
+    const wdCodeIdx = idx("wd_code"), wdNameIdx = idx("wd_name");
+    const tlIdIdx = idx("tl_id"), tlNameIdx = idx("tl_name");
+    let lastAeId = "", lastAeName = "", lastWdCode = "", lastWdName = "";
+    const out: Row[] = [];
+    for (let i = 1; i < aoa.length; i++) {
+      const r = aoa[i] as unknown[];
+      const cell = (j: number) => (j >= 0 ? String(r?.[j] ?? "").trim() : "");
+      const ae_id = cell(aeIdIdx) || lastAeId;
+      const ae_name = cell(aeNameIdx) || lastAeName;
+      const wd_code = cell(wdCodeIdx) || lastWdCode;
+      const wd_name = cell(wdNameIdx) || lastWdName;
+      if (cell(aeIdIdx)) { lastAeId = ae_id; lastAeName = ae_name; }
+      if (cell(wdCodeIdx)) { lastWdCode = wd_code; lastWdName = wd_name; }
+      if (!ae_id) continue;
+      out.push({
+        ae_id, ae_name,
+        wd_code: wd_code || undefined,
+        wd_name: wd_name || undefined,
+        tl_id: cell(tlIdIdx) || undefined,
+        tl_name: cell(tlNameIdx) || undefined,
+      });
+    }
+    return out;
+  }
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    const isExcel = /\.(xlsx|xls)$/i.test(f.name);
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        setRows(parseCsv(String(reader.result || "")));
-        toast.success("CSV parsed");
+        if (isExcel) {
+          const wb = XLSX.read(reader.result as ArrayBuffer, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", blankrows: false });
+          const parsed = parseSheetRows(aoa);
+          setRows(parsed);
+          toast.success(`Excel parsed (${parsed.length} rows)`);
+        } else {
+          const parsed = parseCsv(String(reader.result || ""));
+          setRows(parsed);
+          toast.success(`CSV parsed (${parsed.length} rows)`);
+        }
       } catch (err) {
         toast.error((err as Error).message);
       }
     };
-    reader.readAsText(f);
+    if (isExcel) reader.readAsArrayBuffer(f);
+    else reader.readAsText(f);
   }
 
   async function submit() {
