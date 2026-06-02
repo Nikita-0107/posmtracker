@@ -31,6 +31,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminMasterRouteImport } from './routes/admin.master'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
 import { Route as AdminBulkDispatchRouteImport } from './routes/admin.bulk-dispatch'
@@ -149,6 +150,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMasterRoute = AdminMasterRouteImport.update({
+  id: '/admin/master',
+  path: '/admin/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminHierarchyRoute = AdminHierarchyRouteImport.update({
   id: '/admin/hierarchy',
   path: '/admin/hierarchy',
@@ -211,6 +217,7 @@ export interface FileRoutesByFullPath {
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
+  '/admin/master': typeof AdminMasterRoute
   '/admin/users': typeof AdminUsersRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
+  '/admin/master': typeof AdminMasterRoute
   '/admin/users': typeof AdminUsersRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
+  '/admin/master': typeof AdminMasterRoute
   '/admin/users': typeof AdminUsersRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/admin/bulk-dispatch'
     | '/admin/concerns'
     | '/admin/hierarchy'
+    | '/admin/master'
     | '/admin/users'
     | '/email/unsubscribe'
     | '/wd-admin/users'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/admin/bulk-dispatch'
     | '/admin/concerns'
     | '/admin/hierarchy'
+    | '/admin/master'
     | '/admin/users'
     | '/email/unsubscribe'
     | '/wd-admin/users'
@@ -369,6 +380,7 @@ export interface FileRouteTypes {
     | '/admin/bulk-dispatch'
     | '/admin/concerns'
     | '/admin/hierarchy'
+    | '/admin/master'
     | '/admin/users'
     | '/email/unsubscribe'
     | '/wd-admin/users'
@@ -401,6 +413,7 @@ export interface RootRouteChildren {
   AdminBulkDispatchRoute: typeof AdminBulkDispatchRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
   AdminHierarchyRoute: typeof AdminHierarchyRoute
+  AdminMasterRoute: typeof AdminMasterRoute
   AdminUsersRoute: typeof AdminUsersRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   WdAdminUsersRoute: typeof WdAdminUsersRoute
@@ -566,6 +579,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/master': {
+      id: '/admin/master'
+      path: '/admin/master'
+      fullPath: '/admin/master'
+      preLoaderRoute: typeof AdminMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/hierarchy': {
       id: '/admin/hierarchy'
       path: '/admin/hierarchy'
@@ -641,6 +661,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminBulkDispatchRoute: AdminBulkDispatchRoute,
   AdminConcernsRoute: AdminConcernsRoute,
   AdminHierarchyRoute: AdminHierarchyRoute,
+  AdminMasterRoute: AdminMasterRoute,
   AdminUsersRoute: AdminUsersRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   WdAdminUsersRoute: WdAdminUsersRoute,
