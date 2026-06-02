@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Database, Loader2, Save, History, Search, X } from "lucide-react";
+import { Database, Loader2, Save, History, Search, X, Download } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
@@ -8,6 +8,7 @@ import { useRoles } from "@/hooks/use-roles";
 import {
   listMasterData, updateAeMaster, updateWdMaster, updateTlMaster, listMasterAudit,
 } from "@/server/master-data.functions";
+import { exportTlActivityReport } from "@/lib/export-tl-activity";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/master")({
@@ -82,9 +83,12 @@ function MasterDataPage() {
       <div className="mx-auto max-w-6xl space-y-4">
         <AdminTabs />
 
-        <div className="flex items-center gap-2">
-          <Database className="text-primary" size={20} />
-          <h1 className="font-heading text-lg font-bold text-foreground">Master Data Management</h1>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Database className="text-primary" size={20} />
+            <h1 className="font-heading text-lg font-bold text-foreground">Master Data Management</h1>
+          </div>
+          <DownloadTlActivityButton />
         </div>
         <p className="text-xs text-muted-foreground">
           Maintain WD, AE and TL names, mappings and active status. Edits do not affect stock,
@@ -370,5 +374,24 @@ function AuditTable({ rows }: { rows: AuditRow[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function DownloadTlActivityButton() {
+  const [busy, setBusy] = useState(false);
+  async function go() {
+    setBusy(true);
+    try {
+      const n = await exportTlActivityReport();
+      toast.success(`Exported ${n} TLs`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return (
+    <button onClick={go} disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-60">
+      {busy ? <Loader2 className="animate-spin" size={12}/> : <Download size={12}/>}
+      TL Activity Report
+    </button>
   );
 }
