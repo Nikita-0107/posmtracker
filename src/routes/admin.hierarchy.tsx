@@ -196,8 +196,18 @@ function HierarchyPage() {
           <p className="text-xs text-muted-foreground">
             Required columns: <code>AE ID, AE Name, WD Code, WD Name, TL ID, TL Name</code>. Existing records are updated; new records are added. Nothing is deleted.
           </p>
-          <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-            onChange={onFile} className="block w-full text-sm" />
+          <div className="flex items-center gap-3 flex-wrap">
+            <label htmlFor="hierarchy-file"
+              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-primary bg-primary/5 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/10">
+              <FileSpreadsheet size={14}/> Choose File
+            </label>
+            <input id="hierarchy-file" type="file"
+              accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              onChange={onFile} className="sr-only" />
+            <span className="text-xs text-muted-foreground truncate max-w-[60%]">
+              {fileName || "No file chosen"}
+            </span>
+          </div>
 
           {!fileName && (
             <div className="flex items-center gap-2 rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
