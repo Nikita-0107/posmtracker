@@ -207,6 +207,7 @@ export type Database = {
       }
       hierarchy_ae: {
         Row: {
+          active: boolean
           ae_id: string
           ae_name: string
           created_at: string
@@ -214,6 +215,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active?: boolean
           ae_id: string
           ae_name: string
           created_at?: string
@@ -221,6 +223,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active?: boolean
           ae_id?: string
           ae_name?: string
           created_at?: string
@@ -269,6 +272,7 @@ export type Database = {
       }
       hierarchy_wd: {
         Row: {
+          active: boolean
           ae_id: string
           created_at: string
           updated_at: string
@@ -276,6 +280,7 @@ export type Database = {
           wd_name: string
         }
         Insert: {
+          active?: boolean
           ae_id: string
           created_at?: string
           updated_at?: string
@@ -283,6 +288,7 @@ export type Database = {
           wd_name: string
         }
         Update: {
+          active?: boolean
           ae_id?: string
           created_at?: string
           updated_at?: string
@@ -360,6 +366,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      master_data_audit: {
+        Row: {
+          changed_at: string
+          changed_by: string
+          entity_id: string
+          entity_type: string
+          field_changed: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+        }
+        Insert: {
+          changed_at?: string
+          changed_by: string
+          entity_id: string
+          entity_type: string
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string
+          entity_id?: string
+          entity_type?: string
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+        }
+        Relationships: []
       }
       materials: {
         Row: {
