@@ -145,13 +145,13 @@ function HierarchyPage() {
           <h1 className="font-heading text-lg font-bold text-foreground">Master Hierarchy Import</h1>
         </div>
         <p className="text-xs text-muted-foreground">
-          Upload a CSV with columns: <code>ae_id, ae_name, wd_code, wd_name, tl_id, tl_name</code>.
+          Upload a CSV or Excel (.xlsx/.xls) file with columns: <code>ae_id, ae_name, wd_code, wd_name, tl_id, tl_name</code>.
           Empty AE/WD cells inherit from the row above (matches the Excel layout).
           Existing WD Admin users will be auto-linked to their AE after import.
         </p>
 
         <div className="rounded-xl border bg-card p-3 shadow-sm space-y-2">
-          <input type="file" accept=".csv,text/csv" onChange={onFile}
+          <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={onFile}
             className="block w-full text-sm" />
           {rows.length > 0 && (
             <div className="text-xs text-muted-foreground">{rows.length} rows parsed.</div>
