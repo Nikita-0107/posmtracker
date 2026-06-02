@@ -1391,6 +1391,11 @@ export type Database = {
       }
     }
     Functions: {
+      _compute_streak_from_dates: {
+        Args: { _dates: string[]; _today: string }
+        Returns: number
+      }
+      _tl_activity_dates: { Args: { _wd_tl_id: string }; Returns: string[] }
       admin_assign_role: {
         Args: {
           _ae_wds?: string[]
