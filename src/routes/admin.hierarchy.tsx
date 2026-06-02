@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { Upload, Loader2, Network } from "lucide-react";
+import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
@@ -60,19 +61,63 @@ function HierarchyPage() {
     if (!user) navigate({ to: "/login" });
   }, [user, authLoading, rolesLoading, navigate]);
 
+  function parseSheetRows(aoa: unknown[][]): Row[] {
+    if (aoa.length < 2) return [];
+    const headers = (aoa[0] as unknown[]).map((h) =>
+      String(h ?? "").trim().toLowerCase().replace(/\s+/g, "_")
+    );
+    const idx = (k: string) => headers.indexOf(k);
+    const aeIdIdx = idx("ae_id"), aeNameIdx = idx("ae_name");
+    const wdCodeIdx = idx("wd_code"), wdNameIdx = idx("wd_name");
+    const tlIdIdx = idx("tl_id"), tlNameIdx = idx("tl_name");
+    let lastAeId = "", lastAeName = "", lastWdCode = "", lastWdName = "";
+    const out: Row[] = [];
+    for (let i = 1; i < aoa.length; i++) {
+      const r = aoa[i] as unknown[];
+      const cell = (j: number) => (j >= 0 ? String(r?.[j] ?? "").trim() : "");
+      const ae_id = cell(aeIdIdx) || lastAeId;
+      const ae_name = cell(aeNameIdx) || lastAeName;
+      const wd_code = cell(wdCodeIdx) || lastWdCode;
+      const wd_name = cell(wdNameIdx) || lastWdName;
+      if (cell(aeIdIdx)) { lastAeId = ae_id; lastAeName = ae_name; }
+      if (cell(wdCodeIdx)) { lastWdCode = wd_code; lastWdName = wd_name; }
+      if (!ae_id) continue;
+      out.push({
+        ae_id, ae_name,
+        wd_code: wd_code || undefined,
+        wd_name: wd_name || undefined,
+        tl_id: cell(tlIdIdx) || undefined,
+        tl_name: cell(tlNameIdx) || undefined,
+      });
+    }
+    return out;
+  }
+
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
+    const isExcel = /\.(xlsx|xls)$/i.test(f.name);
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        setRows(parseCsv(String(reader.result || "")));
-        toast.success("CSV parsed");
+        if (isExcel) {
+          const wb = XLSX.read(reader.result as ArrayBuffer, { type: "array" });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const aoa = XLSX.utils.sheet_to_json<unknown[]>(ws, { header: 1, defval: "", blankrows: false });
+          const parsed = parseSheetRows(aoa);
+          setRows(parsed);
+          toast.success(`Excel parsed (${parsed.length} rows)`);
+        } else {
+          const parsed = parseCsv(String(reader.result || ""));
+          setRows(parsed);
+          toast.success(`CSV parsed (${parsed.length} rows)`);
+        }
       } catch (err) {
         toast.error((err as Error).message);
       }
     };
-    reader.readAsText(f);
+    if (isExcel) reader.readAsArrayBuffer(f);
+    else reader.readAsText(f);
   }
 
   async function submit() {
@@ -100,13 +145,13 @@ function HierarchyPage() {
           <h1 className="font-heading text-lg font-bold text-foreground">Master Hierarchy Import</h1>
         </div>
         <p className="text-xs text-muted-foreground">
-          Upload a CSV with columns: <code>ae_id, ae_name, wd_code, wd_name, tl_id, tl_name</code>.
+          Upload a CSV or Excel (.xlsx/.xls) file with columns: <code>ae_id, ae_name, wd_code, wd_name, tl_id, tl_name</code>.
           Empty AE/WD cells inherit from the row above (matches the Excel layout).
           Existing WD Admin users will be auto-linked to their AE after import.
         </p>
 
         <div className="rounded-xl border bg-card p-3 shadow-sm space-y-2">
-          <input type="file" accept=".csv,text/csv" onChange={onFile}
+          <input type="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onChange={onFile}
             className="block w-full text-sm" />
           {rows.length > 0 && (
             <div className="text-xs text-muted-foreground">{rows.length} rows parsed.</div>
