@@ -1369,7 +1369,6 @@ function FloatingStreak({
 
             <div className="mt-4 space-y-2.5">
               <Row label="Current Streak" value={`${data.current_streak}`} accent />
-              <Row label="Longest Streak" value={`${data.longest_streak}`} />
               <Row label="Last Activity" value={lastActivityLabel} />
               <Row
                 label="Status"
@@ -1381,6 +1380,31 @@ function FloatingStreak({
                       : "On track"
                 }
               />
+
+              <div className="mt-4 rounded-xl border border-amber-300/60 bg-gradient-to-br from-amber-50 to-orange-50 p-3 dark:from-amber-950/30 dark:to-orange-950/30">
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                  <span aria-hidden>🏆</span> Streak Champion
+                </div>
+                {data.champion_name ? (
+                  <div className="mt-1.5 flex items-end justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="truncate font-heading text-base font-extrabold text-foreground">
+                        {data.champion_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {data.champion_wd ?? "—"}
+                      </div>
+                    </div>
+                    <div className="font-heading text-lg font-extrabold tabular-nums text-orange-600 dark:text-orange-400">
+                      {data.champion_streak} {data.champion_streak === 1 ? "Day" : "Days"}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 text-xs text-muted-foreground">
+                    No active champion yet.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
