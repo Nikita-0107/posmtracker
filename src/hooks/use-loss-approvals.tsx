@@ -22,13 +22,7 @@ export type LossApprovalRow = {
   decision_remarks: string | null;
 };
 
-const APPROVER_EMAILS = new Set([
-  "satyadeosharan.nirala@itc.in",
-  "umamaheswariharini.podagatlapalli@itc.in",
-  "nikitabhardwaj2000@gmail.com",
-]);
-
-/** True if the current user is a super admin OR one of the hardcoded loss approvers. */
+/** True if the current user is authorised to approve losses (admin or seeded loss_approver). */
 export function useIsLossApprover() {
   const { user } = useAuth();
   const [isApprover, setIsApprover] = useState(false);
@@ -42,22 +36,21 @@ export function useIsLossApprover() {
         setLoading(false);
         return;
       }
-      const email = (user.email ?? "").toLowerCase();
-      if (APPROVER_EMAILS.has(email)) {
-        if (alive) {
-          setIsApprover(true);
-          setLoading(false);
-        }
-        return;
-      }
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      const [adminRes, approverRes] = await Promise.all([
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle(),
+        supabase
+          .from("loss_approvers")
+          .select("user_id")
+          .eq("user_id", user.id)
+          .maybeSingle(),
+      ]);
       if (!alive) return;
-      setIsApprover(Boolean(data));
+      setIsApprover(Boolean(adminRes.data) || Boolean(approverRes.data));
       setLoading(false);
     }
     void check();
@@ -68,6 +61,7 @@ export function useIsLossApprover() {
 
   return { isApprover, loading };
 }
+
 
 export function useLossApprovals(status: LossApprovalStatus | "all" = "pending") {
   const { user } = useAuth();
