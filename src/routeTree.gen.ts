@@ -30,6 +30,7 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
+import { Route as AdminWdStockRouteImport } from './routes/admin.wd-stock'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as AdminMasterRouteImport } from './routes/admin.master'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
@@ -145,6 +146,11 @@ const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   path: '/email/unsubscribe',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminWdStockRoute = AdminWdStockRouteImport.update({
+  id: '/admin/wd-stock',
+  path: '/admin/wd-stock',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
   id: '/admin/users',
   path: '/admin/users',
@@ -219,6 +225,7 @@ export interface FileRoutesByFullPath {
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
@@ -318,6 +327,7 @@ export interface FileRouteTypes {
     | '/admin/hierarchy'
     | '/admin/master'
     | '/admin/users'
+    | '/admin/wd-stock'
     | '/email/unsubscribe'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/admin/hierarchy'
     | '/admin/master'
     | '/admin/users'
+    | '/admin/wd-stock'
     | '/email/unsubscribe'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
@@ -382,6 +393,7 @@ export interface FileRouteTypes {
     | '/admin/hierarchy'
     | '/admin/master'
     | '/admin/users'
+    | '/admin/wd-stock'
     | '/email/unsubscribe'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminMasterRoute: typeof AdminMasterRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminWdStockRoute: typeof AdminWdStockRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
   WdAdminUsersRoute: typeof WdAdminUsersRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
@@ -572,6 +585,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EmailUnsubscribeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/wd-stock': {
+      id: '/admin/wd-stock'
+      path: '/admin/wd-stock'
+      fullPath: '/admin/wd-stock'
+      preLoaderRoute: typeof AdminWdStockRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/admin/users'
@@ -663,6 +683,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminHierarchyRoute: AdminHierarchyRoute,
   AdminMasterRoute: AdminMasterRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminWdStockRoute: AdminWdStockRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
   WdAdminUsersRoute: WdAdminUsersRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
@@ -673,3 +694,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
