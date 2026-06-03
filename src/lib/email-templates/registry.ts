@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react'
-import { template as lossApprovalRequired } from './loss-approval-required'
 
 export interface TemplateEntry {
   component: ComponentType<any>
@@ -10,6 +9,4 @@ export interface TemplateEntry {
   to?: string
 }
 
-export const TEMPLATES: Record<string, TemplateEntry> = {
-  'loss-approval-required': lossApprovalRequired,
-}
+export const TEMPLATES: Record<string, TemplateEntry> = {}
