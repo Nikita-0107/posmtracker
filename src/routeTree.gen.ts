@@ -20,6 +20,7 @@ import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as PosmGuideRouteImport } from './routes/posm-guide'
 import { Route as MyWdsRouteImport } from './routes/my-wds'
 import { Route as MovementsRouteImport } from './routes/movements'
 import { Route as LossesRouteImport } from './routes/losses'
@@ -94,6 +95,11 @@ const StockRoute = StockRouteImport.update({
 const ReceiveRoute = ReceiveRouteImport.update({
   id: '/receive',
   path: '/receive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PosmGuideRoute = PosmGuideRouteImport.update({
+  id: '/posm-guide',
+  path: '/posm-guide',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MyWdsRoute = MyWdsRouteImport.update({
@@ -209,6 +215,7 @@ export interface FileRoutesByFullPath {
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
+  '/posm-guide': typeof PosmGuideRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -242,6 +249,7 @@ export interface FileRoutesByTo {
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
+  '/posm-guide': typeof PosmGuideRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -276,6 +284,7 @@ export interface FileRoutesById {
   '/losses': typeof LossesRoute
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
+  '/posm-guide': typeof PosmGuideRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -311,6 +320,7 @@ export interface FileRouteTypes {
     | '/losses'
     | '/movements'
     | '/my-wds'
+    | '/posm-guide'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -344,6 +354,7 @@ export interface FileRouteTypes {
     | '/losses'
     | '/movements'
     | '/my-wds'
+    | '/posm-guide'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/losses'
     | '/movements'
     | '/my-wds'
+    | '/posm-guide'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -411,6 +423,7 @@ export interface RootRouteChildren {
   LossesRoute: typeof LossesRoute
   MovementsRoute: typeof MovementsRoute
   MyWdsRoute: typeof MyWdsRoute
+  PosmGuideRoute: typeof PosmGuideRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
@@ -513,6 +526,13 @@ declare module '@tanstack/react-router' {
       path: '/receive'
       fullPath: '/receive'
       preLoaderRoute: typeof ReceiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/posm-guide': {
+      id: '/posm-guide'
+      path: '/posm-guide'
+      fullPath: '/posm-guide'
+      preLoaderRoute: typeof PosmGuideRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/my-wds': {
@@ -667,6 +687,7 @@ const rootRouteChildren: RootRouteChildren = {
   LossesRoute: LossesRoute,
   MovementsRoute: MovementsRoute,
   MyWdsRoute: MyWdsRoute,
+  PosmGuideRoute: PosmGuideRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
