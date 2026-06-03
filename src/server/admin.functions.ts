@@ -141,6 +141,29 @@ export const importHierarchy = createServerFn({ method: "POST" })
     return result as { ae_rows: number; wd_rows: number; tl_rows: number };
   });
 
+// --- Bulk WD stock import ---
+const wdStockRowSchema = z.object({
+  wd_code: z.string().min(1).max(64),
+  material_code: z.string().min(1).max(128),
+  material_name: z.string().min(1).max(512),
+  qty: z.number().int().min(0).max(10_000_000),
+});
+
+export const importWdStock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ rows: z.array(wdStockRowSchema).min(1).max(50_000) }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertCallerRole(context.supabase as never, context.userId, "admin");
+    const { data: result, error } = await supabaseAdmin.rpc(
+      "admin_import_wd_stock",
+      { _rows: data.rows as never },
+    );
+    if (error) throw new Error(error.message);
+    return result as { stock_added: number; stock_updated: number; materials_created: number };
+  });
+
 // --- Seed accounts from hierarchy ---
 export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
