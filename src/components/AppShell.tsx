@@ -193,17 +193,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-1.5">
           <WspBadge hideForSuperAdmin={location.pathname === "/"} />
           {user && <NotificationBell />}
-          {user && (
-            <Link
-              to="/posm-guide"
-              className="inline-flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/5 px-2 py-1.5 text-[10px] font-semibold text-primary transition hover:bg-primary/10"
-              aria-label="POSM Guide"
-              title="POSM Guide"
-            >
-              <BookOpen size={12} />
-              <span className="hidden sm:inline">POSM Guide</span>
-            </Link>
-          )}
           {showRefGuide && <PosmReferenceGuide compact />}
           <LossApproverLink />
 
