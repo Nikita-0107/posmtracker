@@ -156,7 +156,7 @@ export const importWdStock = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
-    const { data: result, error } = await supabaseAdmin.rpc(
+    const { data: result, error } = await (context.supabase as never as typeof supabaseAdmin).rpc(
       "admin_import_wd_stock",
       { _rows: data.rows as never },
     );
