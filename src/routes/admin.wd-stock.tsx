@@ -7,7 +7,7 @@ import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { supabase } from "@/integrations/supabase/client";
-import { importWdStock } from "@/server/admin.functions";
+import { importWdStock } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/wd-stock")({
