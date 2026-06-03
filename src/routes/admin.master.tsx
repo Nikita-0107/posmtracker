@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import {
   listMasterData, updateAeMaster, updateWdMaster, updateTlMaster, listMasterAudit,
-} from "@/server/master-data.functions";
+} from "@/lib/master-data.functions";
 import { exportTlActivityReport } from "@/lib/export-tl-activity";
 import { toast } from "sonner";
 
