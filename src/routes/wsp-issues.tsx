@@ -19,13 +19,6 @@ import { useMaterials, useStock } from "@/hooks/use-stock";
 import { useWspIssues, resolveDispatchIssue, type ResolveAction } from "@/hooks/use-wsp-issues";
 import { useLossesSummary } from "@/hooks/use-losses";
 import { submitLossApproval } from "@/hooks/use-loss-approvals";
-import { sendTransactionalEmail } from "@/lib/email/send";
-
-const LOSS_APPROVERS = [
-  "satyadeosharan.nirala@itc.in",
-  "umamaheswariharini.podagatlapalli@itc.in",
-  "nikitabhardwaj2000@gmail.com",
-];
 import { wdMaster } from "@/lib/posm-data";
 import { toast } from "sonner";
 
