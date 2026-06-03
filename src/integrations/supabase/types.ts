@@ -1412,6 +1412,7 @@ export type Database = {
         Returns: undefined
       }
       admin_import_hierarchy: { Args: { _rows: Json }; Returns: Json }
+      admin_import_wd_stock: { Args: { _rows: Json }; Returns: Json }
       admin_toggle_super_admin: {
         Args: { _on: boolean; _target: string }
         Returns: undefined
