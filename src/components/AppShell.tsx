@@ -161,16 +161,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !showWaitingScreen &&
     location.pathname !== homePath;
 
-  const showRefGuide =
-    !!user &&
-    !authLoading &&
-    !rolesLoading &&
-    !onPublicPath &&
-    !showWaitingScreen &&
-    (location.pathname.startsWith("/wd") ||
-      location.pathname.startsWith("/tl") ||
-      location.pathname === "/my-wds" ||
-      location.pathname.startsWith("/ae"));
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
