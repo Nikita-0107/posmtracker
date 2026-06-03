@@ -264,11 +264,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </main>
 
-      {tabsToRender.length > 0 && !showWaitingScreen && (
+      {!showWaitingScreen && user && (
         <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border/60 bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85 shadow-[0_-2px_12px_rgba(15,23,42,0.06)] pb-[env(safe-area-inset-bottom)]">
           <div
             className="mx-auto grid max-w-md"
-            style={{ gridTemplateColumns: `repeat(${tabsToRender.length}, minmax(0, 1fr))` }}
+            style={{ gridTemplateColumns: `repeat(${tabsToRender.length + 1}, minmax(0, 1fr))` }}
           >
             {tabsToRender.map((tab) => {
               const isActive =
@@ -297,6 +297,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            {(() => {
+              const isActive = location.pathname.startsWith("/posm-guide");
+              return (
+                <Link
+                  to="/posm-guide"
+                  className={`relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition-colors active:scale-[0.97] ${
+                    isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                  aria-label="POSM Guide"
+                >
+                  {isActive && (
+                    <span className="absolute top-0 left-1/2 h-0.5 w-8 -translate-x-1/2 rounded-full bg-primary" />
+                  )}
+                  <BookOpen size={22} strokeWidth={isActive ? 2.5 : 2} />
+                  <span>Guide</span>
+                </Link>
+              );
+            })()}
+
           </div>
         </nav>
       )}
