@@ -5,7 +5,7 @@ import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { supabase } from "@/integrations/supabase/client";
-import { createTlAccount } from "@/server/admin.functions";
+import { createTlAccount } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/wd-admin/users")({

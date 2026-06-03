@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
-import { importHierarchy } from "@/server/admin.functions";
+import { importHierarchy } from "@/lib/admin.functions";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/hierarchy")({
