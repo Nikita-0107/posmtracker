@@ -243,7 +243,7 @@ function PosmGuidePage() {
                         {it.codes.map((code) => (
                           <span
                             key={code}
-                            className="rounded-md bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary"
+                            className="rounded-md border border-primary/30 bg-primary/15 px-2 py-0.5 font-mono text-xs font-bold tracking-wide text-primary"
                           >
                             {code}
                           </span>
