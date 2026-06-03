@@ -335,31 +335,8 @@ function SubmitLossModal({
     }
     toast.success("Loss submitted for approval");
 
-    // Notify the 3 hardcoded approvers — one email per approver, with
-    // an idempotency key per recipient so retries are safe.
-    if (approvalId) {
-      const templateData = {
-        submittedBy: user?.user_metadata?.display_name ?? user?.email ?? "—",
-        submittedByRole: "WSP",
-        wsp: wsp ?? undefined,
-        distributor: wd,
-        materialCode: material.split(" · ")[0],
-        materialName: material.split(" · ")[1] ?? undefined,
-        qty,
-        reason: reason.trim(),
-        submittedAt: new Date().toLocaleString(),
-      };
-      await Promise.allSettled(
-        LOSS_APPROVERS.map((email) =>
-          sendTransactionalEmail({
-            templateName: "loss-approval-required",
-            recipientEmail: email,
-            idempotencyKey: `loss-approve-${approvalId}-${email}`,
-            templateData,
-          }),
-        ),
-      );
-    }
+    void approvalId;
+
 
     setBusy(false);
     await onDone();
