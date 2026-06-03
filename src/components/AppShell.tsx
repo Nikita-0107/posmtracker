@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { WspBadge } from "@/components/WspSelector";
 import { NotificationBell } from "@/components/NotificationBell";
-import { PosmReferenceGuide } from "@/components/PosmReferenceGuide";
+
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles, type AppRole } from "@/hooks/use-roles";
 import { useIsLossApprover, usePendingApprovalsCount } from "@/hooks/use-loss-approvals";
@@ -161,16 +161,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     !showWaitingScreen &&
     location.pathname !== homePath;
 
-  const showRefGuide =
-    !!user &&
-    !authLoading &&
-    !rolesLoading &&
-    !onPublicPath &&
-    !showWaitingScreen &&
-    (location.pathname.startsWith("/wd") ||
-      location.pathname.startsWith("/tl") ||
-      location.pathname === "/my-wds" ||
-      location.pathname.startsWith("/ae"));
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -193,7 +183,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-1.5">
           <WspBadge hideForSuperAdmin={location.pathname === "/"} />
           {user && <NotificationBell />}
-          {showRefGuide && <PosmReferenceGuide compact />}
+          
           <LossApproverLink />
 
           {(isAdmin || isWspAdmin || profile) && (

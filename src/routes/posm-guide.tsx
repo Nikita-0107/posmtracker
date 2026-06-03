@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { BookOpen, Search } from "lucide-react";
+import { BookOpen, Search, Package } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 
 import cbo from "@/assets/posm-guide/cbo.jpg.asset.json";
@@ -24,7 +24,8 @@ export const Route = createFileRoute("/posm-guide")({
 
 type Item = {
   name: string;
-  image: string;
+  image?: string;
+  codes: string[];
   short: string;
   description: string;
   keywords?: string[];
@@ -34,6 +35,7 @@ const items: Item[] = [
   {
     name: "CBOs",
     image: cbo.url,
+    codes: ["BOXSOL"],
     short: "Dummy outer for backwalls and Fab PDU units.",
     description:
       "Dummy outer placed in Backwalls and Fab PDU units to ensure planogramming and enhance visibility.",
@@ -41,14 +43,16 @@ const items: Item[] = [
   {
     name: "Honeycomb",
     image: honeycomb.url,
+    codes: ["HCOMB"],
     short: "Lightweight promotional display unit for campaigns.",
     description:
       "Lightweight promotional display unit used for campaign communication and outlet branding. Commonly placed in visible areas to attract consumer attention.",
-    keywords: ["hcomb", "honey comb"],
+    keywords: ["honey comb"],
   },
   {
     name: "Fabrics",
     image: fabrics.url,
+    codes: ["FAB"],
     short: "Fabric display placed on backwalls and Fab PDUs.",
     description:
       "Placed on Backwalls and Fab PDU units to enhance visibility and ensure in-store execution aligns with brand objectives such as new launches and planogramming.",
@@ -56,6 +60,7 @@ const items: Item[] = [
   {
     name: "A4 Stickers",
     image: a4Stickers.url,
+    codes: ["PG_BB_8X11IN"],
     short: "Small branding stickers for shelves and counters.",
     description:
       "Small branding stickers used on shelves, counters, and other outlet surfaces to improve product and brand visibility.",
@@ -64,6 +69,7 @@ const items: Item[] = [
   {
     name: "Shelf Highlighters",
     image: shelfHighlighters.url,
+    codes: ["SHELF"],
     short: "Branding strips attached to shelves.",
     description:
       "Branding strips attached to shelves to highlight products and improve visibility at the point of sale.",
@@ -72,65 +78,87 @@ const items: Item[] = [
   {
     name: "Brand Boards",
     image: brandBoards.url,
+    codes: ["ALT_PP_BB", "PG_BB"],
     short: "Promotional boards displayed on counters.",
     description:
       "Promotional boards displayed on counters to improve brand visibility and communication.",
-    keywords: ["alt pp", "pg bb"],
+    keywords: ["alt pp", "brand"],
   },
   {
     name: "SLU",
     image: slu.url,
+    codes: ["SLU"],
     short: "Sequential Lit Units for new launches.",
     description:
       "Sequential Lit Units — lit display elements deployed during new product launches to enhance visibility and attract consumer attention.",
     keywords: ["sequential lit unit", "self loading"],
   },
   {
+    name: "Kappa Units",
+    codes: ["KAPPA"],
+    short: "Kappa display unit.",
+    description: "Kappa display unit used for in-shop branding and visibility.",
+  },
+  {
     name: "Dummy Packets",
     image: dummyPackets.url,
+    codes: ["BSS"],
     short: "Display-only packets to improve visibility.",
     description:
       "Packets used only for display purposes and not for sale. Used to improve brand visibility within POSM units.",
-    keywords: ["bss"],
+    keywords: ["dummy"],
   },
   {
     name: "Danglers",
     image: danglers.url,
+    codes: ["DANGL"],
     short: "Promotional materials hung from ceilings or shelves.",
     description:
       "Promotional materials suspended from ceilings or shelves to improve in-shop visibility.",
+    keywords: ["dangle"],
   },
   {
     name: "IBB",
     image: ibb.url,
+    codes: ["IBB", "IU_ALT_PP"],
     short: "Integrated Brand Boards for neutral outlets.",
     description:
       "Integrated Brand Boards combining a backing sheet and brand board. Used at neutral outlets to enhance counter visibility.",
-    keywords: ["iu alt pp"],
+    keywords: ["ribb"],
   },
   {
     name: "Backing Sheets",
     image: backingSheets.url,
+    codes: ["BS"],
     short: "Designed sheets used with Brand Boards.",
     description:
       "Brand-designed sheets used along with Brand Boards for counter visibility.",
-    keywords: ["rwb", "bs"],
+    keywords: ["rwb", "backing"],
+  },
+  {
+    name: "Counter Tops",
+    codes: ["CTU"],
+    short: "Counter Top Unit for in-shop branding.",
+    description: "Counter Top Unit placed on outlet counters for brand visibility.",
+    keywords: ["counter"],
   },
   {
     name: "Horizontal Ceiling in Shop",
     image: horizontalCeiling.url,
+    codes: ["HORI_CIS"],
     short: "Horizontal branding material from the ceiling.",
     description:
       "Branding material suspended horizontally from the ceiling to improve outlet visibility.",
-    keywords: ["hori cis"],
+    keywords: ["horizontal", "cis"],
   },
   {
     name: "Vertical Ceiling in Shop",
     image: verticalCeiling.url,
+    codes: ["VER_CIS"],
     short: "Vertical branding material from the ceiling.",
     description:
       "Branding material suspended vertically from the ceiling to maximize visibility from different viewing angles.",
-    keywords: ["ver cis"],
+    keywords: ["vertical", "cis"],
   },
 ];
 
@@ -148,7 +176,7 @@ function PosmGuidePage() {
     const tokens = q.split(" ").filter(Boolean);
     return items.filter((it) => {
       const hay = normalize(
-        [it.name, it.short, it.description, ...(it.keywords ?? [])].join(" "),
+        [it.name, it.short, it.description, ...it.codes, ...(it.keywords ?? [])].join(" "),
       );
       return tokens.every((t) => hay.includes(t));
     });
@@ -162,7 +190,7 @@ function PosmGuidePage() {
           <h1 className="font-heading text-lg font-bold text-foreground">POSM Reference Guide</h1>
         </div>
         <p className="text-xs text-muted-foreground">
-          A visual reference of POSM materials with descriptions. Tap a card to read more.
+          Visual reference of POSM materials with their system codes. Tap a card to read more.
         </p>
 
         <div className="sticky top-[52px] z-10 -mx-3 bg-background/95 px-3 py-2 backdrop-blur">
@@ -174,7 +202,7 @@ function PosmGuidePage() {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search by material name (e.g. Honeycomb, SLU, IBB)…"
+              placeholder="Search by name or code (e.g. Honeycomb, BOXSOL, IBB)…"
               className="h-11 w-full rounded-xl border border-muted-foreground/20 bg-card pl-10 pr-3 text-sm shadow-sm outline-none focus:border-primary"
               autoComplete="off"
             />
@@ -196,16 +224,32 @@ function PosmGuidePage() {
                   onClick={() => setExpanded(isOpen ? null : it.name)}
                   className="group flex flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition hover:shadow-md"
                 >
-                  <div className="aspect-[4/3] w-full overflow-hidden bg-muted">
-                    <img
-                      src={it.image}
-                      alt={it.name}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition group-hover:scale-[1.02]"
-                    />
+                  <div className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-muted">
+                    {it.image ? (
+                      <img
+                        src={it.image}
+                        alt={it.name}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                      />
+                    ) : (
+                      <Package className="text-muted-foreground/40" size={48} />
+                    )}
                   </div>
-                  <div className="space-y-1 p-3">
-                    <p className="font-heading text-sm font-bold text-foreground">{it.name}</p>
+                  <div className="space-y-1.5 p-3">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <p className="font-heading text-sm font-bold text-foreground">{it.name}</p>
+                      <div className="flex flex-wrap gap-1">
+                        {it.codes.map((code) => (
+                          <span
+                            key={code}
+                            className="rounded-md bg-primary/15 px-1.5 py-0.5 font-mono text-[10px] font-bold text-primary"
+                          >
+                            {code}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
                     <p className="text-xs leading-relaxed text-muted-foreground">
                       {isOpen ? it.description : it.short}
                     </p>
