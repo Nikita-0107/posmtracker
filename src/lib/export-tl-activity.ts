@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { getTlActivityReport } from "@/server/tl-activity-report.functions";
+import { getTlActivityReport } from "@/lib/tl-activity-report.functions";
 
 function stamp() {
   const d = new Date();
