@@ -158,7 +158,7 @@ function WdAdminUsersPage() {
                             {t.tl_name} <span className="ml-1 text-xs font-mono text-muted-foreground">#{t.tl_id}</span>
                             {t.is_wd_receiver && (
                               <span className="ml-1.5 inline-flex items-center gap-0.5 rounded bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase text-primary">
-                                <Inbox size={9}/> WD Receiver
+                                <Inbox size={9}/> ⭐ SUPER TL
                               </span>
                             )}
                           </div>
@@ -167,13 +167,13 @@ function WdAdminUsersPage() {
                         <div className="flex shrink-0 items-center gap-1">
                           {t.active && (
                             <button onClick={() => toggleReceiver(t)}
-                              title={t.is_wd_receiver ? "Remove WD Receiver delegation" : "Make this TL the WD Receiver"}
+                              title={t.is_wd_receiver ? "Remove Super TL designation" : "Make this TL the Super TL"}
                               className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold transition ${
                                 t.is_wd_receiver
                                   ? "border-primary bg-primary text-primary-foreground hover:opacity-90"
                                   : "border-border bg-background text-foreground hover:bg-muted"
                               }`}>
-                              {t.is_wd_receiver ? <><Check size={12}/> Receiver</> : <><Inbox size={12}/> Set Receiver</>}
+                              {t.is_wd_receiver ? <><Check size={12}/> Super TL</> : <><Inbox size={12}/> Set Super TL</>}
                             </button>
                           )}
                           <button onClick={() => toggleActive(t)}
