@@ -588,13 +588,17 @@ function CreateForm({
   const { stock, loading: stockLoading } = useWdStock();
   const stockMap = useMemo(() => {
     const m = new Map<string, number>();
-    for (const r of stock) m.set(r.material_code, r.qty);
+    for (const r of stock) m.set(r.material_code, (m.get(r.material_code) ?? 0) + r.qty);
     return m;
   }, [stock]);
 
   const availableMaterials = useMemo(
-    () => stock.filter((s) => s.qty > 0).sort((a, b) => a.material_code.localeCompare(b.material_code)),
-    [stock],
+    () =>
+      Array.from(stockMap.entries())
+        .filter(([, qty]) => qty > 0)
+        .map(([material_code, qty]) => ({ material_code, qty }))
+        .sort((a, b) => a.material_code.localeCompare(b.material_code)),
+    [stockMap],
   );
 
   const wdOptions = useMemo(
