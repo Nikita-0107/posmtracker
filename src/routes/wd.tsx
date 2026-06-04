@@ -206,7 +206,7 @@ function WdHomePage() {
         {isTl ? (
           <>
             <div className="rounded-xl border bg-primary/5 px-3 py-2 text-[11px] font-semibold text-primary">
-              <Inbox className="mr-1 inline" size={12} /> Delegated WD Receiver access
+              <Inbox className="mr-1 inline" size={12} /> ⭐ Super TL access
             </div>
             <div className="grid grid-cols-2 gap-1.5 rounded-xl border bg-card p-1">
               <SectionBtn label="Dispatches" icon={Inbox} active={section === "in_transit"} onClick={() => setSection("in_transit")} />
