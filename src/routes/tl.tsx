@@ -362,6 +362,16 @@ function TlPortalPage() {
                   {tl.wd_name && <> · {tl.wd_name}</>}
                 </span>
               </div>
+              {isTlWdReceiver && tlReceiverWd && (
+                <div className="mt-2">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                    ⭐ SUPER TL
+                  </span>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Primary Coordinator for WD <span className="font-mono font-bold">{tlReceiverWd}</span>
+                  </p>
+                </div>
+              )}
             </div>
             <button
               onClick={() => void refresh()}
@@ -393,7 +403,7 @@ function TlPortalPage() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold leading-tight text-foreground">Receive materials from WSP</p>
               <p className="text-[11px] text-muted-foreground">
-                Delegated WD Receiver for <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{tlReceiverWd}</span>
+                ⭐ Super TL for <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{tlReceiverWd}</span>
               </p>
             </div>
             <ChevronRight size={18} className="text-muted-foreground/60" />
