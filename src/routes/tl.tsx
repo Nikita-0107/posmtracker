@@ -403,7 +403,7 @@ function TlPortalPage() {
             <div className="min-w-0 flex-1">
               <p className="text-sm font-bold leading-tight text-foreground">Receive materials from WSP</p>
               <p className="text-[11px] text-muted-foreground">
-                Delegated WD Receiver for <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{tlReceiverWd}</span>
+                ⭐ Super TL for <span className="font-mono font-bold text-orange-600 dark:text-orange-400">{tlReceiverWd}</span>
               </p>
             </div>
             <ChevronRight size={18} className="text-muted-foreground/60" />
