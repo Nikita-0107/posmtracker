@@ -91,7 +91,7 @@ function WdAdminUsersPage() {
         .update({ is_wd_receiver: false })
         .eq("tl_id", tl.tl_id);
       if (error) return toast.error(error.message);
-      toast.success("Receiver delegation removed");
+      toast.success("Super TL removed");
     } else {
       // Clear any other receiver on the same WD first, then set this one.
       const { error: clearErr } = await supabase
@@ -105,7 +105,7 @@ function WdAdminUsersPage() {
         .update({ is_wd_receiver: true })
         .eq("tl_id", tl.tl_id);
       if (error) return toast.error(error.message);
-      toast.success(`${tl.tl_name} is now the WD Receiver`);
+      toast.success(`${tl.tl_name} is now the Super TL`);
     }
     await load();
   }
