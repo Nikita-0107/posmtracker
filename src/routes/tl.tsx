@@ -362,6 +362,16 @@ function TlPortalPage() {
                   {tl.wd_name && <> · {tl.wd_name}</>}
                 </span>
               </div>
+              {isTlWdReceiver && tlReceiverWd && (
+                <div className="mt-2">
+                  <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[11px] font-bold text-amber-700 dark:text-amber-400">
+                    ⭐ SUPER TL
+                  </span>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground">
+                    Primary Coordinator for WD <span className="font-mono font-bold">{tlReceiverWd}</span>
+                  </p>
+                </div>
+              )}
             </div>
             <button
               onClick={() => void refresh()}
