@@ -87,6 +87,10 @@ function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
         rowOk = false;
       }
     }
+    if ((row.tl_id && !row.tl_name) || (!row.tl_id && row.tl_name)) {
+      errors.push({ row: excelRow, field: "tl_id", message: "Both TL ID and TL Name are required when adding a TL" });
+      rowOk = false;
+    }
     if (rowOk) rows.push(row);
   }
   return { rows, errors };
