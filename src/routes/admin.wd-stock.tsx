@@ -238,6 +238,14 @@ function WdStockImportPage() {
             <input id="wdstock-file" type="file"
               accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               onChange={onFile} className="sr-only" />
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              disabled={!validWds}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <Download size={14}/> Download Template
+            </button>
             <span className="text-xs text-muted-foreground truncate max-w-[60%]">
               {fileName || "No file chosen"}
             </span>
