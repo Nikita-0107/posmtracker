@@ -131,6 +131,13 @@ export async function exportWdReport(wdCode: string) {
   const issIdToTl = new Map(issuances.map((i) => [i.id, i.wd_tl_id]));
   const issIdToCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
   const tlById = new Map(tls.map((t) => [t.id, t]));
+  const hierTls = (hierTlsRes.data ?? []) as { tl_id: string; tl_name: string; active: boolean }[];
+  const hierByName = new Map(hierTls.map((h) => [h.tl_name.trim().toUpperCase(), h]));
+  const tlIdFor = (t: { tl_name: string; legacy_tl_id: number | null } | undefined) => {
+    if (!t) return "";
+    const h = hierByName.get(t.tl_name.trim().toUpperCase());
+    return h?.tl_id ?? (t.legacy_tl_id != null ? String(t.legacy_tl_id) : "");
+  };
 
   // Inactive TL map: latest non-expired inactivity record per wd_tl_id
   const inactivity = (inactRes.data ?? []) as {
