@@ -189,7 +189,7 @@ export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
 
     let aeCreated = 0, tlCreated = 0, skipped = 0, errors: string[] = [];
 
-    async function ensureAccount(id: string, name: string, kind: "ae" | "tl") {
+    async function ensureAccount(id: string, name: string, kind: "ae" | "tl", wdCode?: string) {
       const email = idToEmail(id);
       let uid = emailToUid.get(email);
       if (!uid) {
@@ -213,20 +213,46 @@ export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
       }
       await supabaseAdmin.from("profiles").upsert({
         id: uid, mobile: id, display_name: name,
-        ...(kind === "ae" ? { ae_id: id } : { tl_id: id }),
+        ...(kind === "ae" ? { ae_id: id } : { tl_id: id, wd_code: wdCode ?? null }),
       }, { onConflict: "id" });
       await supabaseAdmin.from("user_roles").upsert({
         user_id: uid, role: (kind === "ae" ? "wd_admin" : "tl") as never,
       }, { onConflict: "user_id,role" });
+
+      // For TLs: ensure a wd_tls row exists and is linked to this user.
+      // The TL home page reads from wd_tls.user_id; without this row the TL sees
+      // "Not linked to a TL profile" after seeding.
+      if (kind === "tl" && wdCode) {
+        // Try to find existing row by (wd_code, tl_name) unique constraint
+        const { data: existingTl } = await supabaseAdmin
+          .from("wd_tls")
+          .select("id, user_id")
+          .eq("wd_code", wdCode)
+          .eq("tl_name", name)
+          .maybeSingle();
+        if (existingTl) {
+          if (!(existingTl as { user_id: string | null }).user_id) {
+            await supabaseAdmin.from("wd_tls")
+              .update({ user_id: uid, updated_at: new Date().toISOString() })
+              .eq("id", (existingTl as { id: string }).id);
+          }
+        } else {
+          // Insert a fresh wd_tls row linked to this user
+          const { error: insErr } = await supabaseAdmin.from("wd_tls").insert({
+            user_id: uid, wd_code: wdCode, tl_name: name,
+          });
+          if (insErr) errors.push(`${id} (wd_tls link): ${insErr.message}`);
+        }
+      }
     }
 
     const { data: aes } = await supabaseAdmin.from("hierarchy_ae").select("ae_id, ae_name");
     for (const a of (aes ?? []) as { ae_id: string; ae_name: string }[]) {
       await ensureAccount(a.ae_id, a.ae_name, "ae");
     }
-    const { data: tls } = await supabaseAdmin.from("hierarchy_tl").select("tl_id, tl_name, active").eq("active", true);
-    for (const t of (tls ?? []) as { tl_id: string; tl_name: string }[]) {
-      await ensureAccount(t.tl_id, t.tl_name, "tl");
+    const { data: tls } = await supabaseAdmin.from("hierarchy_tl").select("tl_id, tl_name, wd_code, active").eq("active", true);
+    for (const t of (tls ?? []) as { tl_id: string; tl_name: string; wd_code: string }[]) {
+      await ensureAccount(t.tl_id, t.tl_name, "tl", t.wd_code);
     }
 
     return { ae_created: aeCreated, tl_created: tlCreated, skipped, errors };
