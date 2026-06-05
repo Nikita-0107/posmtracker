@@ -315,6 +315,9 @@ function HierarchyPage() {
               </div>
             </div>
           </div>
+        )}
+
+
 
         <div id="hierarchy-viewer">
           <HierarchyViewer refreshKey={refreshKey} />
