@@ -315,7 +315,10 @@ function HierarchyPage() {
               </div>
             </div>
           </div>
-        )}
+
+        <div id="hierarchy-viewer">
+          <HierarchyViewer refreshKey={refreshKey} />
+        </div>
       </div>
     </AppShell>
   );
@@ -327,6 +330,172 @@ function Stat({ label, value, sub }: { label: string; value: number; sub?: strin
       <div className="text-muted-foreground">{label}</div>
       <div className="text-lg font-bold">{value}</div>
       {sub && <div className="text-[10px] text-muted-foreground">{sub}</div>}
+    </div>
+  );
+}
+
+type AeRow = { ae_id: string; ae_name: string };
+type WdRow = { wd_code: string; wd_name: string; ae_id: string };
+type TlRow = { tl_id: string; tl_name: string; wd_code: string; active: boolean };
+
+function HierarchyViewer({ refreshKey }: { refreshKey: number }) {
+  const [aes, setAes] = useState<AeRow[]>([]);
+  const [wds, setWds] = useState<WdRow[]>([]);
+  const [tls, setTls] = useState<TlRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [openAe, setOpenAe] = useState<Set<string>>(new Set());
+  const [openWd, setOpenWd] = useState<Set<string>>(new Set());
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [a, w, t] = await Promise.all([
+      supabase.from("hierarchy_ae").select("ae_id, ae_name").order("ae_id"),
+      supabase.from("hierarchy_wd").select("wd_code, wd_name, ae_id").order("wd_code"),
+      supabase.from("hierarchy_tl").select("tl_id, tl_name, wd_code, active").order("tl_id"),
+    ]);
+    if (a.error || w.error || t.error) {
+      toast.error((a.error || w.error || t.error)!.message);
+      setLoading(false);
+      return;
+    }
+    setAes((a.data ?? []) as AeRow[]);
+    setWds((w.data ?? []) as WdRow[]);
+    setTls((t.data ?? []) as TlRow[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { void load(); }, [load, refreshKey]);
+
+  const wdsByAe = useMemo(() => {
+    const m = new Map<string, WdRow[]>();
+    for (const w of wds) {
+      if (!m.has(w.ae_id)) m.set(w.ae_id, []);
+      m.get(w.ae_id)!.push(w);
+    }
+    return m;
+  }, [wds]);
+
+  const tlsByWd = useMemo(() => {
+    const m = new Map<string, TlRow[]>();
+    for (const t of tls) {
+      if (!m.has(t.wd_code)) m.set(t.wd_code, []);
+      m.get(t.wd_code)!.push(t);
+    }
+    return m;
+  }, [tls]);
+
+  const term = q.trim().toLowerCase();
+  const matches = (s: string | null | undefined) => !term || (s ?? "").toLowerCase().includes(term);
+
+  const filteredAes = useMemo(() => {
+    if (!term) return aes;
+    return aes.filter((a) => {
+      if (matches(a.ae_id) || matches(a.ae_name)) return true;
+      const ws = wdsByAe.get(a.ae_id) ?? [];
+      return ws.some((w) =>
+        matches(w.wd_code) || matches(w.wd_name) ||
+        (tlsByWd.get(w.wd_code) ?? []).some((t) => matches(t.tl_id) || matches(t.tl_name))
+      );
+    });
+  }, [aes, wdsByAe, tlsByWd, term]);
+
+  function toggleAe(id: string) {
+    setOpenAe((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  function toggleWd(id: string) {
+    setOpenWd((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  function expandAll() {
+    setOpenAe(new Set(filteredAes.map((a) => a.ae_id)));
+    setOpenWd(new Set(wds.map((w) => w.wd_code)));
+  }
+  function collapseAll() { setOpenAe(new Set()); setOpenWd(new Set()); }
+
+  return (
+    <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          <Users className="text-primary" size={18} />
+          <h2 className="text-sm font-bold">Current Hierarchy</h2>
+        </div>
+        <div className="flex items-center gap-2 text-[11px]">
+          <span className="rounded-full bg-blue-500/10 px-2 py-0.5 font-bold text-blue-700 dark:text-blue-300">{aes.length} AE</span>
+          <span className="rounded-full bg-green-500/10 px-2 py-0.5 font-bold text-green-700 dark:text-green-300">{wds.length} WD</span>
+          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 font-bold text-amber-700 dark:text-amber-400">{tls.length} TL</span>
+          <button onClick={() => void load()} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 font-bold hover:bg-muted">
+            <RefreshCw size={12} /> Refresh
+          </button>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
+          <input value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Search by AE / WD / TL id or name…"
+            className="w-full rounded-md border bg-background pl-7 pr-2 py-1.5 text-xs" />
+        </div>
+        <button onClick={expandAll} className="rounded-md border px-2 py-1 text-[11px] font-bold hover:bg-muted">Expand all</button>
+        <button onClick={collapseAll} className="rounded-md border px-2 py-1 text-[11px] font-bold hover:bg-muted">Collapse</button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-8 text-muted-foreground"><Loader2 className="animate-spin" size={18} /></div>
+      ) : filteredAes.length === 0 ? (
+        <div className="rounded-md bg-muted/50 p-3 text-center text-xs text-muted-foreground">
+          {aes.length === 0 ? "No hierarchy imported yet." : "No matches."}
+        </div>
+      ) : (
+        <div className="max-h-[480px] overflow-y-auto rounded-md border divide-y text-xs">
+          {filteredAes.map((a) => {
+            const ws = (wdsByAe.get(a.ae_id) ?? []).filter((w) =>
+              !term || matches(w.wd_code) || matches(w.wd_name) || matches(a.ae_id) || matches(a.ae_name) ||
+              (tlsByWd.get(w.wd_code) ?? []).some((t) => matches(t.tl_id) || matches(t.tl_name))
+            );
+            const isOpen = openAe.has(a.ae_id) || !!term;
+            return (
+              <div key={a.ae_id}>
+                <button onClick={() => toggleAe(a.ae_id)}
+                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left hover:bg-muted/50">
+                  {isOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                  <b className="text-blue-700 dark:text-blue-300">{a.ae_id}</b>
+                  <span className="truncate">{a.ae_name}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{ws.length} WD</span>
+                </button>
+                {isOpen && ws.map((w) => {
+                  const ts = (tlsByWd.get(w.wd_code) ?? []).filter((t) =>
+                    !term || matches(t.tl_id) || matches(t.tl_name) || matches(w.wd_code) || matches(w.wd_name) || matches(a.ae_id) || matches(a.ae_name)
+                  );
+                  const wOpen = openWd.has(w.wd_code) || !!term;
+                  return (
+                    <div key={w.wd_code} className="border-t bg-muted/20">
+                      <button onClick={() => toggleWd(w.wd_code)}
+                        className="flex w-full items-center gap-2 px-2 py-1.5 pl-7 text-left hover:bg-muted/50">
+                        {wOpen ? <ChevronDown size={14}/> : <ChevronRight size={14}/>}
+                        <b className="text-green-700 dark:text-green-300">{w.wd_code}</b>
+                        <span className="truncate">{w.wd_name}</span>
+                        <span className="ml-auto text-[10px] text-muted-foreground">{ts.length} TL</span>
+                      </button>
+                      {wOpen && ts.length > 0 && (
+                        <div className="border-t bg-background/40 pl-12 pr-2 py-1 space-y-0.5">
+                          {ts.map((t) => (
+                            <div key={t.tl_id} className="flex items-center gap-2 py-0.5">
+                              <b className="text-amber-700 dark:text-amber-400">{t.tl_id}</b>
+                              <span className="truncate">{t.tl_name}</span>
+                              {!t.active && <span className="ml-auto text-[10px] text-destructive">inactive</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
