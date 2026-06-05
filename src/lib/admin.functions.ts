@@ -136,7 +136,10 @@ export const importHierarchy = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ rows: z.array(hierarchyRowSchema).min(1).max(10000) }).parse(d))
   .handler(async ({ data, context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
-    const { data: result, error } = await supabaseAdmin.rpc("admin_import_hierarchy", { _rows: data.rows as never });
+    const { data: result, error } = await (context.supabase as never as typeof supabaseAdmin).rpc(
+      "admin_import_hierarchy",
+      { _rows: data.rows as never },
+    );
     if (error) throw new Error(error.message);
     return result as { ae_rows: number; wd_rows: number; tl_rows: number };
   });
