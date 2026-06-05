@@ -210,6 +210,28 @@ function WdStockImportPage() {
     }
   }
 
+  function downloadTemplate() {
+    if (!validWds || validWds.size === 0) {
+      toast.error("WD list not loaded yet");
+      return;
+    }
+    const wb = XLSX.utils.book_new();
+    const wdCodes = Array.from(validWds).sort();
+    for (const wd of wdCodes) {
+      const aoa = [
+        ["Brand", "Code", "Material Description", "WD SOH"],
+        ["", "", "", ""],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 16 }, { wch: 18 }, { wch: 40 }, { wch: 10 }];
+      // Excel sheet names: max 31 chars, no : \ / ? * [ ]
+      const safe = wd.replace(/[:\\/?*\[\]]/g, "_").slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, safe);
+    }
+    XLSX.writeFile(wb, `wd-stock-template_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Template generated with ${wdCodes.length} WD sheet${wdCodes.length === 1 ? "" : "s"}`);
+  }
+
   if (!isSuperAdmin) return <AppShell><div className="p-4 text-sm text-muted-foreground">Super Admin only.</div></AppShell>;
 
   const canImport = !!parsed && parsed.rows.length > 0;
