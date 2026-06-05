@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
-import { Upload, Loader2, Package, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, Loader2, Package, FileSpreadsheet, AlertCircle, CheckCircle2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
