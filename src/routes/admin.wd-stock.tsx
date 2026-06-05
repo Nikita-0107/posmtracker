@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useMemo } from "react";
-import { Upload, Loader2, Package, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, Loader2, Package, FileSpreadsheet, AlertCircle, CheckCircle2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
@@ -210,6 +210,28 @@ function WdStockImportPage() {
     }
   }
 
+  function downloadTemplate() {
+    if (!validWds || validWds.size === 0) {
+      toast.error("WD list not loaded yet");
+      return;
+    }
+    const wb = XLSX.utils.book_new();
+    const wdCodes = Array.from(validWds).sort();
+    for (const wd of wdCodes) {
+      const aoa = [
+        ["Brand", "Code", "Material Description", "WD SOH"],
+        ["", "", "", ""],
+      ];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      ws["!cols"] = [{ wch: 16 }, { wch: 18 }, { wch: 40 }, { wch: 10 }];
+      // Excel sheet names: max 31 chars, no : \ / ? * [ ]
+      const safe = wd.replace(/[:\\/?*\[\]]/g, "_").slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, safe);
+    }
+    XLSX.writeFile(wb, `wd-stock-template_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    toast.success(`Template generated with ${wdCodes.length} WD sheet${wdCodes.length === 1 ? "" : "s"}`);
+  }
+
   if (!isSuperAdmin) return <AppShell><div className="p-4 text-sm text-muted-foreground">Super Admin only.</div></AppShell>;
 
   const canImport = !!parsed && parsed.rows.length > 0;
@@ -238,6 +260,14 @@ function WdStockImportPage() {
             <input id="wdstock-file" type="file"
               accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               onChange={onFile} className="sr-only" />
+            <button
+              type="button"
+              onClick={downloadTemplate}
+              disabled={!validWds}
+              className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50"
+            >
+              <Download size={14}/> Download Template
+            </button>
             <span className="text-xs text-muted-foreground truncate max-w-[60%]">
               {fileName || "No file chosen"}
             </span>
