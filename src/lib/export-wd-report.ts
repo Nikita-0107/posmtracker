@@ -282,7 +282,7 @@ export async function exportWdReport(wdCode: string) {
       const tl = tlById.get(r.wd_tl_id);
       return {
         Date: fmtDateTime(r.created_at),
-        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL ID": tlIdFor(tl),
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
         "TL Status": tlStatus(r.wd_tl_id),
