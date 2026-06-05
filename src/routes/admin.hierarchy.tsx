@@ -24,7 +24,7 @@ type ImportResult = {
   tl_added?: number; tl_updated?: number;
 };
 
-const REQUIRED_FIELDS: (keyof Row)[] = ["ae_id", "ae_name", "wd_code", "wd_name", "tl_id", "tl_name"];
+const REQUIRED_FIELDS: (keyof Row)[] = ["ae_id", "ae_name", "wd_code", "wd_name"];
 const FIELD_LABELS: Record<keyof Row, string> = {
   ae_id: "AE ID", ae_name: "AE Name", wd_code: "WD Code", wd_name: "WD Name", tl_id: "TL ID", tl_name: "TL Name",
 };
@@ -112,7 +112,11 @@ function HierarchyPage() {
     const aeSet = new Set<string>();
     const wdSet = new Set<string>();
     const tlSet = new Set<string>();
-    for (const r of rows) { aeSet.add(r.ae_id); wdSet.add(r.wd_code); tlSet.add(r.tl_id); }
+    for (const r of rows) {
+      if (r.ae_id) aeSet.add(r.ae_id);
+      if (r.wd_code) wdSet.add(r.wd_code);
+      if (r.tl_id) tlSet.add(r.tl_id);
+    }
     return { ae: aeSet.size, wd: wdSet.size, tl: tlSet.size };
   }, [rows]);
 
