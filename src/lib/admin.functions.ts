@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ID_DOMAIN = "posm.local";
 const idToEmail = (id: string) => `${id.trim().toLowerCase()}@${ID_DOMAIN}`;
@@ -29,6 +28,7 @@ export const createAeAccount = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => aeSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Ensure AE exists in hierarchy
     await supabaseAdmin.from("hierarchy_ae")
@@ -71,6 +71,7 @@ export const createTlAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => tlSchema.parse(d))
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // admin OR wd_admin who owns this WD via hierarchy
     const callerRoles = await assertCallerRole(context.supabase as never, context.userId, "wd_admin");
     if (!callerRoles.includes("admin")) {
