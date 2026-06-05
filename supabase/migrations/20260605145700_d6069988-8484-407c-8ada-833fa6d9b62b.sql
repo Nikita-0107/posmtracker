@@ -1,0 +1,1 @@
+DELETE FROM public.stock_concerns WHERE id IN ('b43bd35a-2ad9-4619-af84-4f5eb650c7af','58885215-66db-4f94-803d-671b1c7b49a8','eafbea37-642b-4525-9adc-c0d5bdcc2f8e');
