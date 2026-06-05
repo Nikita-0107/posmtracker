@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
-import { importHierarchy } from "@/lib/admin.functions";
+import { importHierarchy, seedAccountsFromHierarchy } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
