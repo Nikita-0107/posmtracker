@@ -23,13 +23,17 @@ type Cell = string | number;
 export async function exportWdReport(wdCode: string) {
   const monthStart = monthStartIso();
 
-  const [matsRes, stockRes, tlsRes, issRes, retRes, trRes, trItRes, receivedRes, inactRes] =
+  const [matsRes, stockRes, tlsRes, hierTlsRes, issRes, retRes, trRes, trItRes, receivedRes, inactRes] =
     await Promise.all([
       supabase.from("materials").select("code, name"),
       supabase.from("wd_stock").select("material_code, qty, updated_at").eq("wd_code", wdCode),
       supabase
         .from("wd_tls")
         .select("id, tl_name, legacy_tl_id, tl_type")
+        .eq("wd_code", wdCode),
+      supabase
+        .from("hierarchy_tl")
+        .select("tl_id, tl_name, active")
         .eq("wd_code", wdCode),
       supabase
         .from("tl_issuances")
@@ -127,6 +131,13 @@ export async function exportWdReport(wdCode: string) {
   const issIdToTl = new Map(issuances.map((i) => [i.id, i.wd_tl_id]));
   const issIdToCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
   const tlById = new Map(tls.map((t) => [t.id, t]));
+  const hierTls = (hierTlsRes.data ?? []) as { tl_id: string; tl_name: string; active: boolean }[];
+  const hierByName = new Map(hierTls.map((h) => [h.tl_name.trim().toUpperCase(), h]));
+  const tlIdFor = (t: { tl_name: string; legacy_tl_id: number | null } | undefined) => {
+    if (!t) return "";
+    const h = hierByName.get(t.tl_name.trim().toUpperCase());
+    return h?.tl_id ?? (t.legacy_tl_id != null ? String(t.legacy_tl_id) : "");
+  };
 
   // Inactive TL map: latest non-expired inactivity record per wd_tl_id
   const inactivity = (inactRes.data ?? []) as {
@@ -228,7 +239,7 @@ export async function exportWdReport(wdCode: string) {
       const u = used.get(k) ?? 0;
       const rt = ret.get(k) ?? 0;
       return {
-        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL ID": tlIdFor(tl),
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
         "TL Status": tlStatus(tlId),
@@ -254,7 +265,7 @@ export async function exportWdReport(wdCode: string) {
       const tl = tlId ? tlById.get(tlId) : null;
       return {
         Date: fmtDateTime(issIdToCreated.get(it.issuance_id) ?? it.created_at),
-        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL ID": tlIdFor(tl ?? undefined),
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
         "TL Status": tlStatus(tlId),
@@ -271,7 +282,7 @@ export async function exportWdReport(wdCode: string) {
       const tl = tlById.get(r.wd_tl_id);
       return {
         Date: fmtDateTime(r.created_at),
-        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL ID": tlIdFor(tl),
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
         "TL Status": tlStatus(r.wd_tl_id),
