@@ -239,7 +239,7 @@ export async function exportWdReport(wdCode: string) {
       const u = used.get(k) ?? 0;
       const rt = ret.get(k) ?? 0;
       return {
-        "TL ID": tl?.legacy_tl_id ?? "",
+        "TL ID": tlIdFor(tl),
         "TL Name": tl?.tl_name ?? "",
         "TL Type": tl?.tl_type ?? "",
         "TL Status": tlStatus(tlId),
