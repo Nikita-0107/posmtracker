@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { createAeAccount, createTlAccount, seedAccountsFromHierarchy } from "@/lib/admin.functions";
+import { createAeAccount, createTlAccount } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -648,7 +648,7 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60">
           {submitting && <Loader2 className="animate-spin" size={12} />} Create
         </button>
-        <SeedFromHierarchyButton reload={reload} />
+        
       </div>
       <p className="mt-1.5 text-[10px] text-muted-foreground">
         {kind === "ae"
@@ -659,27 +659,3 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
   );
 }
 
-function SeedFromHierarchyButton({ reload }: { reload: () => Promise<void> }) {
-  const [busy, setBusy] = useState(false);
-  const seedAccountsFromHierarchyFn = useServerFn(seedAccountsFromHierarchy);
-  async function run() {
-    if (!confirm("Create login accounts for every AE and TL in the hierarchy? Existing users are skipped. Default password: 123456")) return;
-    setBusy(true);
-    try {
-      const r = await seedAccountsFromHierarchyFn({ data: undefined as never });
-      toast.success(`Seeded: ${r.ae_created} AE + ${r.tl_created} TL created, ${r.skipped} skipped${r.errors.length ? `, ${r.errors.length} errors` : ""}`);
-      if (r.errors.length) console.warn("Seed errors:", r.errors);
-      await reload();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
-  return (
-    <button onClick={run} disabled={busy}
-      className="inline-flex items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-bold text-primary hover:bg-primary/20 disabled:opacity-60">
-      {busy && <Loader2 className="animate-spin" size={12} />} Seed Accounts from Hierarchy
-    </button>
-  );
-}
