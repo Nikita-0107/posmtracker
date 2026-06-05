@@ -648,7 +648,7 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
           className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60">
           {submitting && <Loader2 className="animate-spin" size={12} />} Create
         </button>
-        <SeedFromHierarchyButton reload={reload} />
+        
       </div>
       <p className="mt-1.5 text-[10px] text-muted-foreground">
         {kind === "ae"
