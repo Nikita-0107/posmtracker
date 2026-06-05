@@ -6,7 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
-import { importHierarchy } from "@/lib/admin.functions";
+import { importHierarchy, seedAccountsFromHierarchy } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -167,9 +167,26 @@ function HierarchyPage() {
       setResult(res);
       const added = (res.ae_added ?? 0) + (res.wd_added ?? 0) + (res.tl_added ?? 0);
       const updated = (res.ae_updated ?? 0) + (res.wd_updated ?? 0) + (res.tl_updated ?? 0);
-      toast.success(`Import successful — ${added} added, ${updated} updated`);
+      toast.success(`Import successful — ${added} added, ${updated} updated. Seeding accounts…`);
       setRows([]); setFileName("");
       setRefreshKey((k) => k + 1);
+
+      // Auto-seed login accounts for newly imported AEs and TLs
+      try {
+        const seed = (await seedAccountsFromHierarchy({ data: undefined as never })) as {
+          ae_created: number; tl_created: number; skipped: number; errors: string[];
+        };
+        const created = (seed.ae_created ?? 0) + (seed.tl_created ?? 0);
+        if (seed.errors?.length) {
+          toast.warning(`Seeded ${created} new account(s), ${seed.skipped} already existed, ${seed.errors.length} failed`);
+          console.warn("Seed errors:", seed.errors);
+        } else {
+          toast.success(`Seeded ${created} new login account(s) (${seed.ae_created} AE, ${seed.tl_created} TL). Default password: 123456`);
+        }
+      } catch (e) {
+        toast.error(`Accounts seed failed: ${(e as Error).message}`);
+      }
+
       setTimeout(() => {
         document.getElementById("hierarchy-viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
