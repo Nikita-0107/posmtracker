@@ -149,14 +149,22 @@ function HierarchyPage() {
     else reader.readAsText(f);
   }
 
+  const [refreshKey, setRefreshKey] = useState(0);
+
   async function doImport() {
     setBusy(true);
     setConfirming(false);
     try {
       const res = (await importHierarchy({ data: { rows } })) as ImportResult;
       setResult(res);
-      toast.success("Import successful");
+      const added = (res.ae_added ?? 0) + (res.wd_added ?? 0) + (res.tl_added ?? 0);
+      const updated = (res.ae_updated ?? 0) + (res.wd_updated ?? 0) + (res.tl_updated ?? 0);
+      toast.success(`Import successful — ${added} added, ${updated} updated`);
       setRows([]); setFileName("");
+      setRefreshKey((k) => k + 1);
+      setTimeout(() => {
+        document.getElementById("hierarchy-viewer")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
