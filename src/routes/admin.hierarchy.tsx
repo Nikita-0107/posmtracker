@@ -24,7 +24,7 @@ type ImportResult = {
   tl_added?: number; tl_updated?: number;
 };
 
-const REQUIRED_FIELDS: (keyof Row)[] = ["ae_id", "ae_name", "wd_code", "wd_name", "tl_id", "tl_name"];
+const REQUIRED_FIELDS: (keyof Row)[] = ["ae_id", "ae_name", "wd_code", "wd_name"];
 const FIELD_LABELS: Record<keyof Row, string> = {
   ae_id: "AE ID", ae_name: "AE Name", wd_code: "WD Code", wd_name: "WD Name", tl_id: "TL ID", tl_name: "TL Name",
 };
@@ -87,6 +87,10 @@ function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
         rowOk = false;
       }
     }
+    if ((row.tl_id && !row.tl_name) || (!row.tl_id && row.tl_name)) {
+      errors.push({ row: excelRow, field: "tl_id", message: "Both TL ID and TL Name are required when adding a TL" });
+      rowOk = false;
+    }
     if (rowOk) rows.push(row);
   }
   return { rows, errors };
@@ -112,7 +116,11 @@ function HierarchyPage() {
     const aeSet = new Set<string>();
     const wdSet = new Set<string>();
     const tlSet = new Set<string>();
-    for (const r of rows) { aeSet.add(r.ae_id); wdSet.add(r.wd_code); tlSet.add(r.tl_id); }
+    for (const r of rows) {
+      if (r.ae_id) aeSet.add(r.ae_id);
+      if (r.wd_code) wdSet.add(r.wd_code);
+      if (r.tl_id) tlSet.add(r.tl_id);
+    }
     return { ae: aeSet.size, wd: wdSet.size, tl: tlSet.size };
   }, [rows]);
 
@@ -190,7 +198,7 @@ function HierarchyPage() {
             <div className="space-y-1">
               <h2 className="text-sm font-bold">Step 1 — Download template</h2>
               <p className="text-xs text-muted-foreground">
-                Every row must be fully filled in. No merged cells, no blanks, no inherited values.
+                Fill AE and WD fields on every row. TL fields are optional when you only need to add a WD.
               </p>
             </div>
             <button onClick={downloadTemplate}
@@ -203,7 +211,7 @@ function HierarchyPage() {
         <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
           <h2 className="text-sm font-bold">Step 2 — Upload filled file</h2>
           <p className="text-xs text-muted-foreground">
-            Required columns: <code>AE ID, AE Name, WD Code, WD Name, TL ID, TL Name</code>. Existing records are updated; new records are added. Nothing is deleted.
+            Required columns: <code>AE ID, AE Name, WD Code, WD Name</code>. Add <code>TL ID</code> and <code>TL Name</code> when creating TLs. Existing records are updated; new records are added. Nothing is deleted.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <label htmlFor="hierarchy-file"

@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const ID_DOMAIN = "posm.local";
 const idToEmail = (id: string) => `${id.trim().toLowerCase()}@${ID_DOMAIN}`;
@@ -29,6 +28,7 @@ export const createAeAccount = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => aeSchema.parse(d))
   .handler(async ({ data, context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Ensure AE exists in hierarchy
     await supabaseAdmin.from("hierarchy_ae")
@@ -71,6 +71,7 @@ export const createTlAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => tlSchema.parse(d))
   .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // admin OR wd_admin who owns this WD via hierarchy
     const callerRoles = await assertCallerRole(context.supabase as never, context.userId, "wd_admin");
     if (!callerRoles.includes("admin")) {
@@ -136,7 +137,10 @@ export const importHierarchy = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ rows: z.array(hierarchyRowSchema).min(1).max(10000) }).parse(d))
   .handler(async ({ data, context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
-    const { data: result, error } = await supabaseAdmin.rpc("admin_import_hierarchy", { _rows: data.rows as never });
+    const { data: result, error } = await (context.supabase as never as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc(
+      "admin_import_hierarchy",
+      { _rows: data.rows },
+    );
     if (error) throw new Error(error.message);
     return result as { ae_rows: number; wd_rows: number; tl_rows: number };
   });
@@ -156,9 +160,9 @@ export const importWdStock = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
-    const { data: result, error } = await (context.supabase as never as typeof supabaseAdmin).rpc(
+    const { data: result, error } = await (context.supabase as never as { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> }).rpc(
       "admin_import_wd_stock",
-      { _rows: data.rows as never },
+      { _rows: data.rows },
     );
     if (error) throw new Error(error.message);
     return result as { stock_added: number; stock_updated: number; materials_created: number };
@@ -169,6 +173,7 @@ export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertCallerRole(context.supabase as never, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
     // Build email -> existing user map (paginated)
     const emailToUid = new Map<string, string>();
@@ -195,7 +200,7 @@ export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
         if (error) {
           // race / already exists -> look up
           const { data: list } = await supabaseAdmin.auth.admin.listUsers();
-          const existing = list.users.find((u) => u.email?.toLowerCase() === email);
+          const existing = list.users.find((u: { email?: string | null }) => u.email?.toLowerCase() === email);
           if (!existing) { errors.push(`${id}: ${error.message}`); return; }
           uid = existing.id;
           skipped++;
