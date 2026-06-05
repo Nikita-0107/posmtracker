@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useMemo } from "react";
-import { Upload, Loader2, Network, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Upload, Loader2, Network, Download, FileSpreadsheet, AlertCircle, CheckCircle2, ChevronRight, ChevronDown, Search, RefreshCw, Users } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { importHierarchy } from "@/lib/admin.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/hierarchy")({
