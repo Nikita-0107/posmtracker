@@ -1530,6 +1530,21 @@ export type Database = {
         Args: { payload: Json; queue_name: string }
         Returns: number
       }
+      get_ae_tl_team_report: {
+        Args: { _ae_id: string; _inactivity_days?: number }
+        Returns: {
+          current_streak: number
+          is_wd_receiver: boolean
+          last_activity: string
+          material_types: number
+          status: string
+          tl_id: string
+          tl_name: string
+          tl_stock_units: number
+          wd_code: string
+          wd_name: string
+        }[]
+      }
       get_tl_activity_report: {
         Args: { _inactivity_days?: number }
         Returns: {
