@@ -93,6 +93,11 @@ export const updateAeMaster = createServerFn({ method: "POST" })
     if (Object.keys(patch).length === 1) return { ok: true };
     const { error } = await supabaseAdmin.from("hierarchy_ae").update(patch as never).eq("ae_id", data.ae_id);
     if (error) throw new Error(error.message);
+    if (patch.ae_name) {
+      await supabaseAdmin.from("profiles")
+        .update({ display_name: patch.ae_name, updated_at: new Date().toISOString() } as never)
+        .eq("ae_id", data.ae_id);
+    }
     await logAudit(context.userId, audits);
     return { ok: true };
   });
