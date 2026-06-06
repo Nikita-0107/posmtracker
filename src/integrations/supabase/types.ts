@@ -475,6 +475,33 @@ export type Database = {
         }
         Relationships: []
       }
+      password_reset_audit: {
+        Row: {
+          created_at: string
+          id: string
+          reset_by: string
+          reset_by_login_id: string | null
+          target_login_id: string
+          target_user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reset_by: string
+          reset_by_login_id?: string | null
+          target_login_id: string
+          target_user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reset_by?: string
+          reset_by_login_id?: string | null
+          target_login_id?: string
+          target_user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           ae_id: string | null
