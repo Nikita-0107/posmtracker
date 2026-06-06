@@ -1,11 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Truck, Loader2, Users, ChevronRight } from "lucide-react";
+import { Truck, Loader2, Users, ChevronRight, Download, FileSpreadsheet } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { supabase } from "@/integrations/supabase/client";
 import { Link } from "@tanstack/react-router";
+import { exportConsolidatedWdReport } from "@/lib/export-consolidated-wd-report";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/my-wds")({
   component: MyWdsPage,
@@ -17,11 +19,12 @@ export const Route = createFileRoute("/my-wds")({
 type WdRow = { wd_code: string; wd_name: string };
 
 function MyWdsPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, profile, loading: authLoading } = useAuth();
   const { aeId, isAdmin, loading: rolesLoading } = useRoles();
   const navigate = useNavigate();
   const [wds, setWds] = useState<WdRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (authLoading || rolesLoading) return;
@@ -37,6 +40,29 @@ function MyWdsPage() {
       setLoading(false);
     })();
   }, [user, authLoading, rolesLoading, aeId, isAdmin, navigate]);
+
+  async function handleConsolidatedExport() {
+    if (!aeId) {
+      toast.error("No AE ID on your profile");
+      return;
+    }
+    setExporting(true);
+    try {
+      const res = await exportConsolidatedWdReport({
+        aeId,
+        aeName: profile?.display_name ?? "",
+      });
+      toast.success(
+        `Exported ${res.totalWds} WDs · ${res.totalMaterials} materials · ${res.totalStockUnits} units`,
+        { description: res.filename },
+      );
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Export failed";
+      toast.error("Export failed", { description: msg });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   return (
     <AppShell>
@@ -57,6 +83,54 @@ function MyWdsPage() {
             <Users size={14} /> Manage TLs
           </Link>
         </div>
+
+        {aeId && !isAdmin && (
+          <section className="space-y-1.5">
+            <h2 className="px-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+              Reports
+            </h2>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <div className="rounded-xl border bg-card p-3 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <FileSpreadsheet size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-foreground">WD-wise Report</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Detailed report per WD — open a WD below and download.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-xl border bg-card p-3 shadow-sm">
+                <div className="flex items-start gap-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
+                    <FileSpreadsheet size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-bold text-foreground">Consolidated WD Report</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Stock across all your mapped WDs in one file.
+                    </p>
+                    <button
+                      onClick={handleConsolidatedExport}
+                      disabled={exporting || wds.length === 0}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+                    >
+                      {exporting ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <Download size={12} />
+                      )}
+                      Download
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground">
