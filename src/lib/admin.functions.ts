@@ -257,3 +257,41 @@ export const seedAccountsFromHierarchy = createServerFn({ method: "POST" })
 
     return { ae_created: aeCreated, tl_created: tlCreated, skipped, errors };
   });
+
+// --- Super Admin: reset any user's password ---
+const resetPwSchema = z.object({
+  target_user_id: z.string().uuid(),
+  new_password: z.string().min(6).max(128),
+});
+
+export const resetUserPassword = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => resetPwSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertCallerRole(context.supabase as never, context.userId, "admin");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: updated, error: updErr } = await supabaseAdmin.auth.admin.updateUserById(
+      data.target_user_id,
+      { password: data.new_password },
+    );
+    if (updErr) throw new Error(updErr.message);
+
+    const targetLoginId =
+      (updated.user?.user_metadata as { mobile?: string } | undefined)?.mobile ??
+      updated.user?.email?.split("@")[0] ??
+      data.target_user_id;
+
+    const { data: callerProf } = await supabaseAdmin
+      .from("profiles").select("mobile").eq("id", context.userId).maybeSingle();
+    const callerLoginId = (callerProf as { mobile: string | null } | null)?.mobile ?? null;
+
+    await supabaseAdmin.from("password_reset_audit").insert({
+      target_user_id: data.target_user_id,
+      target_login_id: targetLoginId,
+      reset_by: context.userId,
+      reset_by_login_id: callerLoginId,
+    });
+
+    return { ok: true };
+  });
