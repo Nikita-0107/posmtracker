@@ -671,3 +671,67 @@ function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
   );
 }
 
+
+function ResetPasswordModal({ row, onClose }: { row: Row; onClose: () => void }) {
+  const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
+  const [busy, setBusy] = useState(false);
+  const resetFn = useServerFn(resetUserPassword);
+
+  async function submit() {
+    if (pw.length < 6) return toast.error("Password must be at least 6 characters");
+    if (pw !== pw2) return toast.error("Passwords don't match");
+    setBusy(true);
+    try {
+      await resetFn({ data: { target_user_id: row.id, new_password: pw } });
+      toast.success(`Password successfully reset. ${row.display_name || row.mobile} can now log in using the new password.`);
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-xl border bg-card p-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-sm font-bold text-foreground">
+            <KeyRound size={14} className="text-amber-600 dark:text-amber-400" /> Reset Password
+          </h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
+        </div>
+        <div className="space-y-2.5">
+          <label className="block space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">User ID</span>
+            <input type="text" readOnly value={row.mobile}
+              className="w-full rounded-md border bg-muted px-2 py-1.5 text-sm font-mono font-bold text-foreground" />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">New Password</span>
+            <input type="text" value={pw} onChange={(e) => setPw(e.target.value)}
+              placeholder="At least 6 characters" autoFocus
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm" />
+          </label>
+          <label className="block space-y-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Confirm Password</span>
+            <input type="text" value={pw2} onChange={(e) => setPw2(e.target.value)}
+              placeholder="Re-enter password"
+              className="w-full rounded-md border bg-background px-2 py-1.5 text-sm" />
+          </label>
+        </div>
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <button onClick={onClose} disabled={busy}
+            className="rounded-md border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted">
+            Cancel
+          </button>
+          <button onClick={submit} disabled={busy}
+            className="inline-flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60">
+            {busy && <Loader2 className="animate-spin" size={12} />} Reset Password
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
