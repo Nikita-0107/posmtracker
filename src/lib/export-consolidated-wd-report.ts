@@ -201,21 +201,40 @@ export async function exportConsolidatedWdReport(opts: {
   }
 
   // ============ Sheet 2: WD to TL Mapping ============
-  const tlHeader = ["WD Code", "WD Name", "TL ID", "TL Name", "Super TL"];
-  const tlRows = tls
-    .map((t) => ({
-      "WD Code": t.wd_code,
-      "WD Name": wdNameMap.get(t.wd_code) ?? "",
-      "TL ID": t.tl_id,
-      "TL Name": t.tl_name,
-      "Super TL": t.is_wd_receiver ? "Yes" : "No",
-    }))
-    .sort(
-      (a, b) =>
-        String(a["WD Code"]).localeCompare(String(b["WD Code"])) ||
-        (b["Super TL"] === "Yes" ? 1 : 0) - (a["Super TL"] === "Yes" ? 1 : 0) ||
-        String(a["TL Name"]).localeCompare(String(b["TL Name"])),
-    );
+  const tlHeader = [
+    "WD Code",
+    "WD Name",
+    "TL ID",
+    "TL Name",
+    "Super TL",
+    "TL Status",
+    "Last App Activity Date",
+    "Current Streak",
+    "TL Stock Units",
+    "Material Types",
+  ];
+
+  function fmtActivity(d: string | null) {
+    if (!d) return "";
+    const dt = new Date(d);
+    if (isNaN(dt.getTime())) return d;
+    const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    return `${pad(dt.getDate())}-${months[dt.getMonth()]}-${dt.getFullYear()}`;
+  }
+
+  const tlRows = team.map((t) => ({
+    "WD Code": t.wd_code,
+    "WD Name": t.wd_name ?? "",
+    "TL ID": t.tl_id,
+    "TL Name": t.tl_name,
+    "Super TL": t.is_wd_receiver ? "Yes" : "No",
+    "TL Status": t.status,
+    "Last App Activity Date": fmtActivity(t.last_activity),
+    "Current Streak": t.current_streak ?? 0,
+    "TL Stock Units": t.tl_stock_units ?? 0,
+    "Material Types": t.material_types ?? 0,
+  }));
+
 
   const aoa2: (string | number)[][] = [];
   aoa2.push(["WD to TL Mapping"]);
