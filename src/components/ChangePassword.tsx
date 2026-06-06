@@ -9,7 +9,7 @@ export function ChangePasswordCard() {
   const [busy, setBusy] = useState(false);
 
   async function submit() {
-    if (pw.length < 4) return toast.error("Password must be at least 4 characters");
+    if (pw.length < 6) return toast.error("Password must be at least 6 characters");
     if (pw !== pw2) return toast.error("Passwords don't match");
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pw });
