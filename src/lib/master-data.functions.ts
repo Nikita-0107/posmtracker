@@ -211,6 +211,14 @@ export const updateTlMaster = createServerFn({ method: "POST" })
     if (Object.keys(patch).length === 1) return { ok: true };
     const { error } = await supabaseAdmin.from("hierarchy_tl").update(patch as never).eq("tl_id", data.tl_id);
     if (error) throw new Error(error.message);
+    if (patch.tl_name) {
+      await supabaseAdmin.from("profiles")
+        .update({ display_name: patch.tl_name, updated_at: new Date().toISOString() } as never)
+        .eq("tl_id", data.tl_id);
+      await supabaseAdmin.from("wd_tls")
+        .update({ tl_name: patch.tl_name, updated_at: new Date().toISOString() } as never)
+        .eq("tl_name", cur.tl_name).eq("wd_code", patch.wd_code ?? cur.wd_code);
+    }
     await logAudit(context.userId, audits);
     return { ok: true };
   });
