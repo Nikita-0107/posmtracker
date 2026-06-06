@@ -31,7 +31,7 @@ function LoginPage() {
   }, [isAuthenticated, loading, navigate]);
 
   const isValidId = loginId.trim().length >= 3;
-  const isValidPassword = password.length >= 4;
+  const isValidPassword = password.length >= 6;
   const canSubmit = isValidId && isValidPassword && (mode === "signin" || displayName.trim().length > 0);
 
   function handleIdChange(value: string) {
