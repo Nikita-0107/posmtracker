@@ -307,6 +307,7 @@ function UserRow({
   const primary = primaryOf(row.roles);
   const isPending = !isSuperRow && !primary;
   const isNeedsUpdate = !isSuperRow && needsUpdate(row, primary, false);
+  const [showReset, setShowReset] = useState(false);
 
   const canEdit =
     scope.is_super ||
