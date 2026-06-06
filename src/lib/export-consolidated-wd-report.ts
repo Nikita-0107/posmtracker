@@ -66,16 +66,13 @@ export async function exportConsolidatedWdReport(opts: {
     throw new Error("No WDs are mapped to your AE.");
   }
 
-  const [matsRes, stockRes, tlsRes, transitRes] = await Promise.all([
+  const [matsRes, stockRes, teamRes, transitRes] = await Promise.all([
     supabase.from("materials").select("code, name"),
     supabase
       .from("wd_stock")
       .select("wd_code, material_code, qty, updated_at")
       .in("wd_code", wdCodes),
-    supabase
-      .from("hierarchy_tl")
-      .select("wd_code, tl_id, tl_name, active, is_wd_receiver")
-      .in("wd_code", wdCodes),
+    supabase.rpc("get_ae_tl_team_report", { _ae_id: aeId, _inactivity_days: 7 }),
     supabase
       .from("stock_movements")
       .select("distributor, material_code, qty")
@@ -83,6 +80,8 @@ export async function exportConsolidatedWdReport(opts: {
       .eq("item_status", "pending")
       .in("distributor", wdCodes),
   ]);
+
+  if (teamRes.error) throw teamRes.error;
 
   const materials = (matsRes.data ?? []) as { code: string; name: string }[];
   const matName = new Map(materials.map((m) => [m.code, m.name]));
@@ -92,12 +91,17 @@ export async function exportConsolidatedWdReport(opts: {
     qty: number;
     updated_at: string;
   }[];
-  const tls = (tlsRes.data ?? []) as {
+  const team = (teamRes.data ?? []) as {
     wd_code: string;
+    wd_name: string;
     tl_id: string;
     tl_name: string;
-    active: boolean;
     is_wd_receiver: boolean;
+    status: string;
+    last_activity: string | null;
+    current_streak: number;
+    tl_stock_units: number;
+    material_types: number;
   }[];
   const transit = (transitRes.data ?? []) as {
     distributor: string;
@@ -110,6 +114,7 @@ export async function exportConsolidatedWdReport(opts: {
     const k = `${r.distributor}|${r.material_code}`;
     transitMap.set(k, (transitMap.get(k) ?? 0) + (r.qty ?? 0));
   }
+
 
   // ============ Sheet 1: WD Stock Report ============
   const stockHeader = [
