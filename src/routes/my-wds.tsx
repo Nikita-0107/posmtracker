@@ -89,46 +89,43 @@ function MyWdsPage() {
             <h2 className="px-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
               Reports
             </h2>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <div className="rounded-xl border bg-card p-3 shadow-sm">
-                <div className="flex items-start gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <FileSpreadsheet size={18} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-bold text-foreground">WD-wise Report</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Detailed report per WD — open a WD below and download.
-                    </p>
-                  </div>
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 shadow-sm">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-2xl" />
+              <div className="relative flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+                  <FileSpreadsheet size={20} />
                 </div>
-              </div>
-              <div className="rounded-xl border bg-card p-3 shadow-sm">
-                <div className="flex items-start gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
-                    <FileSpreadsheet size={18} />
-                  </div>
-                  <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm font-bold text-foreground">Consolidated WD Report</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Stock across all your mapped WDs in one file.
-                    </p>
-                    <button
-                      onClick={handleConsolidatedExport}
-                      disabled={exporting || wds.length === 0}
-                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-primary px-2.5 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
-                    >
-                      {exporting ? (
-                        <Loader2 size={12} className="animate-spin" />
-                      ) : (
-                        <Download size={12} />
-                      )}
-                      Download
-                    </button>
+                    <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-primary">
+                      Excel
+                    </span>
                   </div>
+                  <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">
+                    Stock across all {wds.length > 0 ? wds.length : "your"} mapped WD{wds.length === 1 ? "" : "s"} in a single file — with totals, filters & TL details.
+                  </p>
+                  <button
+                    onClick={handleConsolidatedExport}
+                    disabled={exporting || wds.length === 0}
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-bold text-primary-foreground shadow-sm transition active:scale-[0.98] disabled:opacity-50"
+                  >
+                    {exporting ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" /> Preparing…
+                      </>
+                    ) : (
+                      <>
+                        <Download size={13} /> Download Report
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
+            <p className="px-1 text-[10px] text-muted-foreground">
+              For a single WD, open any WD below to download its individual report.
+            </p>
           </section>
         )}
 
