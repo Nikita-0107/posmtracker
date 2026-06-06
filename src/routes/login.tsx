@@ -45,7 +45,7 @@ function LoginPage() {
       return;
     }
     if (!isValidPassword) {
-      setError("Password must be at least 4 characters");
+      setError("Password must be at least 6 characters");
       return;
     }
     setError(null);
