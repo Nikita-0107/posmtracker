@@ -212,6 +212,8 @@ export async function exportConsolidatedWdReport(opts: {
     "TL Status",
     "Last App Activity Date",
     "Current Streak",
+    "Total Active Days",
+    "Active Days This Month",
     "TL Stock Units",
     "Material Types",
   ];
@@ -233,6 +235,8 @@ export async function exportConsolidatedWdReport(opts: {
     "TL Status": t.status,
     "Last App Activity Date": fmtActivity(t.last_activity),
     "Current Streak": t.current_streak ?? 0,
+    "Total Active Days": t.total_active_days ?? 0,
+    "Active Days This Month": t.active_days_this_month ?? 0,
     "TL Stock Units": t.tl_stock_units ?? 0,
     "Material Types": t.material_types ?? 0,
   }));
