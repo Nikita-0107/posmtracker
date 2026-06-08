@@ -11,7 +11,8 @@ export async function exportTlActivityReport() {
   const rows = await getTlActivityReport();
   const aoa: (string | number)[][] = [[
     "AE ID", "AE Name", "WD Code", "WD Name",
-    "TL ID", "TL Name", "Status", "Last Activity", "Current Streak (Days)",
+    "TL ID", "TL Name", "Status", "Last Activity",
+    "Current Streak (Days)", "Total Active Days", "Active Days This Month",
   ]];
   for (const r of rows) {
     aoa.push([
@@ -24,12 +25,15 @@ export async function exportTlActivityReport() {
       r.status,
       r.last_activity ?? "",
       r.current_streak ?? 0,
+      r.total_active_days ?? 0,
+      r.active_days_this_month ?? 0,
     ]);
   }
   const ws = XLSX.utils.aoa_to_sheet(aoa);
   ws["!cols"] = [
     { wch: 10 }, { wch: 22 }, { wch: 10 }, { wch: 28 },
-    { wch: 10 }, { wch: 26 }, { wch: 10 }, { wch: 14 }, { wch: 16 },
+    { wch: 10 }, { wch: 26 }, { wch: 10 }, { wch: 14 },
+    { wch: 16 }, { wch: 18 }, { wch: 22 },
   ];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "TL Activity");
