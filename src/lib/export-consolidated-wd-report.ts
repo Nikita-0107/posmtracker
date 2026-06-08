@@ -100,6 +100,8 @@ export async function exportConsolidatedWdReport(opts: {
     status: string;
     last_activity: string | null;
     current_streak: number;
+    total_active_days: number;
+    active_days_this_month: number;
     tl_stock_units: number;
     material_types: number;
   }[];
