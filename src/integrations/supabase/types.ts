@@ -1560,6 +1560,7 @@ export type Database = {
       get_ae_tl_team_report: {
         Args: { _ae_id: string; _inactivity_days?: number }
         Returns: {
+          active_days_this_month: number
           current_streak: number
           is_wd_receiver: boolean
           last_activity: string
@@ -1568,6 +1569,7 @@ export type Database = {
           tl_id: string
           tl_name: string
           tl_stock_units: number
+          total_active_days: number
           wd_code: string
           wd_name: string
         }[]
@@ -1575,6 +1577,7 @@ export type Database = {
       get_tl_activity_report: {
         Args: { _inactivity_days?: number }
         Returns: {
+          active_days_this_month: number
           ae_id: string
           ae_name: string
           current_streak: number
@@ -1582,6 +1585,7 @@ export type Database = {
           status: string
           tl_id: string
           tl_name: string
+          total_active_days: number
           wd_code: string
           wd_name: string
         }[]
