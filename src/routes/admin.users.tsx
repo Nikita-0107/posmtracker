@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil, UserPlus, KeyRound, X } from "lucide-react";
+import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil, KeyRound, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { createAeAccount, createTlAccount, resetUserPassword } from "@/lib/admin.functions";
+import { resetUserPassword } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -192,7 +192,7 @@ function AdminUsersPage() {
           Users sign up themselves with their mobile number. Assign each new user a role and area below.
         </p>
 
-        {scope.is_super && <CreateAccountPanel reload={loadUsers} />}
+        
 
         {loading ? (
           <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -576,100 +576,7 @@ function EditPanel({
   );
 }
 
-function CreateAccountPanel({ reload }: { reload: () => Promise<void> }) {
-  const [kind, setKind] = useState<"ae" | "tl">("ae");
-  const [id, setId] = useState("");
-  const [name, setName] = useState("");
-  const [wdCode, setWdCode] = useState("");
-  const [password, setPassword] = useState("");
-  const [wds, setWds] = useState<{ wd_code: string; wd_name: string }[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-  const createAeAccountFn = useServerFn(createAeAccount);
-  const createTlAccountFn = useServerFn(createTlAccount);
 
-  useEffect(() => {
-    if (kind !== "tl") return;
-    void supabase.from("hierarchy_wd").select("wd_code, wd_name").order("wd_code")
-      .then(({ data }) => setWds((data ?? []) as { wd_code: string; wd_name: string }[]));
-  }, [kind]);
-
-  async function submit() {
-    if (!id.trim() || !name.trim()) return toast.error("Enter ID and name");
-    if (kind === "tl" && !wdCode) return toast.error("Select a WD");
-    setSubmitting(true);
-    try {
-      if (kind === "ae") {
-        await createAeAccountFn({ data: {
-          ae_id: id.trim(), ae_name: name.trim(),
-          password: password.trim() || undefined,
-        } });
-        toast.success(`AE ${id} created (password: ${password.trim() || "123456"})`);
-      } else {
-        await createTlAccountFn({ data: {
-          tl_id: id.trim(), tl_name: name.trim(), wd_code: wdCode,
-          password: password.trim() || undefined,
-        } });
-        toast.success(`TL ${id} created (password: ${password.trim() || "123456"})`);
-      }
-      setId(""); setName(""); setWdCode(""); setPassword("");
-      await reload();
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="rounded-xl border bg-card p-3 shadow-sm">
-      <div className="mb-2 flex items-center gap-1.5 text-sm font-bold text-foreground">
-        <UserPlus size={14} /> Create Account
-      </div>
-      <div className="mb-2 flex gap-1">
-        {(["ae", "tl"] as const).map((k) => (
-          <button key={k} type="button" onClick={() => setKind(k)}
-            className={`rounded-md border px-2.5 py-1 text-[11px] font-bold uppercase ${
-              kind === k ? "border-primary bg-primary text-primary-foreground" : "bg-background text-foreground"
-            }`}>
-            {k === "ae" ? "AE (WD Admin)" : "TL"}
-          </button>
-        ))}
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <input value={id} onChange={(e) => setId(e.target.value)}
-          placeholder={kind === "ae" ? "AE ID (e.g. VIJ003)" : "TL ID (e.g. 32285)"}
-          className="rounded-md border bg-background px-2 py-1.5 text-sm font-bold" />
-        <input value={name} onChange={(e) => setName(e.target.value)}
-          placeholder={kind === "ae" ? "AE Name" : "TL Name"}
-          className="rounded-md border bg-background px-2 py-1.5 text-sm" />
-        {kind === "tl" && (
-          <select value={wdCode} onChange={(e) => setWdCode(e.target.value)}
-            className="rounded-md border bg-background px-2 py-1.5 text-sm font-bold sm:col-span-2">
-            <option value="">— Select WD —</option>
-            {wds.map((w) => (
-              <option key={w.wd_code} value={w.wd_code}>{w.wd_code} — {w.wd_name}</option>
-            ))}
-          </select>
-        )}
-        <input value={password} onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password (min 6 chars, default 123456)" type="text"
-          className="rounded-md border bg-background px-2 py-1.5 text-sm sm:col-span-2" />
-      </div>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button onClick={submit} disabled={submitting}
-          className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground disabled:opacity-60">
-          {submitting && <Loader2 className="animate-spin" size={12} />} Create
-        </button>
-        
-      </div>
-      <p className="mt-1.5 text-[10px] text-muted-foreground">
-        {kind === "ae"
-          ? "Creates an AE login. WD list is auto-populated from the hierarchy."
-          : "Creates a TL login under the chosen WD. The TL ID must exist or will be added to the hierarchy."}
-      </p>
-    </div>
-  );
-}
 
 
 function ResetPasswordModal({ row, onClose }: { row: Row; onClose: () => void }) {
