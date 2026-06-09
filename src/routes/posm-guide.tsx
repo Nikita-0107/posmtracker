@@ -140,6 +140,7 @@ const items: Item[] = [
   },
   {
     name: "Counter Tops",
+    image: counterTops.url,
     codes: ["CTU"],
     short: "Counter Top Unit for in-shop branding.",
     description: "Counter Top Unit placed on outlet counters for brand visibility.",
