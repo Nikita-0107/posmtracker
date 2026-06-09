@@ -239,25 +239,34 @@ function PosmGuidePage() {
             {filtered.map((it) => {
               const isOpen = expanded === it.name;
               return (
-                <button
+                <div
                   key={it.name}
-                  type="button"
-                  onClick={() => setExpanded(isOpen ? null : it.name)}
                   className="group flex flex-col overflow-hidden rounded-2xl border bg-card text-left shadow-sm transition hover:shadow-md"
                 >
-                  <div className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-muted">
-                    {it.image ? (
+                  {it.image ? (
+                    <button
+                      type="button"
+                      onClick={() => setLightbox({ url: it.image!, name: it.name })}
+                      className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-muted"
+                      aria-label={`View full image of ${it.name}`}
+                    >
                       <img
                         src={it.image}
                         alt={it.name}
                         loading="lazy"
-                        className="h-full w-full object-cover transition group-hover:scale-[1.02]"
+                        className="h-full w-full object-contain transition group-hover:scale-[1.02]"
                       />
-                    ) : (
+                    </button>
+                  ) : (
+                    <div className="flex aspect-[4/3] w-full items-center justify-center overflow-hidden bg-muted">
                       <Package className="text-muted-foreground/40" size={48} />
-                    )}
-                  </div>
-                  <div className="space-y-1.5 p-3">
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setExpanded(isOpen ? null : it.name)}
+                    className="space-y-1.5 p-3 text-left"
+                  >
                     <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <p className="font-heading text-sm font-bold text-foreground">{it.name}</p>
                       <div className="flex flex-wrap gap-1">
@@ -277,8 +286,8 @@ function PosmGuidePage() {
                     <p className="pt-1 text-[10px] font-semibold text-primary">
                       {isOpen ? "Show less ▲" : "Read more ▼"}
                     </p>
-                  </div>
-                </button>
+                  </button>
+                </div>
               );
             })}
           </div>
@@ -288,6 +297,34 @@ function PosmGuidePage() {
           Showing {filtered.length} of {items.length} materials
         </p>
       </div>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setLightbox(null);
+            }}
+            className="absolute right-4 top-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            aria-label="Close"
+          >
+            <X size={24} />
+          </button>
+          <img
+            src={lightbox.url}
+            alt={lightbox.name}
+            className="max-h-full max-w-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <p className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1 text-xs text-white">
+            {lightbox.name}
+          </p>
+        </div>
+      )}
     </AppShell>
   );
 }
