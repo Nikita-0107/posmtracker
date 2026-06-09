@@ -16,6 +16,8 @@ import ibb from "@/assets/posm-guide/ibb.jpg.asset.json";
 import backingSheets from "@/assets/posm-guide/backing-sheets.jpg.asset.json";
 import horizontalCeiling from "@/assets/posm-guide/horizontal-ceiling.jpg.asset.json";
 import verticalCeiling from "@/assets/posm-guide/vertical-ceiling.jpg.asset.json";
+import kappaUnits from "@/assets/posm-guide/kappa-units.jpg.asset.json";
+import counterTops from "@/assets/posm-guide/counter-tops.jpg.asset.json";
 
 export const Route = createFileRoute("/posm-guide")({
   component: PosmGuidePage,
