@@ -15,6 +15,7 @@ import { AppShell } from "@/components/AppShell";
 import { ProofImageUpload, type ProofImageValue } from "@/components/ProofImageUpload";
 import { supabase } from "@/integrations/supabase/client";
 import { useMaterials } from "@/hooks/use-stock";
+import { MaterialImageViewer } from "@/components/MaterialImageViewer";
 import { useAuth } from "@/hooks/use-auth";
 import { useRoles } from "@/hooks/use-roles";
 import { useEffectiveWsp } from "@/hooks/use-effective-wsp";
@@ -101,6 +102,10 @@ function MovementsPage() {
   const { wsp: effectiveWsp } = useEffectiveWsp();
   const { materials } = useMaterials();
   const matMap = useMemo(() => new Map(materials.map((m) => [m.code, m.name])), [materials]);
+  const matImageMap = useMemo(
+    () => new Map(materials.map((m) => [m.code, m.image_path ?? null])),
+    [materials],
+  );
 
   const [rows, setRows] = useState<Movement[]>([]);
   const [edits, setEdits] = useState<Record<string, EditRow[]>>({});
@@ -341,11 +346,19 @@ function MovementsPage() {
                         {formatDateTime(r.created_at)}
                       </span>
                     </div>
-                    <div className="truncate text-xs font-bold text-foreground">
-                      {r.material_code}{" "}
-                      <span className="font-normal text-muted-foreground">
-                        · {matMap.get(r.material_code) ?? ""}
-                      </span>
+                    <div className="flex items-center gap-1.5">
+                      <div className="min-w-0 flex-1 truncate text-xs font-bold text-foreground">
+                        {r.material_code}{" "}
+                        <span className="font-normal text-muted-foreground">
+                          · {matMap.get(r.material_code) ?? ""}
+                        </span>
+                      </div>
+                      <MaterialImageViewer
+                        imagePath={matImageMap.get(r.material_code) ?? null}
+                        label={r.material_code}
+                        className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary hover:bg-primary/20"
+                        size={12}
+                      />
                     </div>
                     <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
                       <span>
