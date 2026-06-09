@@ -615,9 +615,7 @@ function CreateForm({
   const filteredWdOptions = useMemo(() => {
     const q = wdSearch.trim();
     if (!q) return wdOptions;
-    return wdOptions.filter((w) =>
-      matchesSearch(q, [w.wd_code, w.wd_name]),
-    );
+    return wdOptions.filter((w) => matchesSearch(q, w.wd_code, w.wd_name));
   }, [wdOptions, wdSearch]);
   const selectedWd = useMemo(
     () => wdOptions.find((w) => w.wd_code === toWd) ?? null,
