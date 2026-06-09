@@ -1,35 +1,31 @@
 ## Goal
-Have a single POSM materials surface — the `/posm-guide` page — that shows both the picture/description AND the system codes (e.g. CBOs → `BOXSOL`). Remove the duplicate header "Reference" sheet.
+Remove the manual "Create Account" UI from the Super Admin → User Management page (`/admin/users`). Account creation will continue to happen exclusively via Hierarchy Import + Seed Accounts. No other behavior changes.
+
+## Scope
+Single file: `src/routes/admin.users.tsx`.
 
 ## Changes
 
-1. **`src/routes/posm-guide.tsx`**
-   - Extend each item with a `codes: string[]` field (and optional `synonyms` carried over from the old reference).
-   - Merge code data from `PosmReferenceGuide`:
-     - CBOs → `BOXSOL`
-     - Honeycomb → `HCOMB`
-     - Fabrics → `FAB`
-     - A4 Stickers → `PG_BB_8X11IN`
-     - Shelf Highlighters → `SHELF`
-     - Brand Boards → `ALT_PP_BB`, `PG_BB`
-     - SLU → `SLU`
-     - Dummy Packets → `BSS`
-     - Danglers → `DANGL`
-     - IBB → `IBB`, `IU_ALT_PP`
-     - Backing Sheets → `BS`
-     - Horizontal Ceiling in Shop → `HORI_CIS`
-     - Vertical Ceiling in Shop → `VER_CIS`
-   - Also add the two reference-only items missing from the guide so nothing is lost: **Kappa Units** (`KAPPA`) and **Counter Tops** (`CTU`) — using a placeholder/no image (graceful fallback in the card) until pictures are added.
-   - Render codes inside each card as monospace chips next to the material name (always visible, not just when expanded).
-   - Include codes + synonyms in the search index so users can find a material by typing a code like `BOXSOL` or `HCOMB`.
+1. **Remove the render** at line 195:
+   - Delete `{scope.is_super && <CreateAccountPanel reload={loadUsers} />}`
 
-2. **`src/components/AppShell.tsx`**
-   - Remove the `<PosmReferenceGuide compact />` button from the header and the `showRefGuide` block / import.
-   - The bottom-nav "Guide" tab (already pointing to `/posm-guide`) becomes the single entry point.
+2. **Delete the `CreateAccountPanel` component** (starting at line 579) in its entirety, including its AE/TL toggle, AE ID field, AE Name field, WD selector (TL mode), password field, Create button, and any helper text inside it.
 
-3. **`src/components/PosmReferenceGuide.tsx`**
-   - Delete the file (no remaining usages after step 2).
+3. **Clean up now-unused imports** so the strict build stays green:
+   - Remove `UserPlus` from the `lucide-react` import (line 3) — only used inside the deleted panel.
+   - Remove `createAeAccount, createTlAccount` from `@/lib/admin.functions` (line 9); keep `resetUserPassword`.
+   - Keep `useServerFn` from `@tanstack/react-start` (line 10) — still used by the Reset Password modal.
 
-## Out of scope
-- No changes to stock/dispatch/receipt logic, hierarchy, search behavior elsewhere, or the bottom-nav structure.
-- No new images generated; Kappa Units and Counter Tops will show a neutral placeholder tile until images are provided.
+## Explicitly NOT changed
+- Hierarchy import (`admin.hierarchy.tsx`, `importHierarchy`) — untouched.
+- Seed Accounts flow (`seedAccountsFromHierarchy`) — untouched.
+- `createAeAccount` / `createTlAccount` server functions in `src/lib/admin.functions.ts` remain in place; `createTlAccount` is still used by `/wd-admin/users`. Only the imports into `admin.users.tsx` are removed.
+- Password reset (`ResetPasswordModal`, `resetUserPassword`) — untouched.
+- User listing, sections (Pending / Needs Update / Super Admins / Admins / Users), edit panel, role assignment, and all RPCs — untouched.
+- No DB migration, no changes to existing users or data.
+
+## Verification
+- Build passes (no unused imports, no references to removed symbols).
+- `/admin/users` renders header, scope chip, helper text, and the user list with no Create Account card above it.
+- `/wd-admin/users` still works (TL creation unaffected).
+- Password reset button on each Super-Admin-visible row still opens the modal.
