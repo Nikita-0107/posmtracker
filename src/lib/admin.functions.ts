@@ -130,6 +130,7 @@ const hierarchyRowSchema = z.object({
   tl_id: z.string().optional().nullable(),
   tl_name: z.string().optional().nullable(),
   section_id: z.string().optional().nullable(),
+  wsp: z.enum(["CEVL", "CEVJ", "CEVY"]).optional().nullable(),
 });
 
 export const importHierarchy = createServerFn({ method: "POST" })

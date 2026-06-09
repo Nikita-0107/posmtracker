@@ -15,26 +15,29 @@ export const Route = createFileRoute("/admin/hierarchy")({
   head: () => ({ meta: [{ title: "Hierarchy — POSM Tracker" }] }),
 });
 
-type Row = { ae_id: string; ae_name: string; wd_code: string; wd_name: string; tl_id: string; tl_name: string };
+type WspCode = "CEVL" | "CEVJ" | "CEVY";
+const VALID_WSPS: readonly WspCode[] = ["CEVL", "CEVJ", "CEVY"] as const;
+type Row = { ae_id: string; ae_name: string; wd_code: string; wd_name: string; tl_id: string; tl_name: string; wsp: string };
 type RowError = { row: number; field: string; message: string };
 type ImportResult = {
   ae_rows: number; wd_rows: number; tl_rows: number;
   ae_added?: number; ae_updated?: number;
   wd_added?: number; wd_updated?: number;
   tl_added?: number; tl_updated?: number;
+  wsp_added?: number;
 };
 
 const REQUIRED_FIELDS: (keyof Row)[] = ["ae_id", "ae_name", "wd_code", "wd_name"];
 const FIELD_LABELS: Record<keyof Row, string> = {
-  ae_id: "AE ID", ae_name: "AE Name", wd_code: "WD Code", wd_name: "WD Name", tl_id: "TL ID", tl_name: "TL Name",
+  ae_id: "AE ID", ae_name: "AE Name", wd_code: "WD Code", wd_name: "WD Name", tl_id: "TL ID", tl_name: "TL Name", wsp: "WSP",
 };
 
 function downloadTemplate() {
-  const headers = ["AE ID", "AE Name", "WD Code", "WD Name", "TL ID", "TL Name"];
+  const headers = ["AE ID", "AE Name", "WD Code", "WD Name", "TL ID", "TL Name", "WSP"];
   const sample = [
-    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "32285", "Guna"],
-    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "31070", "Hanok"],
-    ["VIJ003", "Nanaji", "VI3391", "Pavani Enterprises", "31071", "Vinod"],
+    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "32285", "Guna", "CEVL"],
+    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "31070", "Hanok", "CEVL"],
+    ["VIJ003", "Nanaji", "VI3391", "Pavani Enterprises", "31071", "Vinod", "CEVJ"],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
   ws["!cols"] = headers.map(() => ({ wch: 22 }));
@@ -54,6 +57,7 @@ const HEADER_ALIASES: Record<string, keyof Row> = {
   wd_name: "wd_name",
   tl_id: "tl_id", tl_code: "tl_id",
   tl_name: "tl_name",
+  wsp: "wsp", wsp_code: "wsp",
 };
 
 function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
@@ -75,10 +79,12 @@ function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
     if (!r || r.every((c) => String(c ?? "").trim() === "")) continue;
     const excelRow = i + 1;
     const get = (f: keyof Row) => String(r[colIdx[f]!] ?? "").trim();
+    const wspRaw = colIdx.wsp !== undefined ? get("wsp").toUpperCase() : "";
     const row: Row = {
       ae_id: get("ae_id"), ae_name: get("ae_name"),
       wd_code: get("wd_code"), wd_name: get("wd_name"),
       tl_id: get("tl_id"), tl_name: get("tl_name"),
+      wsp: wspRaw,
     };
     let rowOk = true;
     for (const f of REQUIRED_FIELDS) {
@@ -89,6 +95,10 @@ function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
     }
     if ((row.tl_id && !row.tl_name) || (!row.tl_id && row.tl_name)) {
       errors.push({ row: excelRow, field: "tl_id", message: "Both TL ID and TL Name are required when adding a TL" });
+      rowOk = false;
+    }
+    if (row.wsp && !VALID_WSPS.includes(row.wsp as WspCode)) {
+      errors.push({ row: excelRow, field: "wsp", message: `Invalid WSP "${row.wsp}". Allowed: ${VALID_WSPS.join(", ")}` });
       rowOk = false;
     }
     if (rowOk) rows.push(row);
@@ -106,9 +116,10 @@ function HierarchyPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const [existing, setExisting] = useState<{ ae: Set<string>; wd: Set<string>; tl: Set<string> }>({
-    ae: new Set(), wd: new Set(), tl: new Set(),
-  });
+  const [existing, setExisting] = useState<{
+    ae: Set<string>; wd: Set<string>; tl: Set<string>;
+    wspByWd: Map<string, string[]>;
+  }>({ ae: new Set(), wd: new Set(), tl: new Set(), wspByWd: new Map() });
 
   useEffect(() => {
     if (authLoading || rolesLoading) return;
@@ -116,15 +127,23 @@ function HierarchyPage() {
   }, [user, authLoading, rolesLoading, navigate]);
 
   const loadExisting = useCallback(async () => {
-    const [a, w, t] = await Promise.all([
+    const [a, w, t, wa] = await Promise.all([
       supabase.from("hierarchy_ae").select("ae_id"),
       supabase.from("hierarchy_wd").select("wd_code"),
       supabase.from("hierarchy_tl").select("tl_id"),
+      supabase.from("wd_assignments").select("wd_code, wsp"),
     ]);
+    const wspByWd = new Map<string, string[]>();
+    for (const row of (wa.data ?? []) as Array<{ wd_code: string; wsp: string }>) {
+      const arr = wspByWd.get(row.wd_code) ?? [];
+      arr.push(row.wsp);
+      wspByWd.set(row.wd_code, arr);
+    }
     setExisting({
       ae: new Set((a.data ?? []).map((r) => r.ae_id as string)),
       wd: new Set((w.data ?? []).map((r) => r.wd_code as string)),
       tl: new Set((t.data ?? []).map((r) => r.tl_id as string)),
+      wspByWd,
     });
   }, []);
 
@@ -134,18 +153,28 @@ function HierarchyPage() {
     const aeSet = new Set<string>();
     const wdSet = new Set<string>();
     const tlSet = new Set<string>();
+    const wspByWd = new Map<string, string>(); // last WSP per WD in file
     for (const r of rows) {
       if (r.ae_id) aeSet.add(r.ae_id);
       if (r.wd_code) wdSet.add(r.wd_code);
       if (r.tl_id) tlSet.add(r.tl_id);
+      if (r.wd_code && r.wsp) wspByWd.set(r.wd_code, r.wsp);
     }
     let aeNew = 0, aeDup = 0, wdNew = 0, wdDup = 0, tlNew = 0, tlDup = 0;
     aeSet.forEach((id) => (existing.ae.has(id) ? aeDup++ : aeNew++));
     wdSet.forEach((id) => (existing.wd.has(id) ? wdDup++ : wdNew++));
     tlSet.forEach((id) => (existing.tl.has(id) ? tlDup++ : tlNew++));
+
+    let wspNew = 0, wspExisting = 0;
+    wspByWd.forEach((wsp, wd) => {
+      const cur = existing.wspByWd.get(wd) ?? [];
+      if (cur.includes(wsp)) wspExisting++; else wspNew++;
+    });
+
     return {
       ae: aeSet.size, wd: wdSet.size, tl: tlSet.size,
       aeNew, aeDup, wdNew, wdDup, tlNew, tlDup,
+      wspMappings: wspByWd.size, wspNew, wspExisting,
       hasDups: aeDup + wdDup + tlDup > 0,
     };
   }, [rows, existing]);
@@ -189,7 +218,8 @@ function HierarchyPage() {
     setBusy(true);
     setConfirming(false);
     try {
-      const res = (await importHierarchy({ data: { rows } })) as ImportResult;
+      const payload = rows.map((r) => ({ ...r, wsp: r.wsp ? r.wsp : undefined }));
+      const res = (await importHierarchy({ data: { rows: payload } })) as ImportResult;
       setResult(res);
       const added = (res.ae_added ?? 0) + (res.wd_added ?? 0) + (res.tl_added ?? 0);
       const updated = (res.ae_updated ?? 0) + (res.wd_updated ?? 0) + (res.tl_updated ?? 0);
@@ -255,7 +285,7 @@ function HierarchyPage() {
         <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
           <h2 className="text-sm font-bold">Step 2 — Upload filled file</h2>
           <p className="text-xs text-muted-foreground">
-            Required columns: <code>AE ID, AE Name, WD Code, WD Name</code>. Add <code>TL ID</code> and <code>TL Name</code> when creating TLs. Existing records are updated; new records are added. Nothing is deleted.
+            Required columns: <code>AE ID, AE Name, WD Code, WD Name</code>. Optional: <code>TL ID</code>, <code>TL Name</code> (when adding TLs) and <code>WSP</code> (allowed: CEVL, CEVJ, CEVY — maps the WD to that WSP for stock dispatch). Existing records are updated; new records are added. Nothing is deleted.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <label htmlFor="hierarchy-file"
@@ -309,6 +339,12 @@ function HierarchyPage() {
                   <div>• {summary.wdDup} existing WD{summary.wdDup !== 1 && "s"}</div>
                   <div>• {summary.tlDup} existing TL{summary.tlDup !== 1 && "s"}</div>
                 </div>
+                <div className="border-t border-primary/20 pt-2">
+                  <div className="font-bold text-primary mb-1">WSP mappings:</div>
+                  <div>• {summary.wspNew} new mapping{summary.wspNew !== 1 && "s"} will be added</div>
+                  <div>• {summary.wspExisting} mapping{summary.wspExisting !== 1 && "s"} already exist</div>
+                  <div className="text-muted-foreground">({summary.wspMappings} of {summary.wd} WDs have a WSP in the file)</div>
+                </div>
                 <div className="pt-1 text-muted-foreground">
                   Totals in file: {summary.ae} AE / {summary.wd} WD / {summary.tl} TL ({rows.length} rows)
                 </div>
@@ -357,15 +393,24 @@ function HierarchyPage() {
           <div className="overflow-x-auto rounded-xl border bg-card text-xs">
             <table className="w-full">
               <thead className="bg-muted/50 text-left">
-                <tr><th className="p-2">AE</th><th className="p-2">WD</th><th className="p-2">TL</th><th className="p-2">Status</th></tr>
+                <tr>
+                  <th className="p-2">AE</th>
+                  <th className="p-2">WD</th>
+                  <th className="p-2">TL</th>
+                  <th className="p-2">WSP</th>
+                  <th className="p-2">Status</th>
+                </tr>
               </thead>
               <tbody>
                 {rows.slice(0, 50).map((r, i) => {
                   const aeDup = existing.ae.has(r.ae_id);
                   const wdDup = existing.wd.has(r.wd_code);
                   const tlDup = !!r.tl_id && existing.tl.has(r.tl_id);
+                  const curWsps = existing.wspByWd.get(r.wd_code) ?? [];
+                  const wspAlready = !!r.wsp && curWsps.includes(r.wsp);
+                  const wspNew = !!r.wsp && !wspAlready;
                   const anyDup = aeDup || wdDup || tlDup;
-                  const allDup = aeDup && wdDup && (!r.tl_id || tlDup);
+                  const allDup = aeDup && wdDup && (!r.tl_id || tlDup) && (!r.wsp || wspAlready);
                   return (
                     <tr key={i} className={`border-t ${allDup ? "bg-amber-500/10" : anyDup ? "bg-amber-500/5" : ""}`}>
                       <td className="p-2">
@@ -381,10 +426,35 @@ function HierarchyPage() {
                         {tlDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing TL</span>}
                       </td>
                       <td className="p-2">
+                        {r.wsp ? (
+                          <div className="space-y-0.5">
+                            <div>
+                              <span className="font-bold">{r.wsp}</span>
+                              {wspAlready ? (
+                                <span className="ml-1 inline-block rounded bg-muted px-1 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">Already mapped</span>
+                              ) : (
+                                <span className="ml-1 inline-block rounded bg-green-500/15 px-1 py-0.5 text-[9px] font-bold uppercase text-green-700 dark:text-green-400">
+                                  {wdDup ? "Will add mapping" : "New mapping"}
+                                </span>
+                              )}
+                            </div>
+                            {wdDup && (
+                              <div className="text-[10px] text-muted-foreground">
+                                Current: {curWsps.length > 0 ? curWsps.join(", ") : "none"}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-2">
                         {allDup ? (
                           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Will be skipped</span>
                         ) : anyDup ? (
-                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">Partial — new items only</span>
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">
+                            {wspNew && wdDup ? "Update WSP" : "Partial — new items only"}
+                          </span>
                         ) : (
                           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">New</span>
                         )}
@@ -407,13 +477,15 @@ function HierarchyPage() {
                 <div>• <b>{summary.aeNew}</b> new AE{summary.aeNew !== 1 && "s"}</div>
                 <div>• <b>{summary.wdNew}</b> new WD{summary.wdNew !== 1 && "s"}</div>
                 <div>• <b>{summary.tlNew}</b> new TL{summary.tlNew !== 1 && "s"}</div>
+                <div>• <b>{summary.wspNew}</b> new WSP mapping{summary.wspNew !== 1 && "s"}</div>
               </div>
-              {summary.hasDups && (
+              {(summary.hasDups || summary.wspExisting > 0) && (
                 <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm space-y-1">
                   <div className="font-bold text-amber-700 dark:text-amber-400">Import will skip:</div>
                   <div>• <b>{summary.aeDup}</b> existing AE{summary.aeDup !== 1 && "s"}</div>
                   <div>• <b>{summary.wdDup}</b> existing WD{summary.wdDup !== 1 && "s"}</div>
                   <div>• <b>{summary.tlDup}</b> existing TL{summary.tlDup !== 1 && "s"}</div>
+                  <div>• <b>{summary.wspExisting}</b> WSP mapping{summary.wspExisting !== 1 && "s"} already in place</div>
                 </div>
               )}
               <p className="text-xs text-muted-foreground">Existing records will be updated, not duplicated. Nothing will be deleted.</p>
