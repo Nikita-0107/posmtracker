@@ -16,6 +16,8 @@ import ibb from "@/assets/posm-guide/ibb.jpg.asset.json";
 import backingSheets from "@/assets/posm-guide/backing-sheets.jpg.asset.json";
 import horizontalCeiling from "@/assets/posm-guide/horizontal-ceiling.jpg.asset.json";
 import verticalCeiling from "@/assets/posm-guide/vertical-ceiling.jpg.asset.json";
+import kappaUnits from "@/assets/posm-guide/kappa-units.jpg.asset.json";
+import counterTops from "@/assets/posm-guide/counter-tops.jpg.asset.json";
 
 export const Route = createFileRoute("/posm-guide")({
   component: PosmGuidePage,
@@ -95,6 +97,7 @@ const items: Item[] = [
   },
   {
     name: "Kappa Units",
+    image: kappaUnits.url,
     codes: ["KAPPA"],
     short: "Kappa display unit.",
     description: "Kappa display unit used for in-shop branding and visibility.",
@@ -137,6 +140,7 @@ const items: Item[] = [
   },
   {
     name: "Counter Tops",
+    image: counterTops.url,
     codes: ["CTU"],
     short: "Counter Top Unit for in-shop branding.",
     description: "Counter Top Unit placed on outlet counters for brand visibility.",
