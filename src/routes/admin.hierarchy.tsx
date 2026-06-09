@@ -106,11 +106,29 @@ function HierarchyPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [existing, setExisting] = useState<{ ae: Set<string>; wd: Set<string>; tl: Set<string> }>({
+    ae: new Set(), wd: new Set(), tl: new Set(),
+  });
 
   useEffect(() => {
     if (authLoading || rolesLoading) return;
     if (!user) navigate({ to: "/login" });
   }, [user, authLoading, rolesLoading, navigate]);
+
+  const loadExisting = useCallback(async () => {
+    const [a, w, t] = await Promise.all([
+      supabase.from("hierarchy_ae").select("ae_id"),
+      supabase.from("hierarchy_wd").select("wd_code"),
+      supabase.from("hierarchy_tl").select("tl_id"),
+    ]);
+    setExisting({
+      ae: new Set((a.data ?? []).map((r) => r.ae_id as string)),
+      wd: new Set((w.data ?? []).map((r) => r.wd_code as string)),
+      tl: new Set((t.data ?? []).map((r) => r.tl_id as string)),
+    });
+  }, []);
+
+  useEffect(() => { if (isAdmin) void loadExisting(); }, [isAdmin, loadExisting]);
 
   const summary = useMemo(() => {
     const aeSet = new Set<string>();
@@ -121,8 +139,16 @@ function HierarchyPage() {
       if (r.wd_code) wdSet.add(r.wd_code);
       if (r.tl_id) tlSet.add(r.tl_id);
     }
-    return { ae: aeSet.size, wd: wdSet.size, tl: tlSet.size };
-  }, [rows]);
+    let aeNew = 0, aeDup = 0, wdNew = 0, wdDup = 0, tlNew = 0, tlDup = 0;
+    aeSet.forEach((id) => (existing.ae.has(id) ? aeDup++ : aeNew++));
+    wdSet.forEach((id) => (existing.wd.has(id) ? wdDup++ : wdNew++));
+    tlSet.forEach((id) => (existing.tl.has(id) ? tlDup++ : tlNew++));
+    return {
+      ae: aeSet.size, wd: wdSet.size, tl: tlSet.size,
+      aeNew, aeDup, wdNew, wdDup, tlNew, tlDup,
+      hasDups: aeDup + wdDup + tlDup > 0,
+    };
+  }, [rows, existing]);
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
