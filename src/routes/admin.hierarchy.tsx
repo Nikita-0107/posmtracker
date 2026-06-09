@@ -392,15 +392,24 @@ function HierarchyPage() {
           <div className="overflow-x-auto rounded-xl border bg-card text-xs">
             <table className="w-full">
               <thead className="bg-muted/50 text-left">
-                <tr><th className="p-2">AE</th><th className="p-2">WD</th><th className="p-2">TL</th><th className="p-2">Status</th></tr>
+                <tr>
+                  <th className="p-2">AE</th>
+                  <th className="p-2">WD</th>
+                  <th className="p-2">TL</th>
+                  <th className="p-2">WSP</th>
+                  <th className="p-2">Status</th>
+                </tr>
               </thead>
               <tbody>
                 {rows.slice(0, 50).map((r, i) => {
                   const aeDup = existing.ae.has(r.ae_id);
                   const wdDup = existing.wd.has(r.wd_code);
                   const tlDup = !!r.tl_id && existing.tl.has(r.tl_id);
+                  const curWsps = existing.wspByWd.get(r.wd_code) ?? [];
+                  const wspAlready = !!r.wsp && curWsps.includes(r.wsp);
+                  const wspNew = !!r.wsp && !wspAlready;
                   const anyDup = aeDup || wdDup || tlDup;
-                  const allDup = aeDup && wdDup && (!r.tl_id || tlDup);
+                  const allDup = aeDup && wdDup && (!r.tl_id || tlDup) && (!r.wsp || wspAlready);
                   return (
                     <tr key={i} className={`border-t ${allDup ? "bg-amber-500/10" : anyDup ? "bg-amber-500/5" : ""}`}>
                       <td className="p-2">
@@ -416,10 +425,35 @@ function HierarchyPage() {
                         {tlDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing TL</span>}
                       </td>
                       <td className="p-2">
+                        {r.wsp ? (
+                          <div className="space-y-0.5">
+                            <div>
+                              <span className="font-bold">{r.wsp}</span>
+                              {wspAlready ? (
+                                <span className="ml-1 inline-block rounded bg-muted px-1 py-0.5 text-[9px] font-bold uppercase text-muted-foreground">Already mapped</span>
+                              ) : (
+                                <span className="ml-1 inline-block rounded bg-green-500/15 px-1 py-0.5 text-[9px] font-bold uppercase text-green-700 dark:text-green-400">
+                                  {wdDup ? "Will add mapping" : "New mapping"}
+                                </span>
+                              )}
+                            </div>
+                            {wdDup && (
+                              <div className="text-[10px] text-muted-foreground">
+                                Current: {curWsps.length > 0 ? curWsps.join(", ") : "none"}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="p-2">
                         {allDup ? (
                           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Will be skipped</span>
                         ) : anyDup ? (
-                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">Partial — new items only</span>
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">
+                            {wspNew && wdDup ? "Update WSP" : "Partial — new items only"}
+                          </span>
                         ) : (
                           <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">New</span>
                         )}
