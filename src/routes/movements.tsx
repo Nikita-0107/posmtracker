@@ -112,13 +112,16 @@ function MovementsPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let q = supabase
       .from("stock_movements")
       .select(
         "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status, received_date, batch_type, dispatch_date, corrected_at",
       )
       .order("created_at", { ascending: false })
       .limit(200);
+    if (!isSuperAdmin) q = q.in("movement", ["receive", "dispatch"]);
+    if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
+    const { data, error } = await q;
     if (error) {
       toast.error("Failed to load movements", { description: error.message });
       setRows([]);
@@ -181,7 +184,7 @@ function MovementsPage() {
       if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
     }
     setSigned(map);
-  }, []);
+  }, [isSuperAdmin, effectiveWsp]);
 
   useEffect(() => {
     void refresh();
