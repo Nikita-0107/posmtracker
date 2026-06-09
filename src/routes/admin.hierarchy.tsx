@@ -338,6 +338,12 @@ function HierarchyPage() {
                   <div>• {summary.wdDup} existing WD{summary.wdDup !== 1 && "s"}</div>
                   <div>• {summary.tlDup} existing TL{summary.tlDup !== 1 && "s"}</div>
                 </div>
+                <div className="border-t border-primary/20 pt-2">
+                  <div className="font-bold text-primary mb-1">WSP mappings:</div>
+                  <div>• {summary.wspNew} new mapping{summary.wspNew !== 1 && "s"} will be added</div>
+                  <div>• {summary.wspExisting} mapping{summary.wspExisting !== 1 && "s"} already exist</div>
+                  <div className="text-muted-foreground">({summary.wspMappings} of {summary.wd} WDs have a WSP in the file)</div>
+                </div>
                 <div className="pt-1 text-muted-foreground">
                   Totals in file: {summary.ae} AE / {summary.wd} WD / {summary.tl} TL ({rows.length} rows)
                 </div>
