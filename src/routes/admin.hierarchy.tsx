@@ -357,16 +357,41 @@ function HierarchyPage() {
           <div className="overflow-x-auto rounded-xl border bg-card text-xs">
             <table className="w-full">
               <thead className="bg-muted/50 text-left">
-                <tr><th className="p-2">AE</th><th className="p-2">WD</th><th className="p-2">TL</th></tr>
+                <tr><th className="p-2">AE</th><th className="p-2">WD</th><th className="p-2">TL</th><th className="p-2">Status</th></tr>
               </thead>
               <tbody>
-                {rows.slice(0, 50).map((r, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="p-2"><b>{r.ae_id}</b> {r.ae_name}</td>
-                    <td className="p-2"><b>{r.wd_code}</b> {r.wd_name}</td>
-                    <td className="p-2"><b>{r.tl_id}</b> {r.tl_name}</td>
-                  </tr>
-                ))}
+                {rows.slice(0, 50).map((r, i) => {
+                  const aeDup = existing.ae.has(r.ae_id);
+                  const wdDup = existing.wd.has(r.wd_code);
+                  const tlDup = !!r.tl_id && existing.tl.has(r.tl_id);
+                  const anyDup = aeDup || wdDup || tlDup;
+                  const allDup = aeDup && wdDup && (!r.tl_id || tlDup);
+                  return (
+                    <tr key={i} className={`border-t ${allDup ? "bg-amber-500/10" : anyDup ? "bg-amber-500/5" : ""}`}>
+                      <td className="p-2">
+                        <b>{r.ae_id}</b> {r.ae_name}
+                        {aeDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing AE</span>}
+                      </td>
+                      <td className="p-2">
+                        <b>{r.wd_code}</b> {r.wd_name}
+                        {wdDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing WD</span>}
+                      </td>
+                      <td className="p-2">
+                        <b>{r.tl_id}</b> {r.tl_name}
+                        {tlDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing TL</span>}
+                      </td>
+                      <td className="p-2">
+                        {allDup ? (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Will be skipped</span>
+                        ) : anyDup ? (
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">Partial — new items only</span>
+                        ) : (
+                          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">New</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {rows.length > 50 && <div className="p-2 text-muted-foreground">…and {rows.length - 50} more</div>}
@@ -377,13 +402,21 @@ function HierarchyPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setConfirming(false)}>
             <div className="w-full max-w-md rounded-xl bg-card p-5 shadow-xl space-y-3" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-base font-bold">Confirm Import</h3>
-              <p className="text-sm text-muted-foreground">You are about to import:</p>
-              <ul className="text-sm space-y-1">
-                <li>• <b>{summary.ae}</b> AE{summary.ae !== 1 && "s"}</li>
-                <li>• <b>{summary.wd}</b> WD{summary.wd !== 1 && "s"}</li>
-                <li>• <b>{summary.tl}</b> TL{summary.tl !== 1 && "s"}</li>
-              </ul>
-              <p className="text-xs text-muted-foreground">Existing records will be updated. Nothing will be deleted.</p>
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-sm space-y-1">
+                <div className="font-bold text-primary">Import will create:</div>
+                <div>• <b>{summary.aeNew}</b> new AE{summary.aeNew !== 1 && "s"}</div>
+                <div>• <b>{summary.wdNew}</b> new WD{summary.wdNew !== 1 && "s"}</div>
+                <div>• <b>{summary.tlNew}</b> new TL{summary.tlNew !== 1 && "s"}</div>
+              </div>
+              {summary.hasDups && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm space-y-1">
+                  <div className="font-bold text-amber-700 dark:text-amber-400">Import will skip:</div>
+                  <div>• <b>{summary.aeDup}</b> existing AE{summary.aeDup !== 1 && "s"}</div>
+                  <div>• <b>{summary.wdDup}</b> existing WD{summary.wdDup !== 1 && "s"}</div>
+                  <div>• <b>{summary.tlDup}</b> existing TL{summary.tlDup !== 1 && "s"}</div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Existing records will be updated, not duplicated. Nothing will be deleted.</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setConfirming(false)} className="rounded-md border px-3 py-1.5 text-xs font-bold">Cancel</button>
                 <button onClick={doImport} className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">Confirm Import</button>
