@@ -97,6 +97,7 @@ const items: Item[] = [
   },
   {
     name: "Kappa Units",
+    image: kappaUnits.url,
     codes: ["KAPPA"],
     short: "Kappa display unit.",
     description: "Kappa display unit used for in-shop branding and visibility.",
