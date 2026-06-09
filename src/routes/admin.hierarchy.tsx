@@ -476,13 +476,15 @@ function HierarchyPage() {
                 <div>• <b>{summary.aeNew}</b> new AE{summary.aeNew !== 1 && "s"}</div>
                 <div>• <b>{summary.wdNew}</b> new WD{summary.wdNew !== 1 && "s"}</div>
                 <div>• <b>{summary.tlNew}</b> new TL{summary.tlNew !== 1 && "s"}</div>
+                <div>• <b>{summary.wspNew}</b> new WSP mapping{summary.wspNew !== 1 && "s"}</div>
               </div>
-              {summary.hasDups && (
+              {(summary.hasDups || summary.wspExisting > 0) && (
                 <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm space-y-1">
                   <div className="font-bold text-amber-700 dark:text-amber-400">Import will skip:</div>
                   <div>• <b>{summary.aeDup}</b> existing AE{summary.aeDup !== 1 && "s"}</div>
                   <div>• <b>{summary.wdDup}</b> existing WD{summary.wdDup !== 1 && "s"}</div>
                   <div>• <b>{summary.tlDup}</b> existing TL{summary.tlDup !== 1 && "s"}</div>
+                  <div>• <b>{summary.wspExisting}</b> WSP mapping{summary.wspExisting !== 1 && "s"} already in place</div>
                 </div>
               )}
               <p className="text-xs text-muted-foreground">Existing records will be updated, not duplicated. Nothing will be deleted.</p>
