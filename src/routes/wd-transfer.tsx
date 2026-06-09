@@ -607,8 +607,22 @@ function CreateForm({
   );
 
   const [toWd, setToWd] = useState("");
+  const [wdSearch, setWdSearch] = useState("");
+  const [wdPickerOpen, setWdPickerOpen] = useState(false);
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([]);
+
+  const filteredWdOptions = useMemo(() => {
+    const q = wdSearch.trim();
+    if (!q) return wdOptions;
+    return wdOptions.filter((w) =>
+      matchesSearch(q, [w.wd_code, w.wd_name]),
+    );
+  }, [wdOptions, wdSearch]);
+  const selectedWd = useMemo(
+    () => wdOptions.find((w) => w.wd_code === toWd) ?? null,
+    [wdOptions, toWd],
+  );
   const [submitting, setSubmitting] = useState(false);
   const [picker, setPicker] = useState<{ idx: number | null } | null>(null);
 
