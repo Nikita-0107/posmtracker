@@ -116,9 +116,10 @@ function HierarchyPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const [existing, setExisting] = useState<{ ae: Set<string>; wd: Set<string>; tl: Set<string> }>({
-    ae: new Set(), wd: new Set(), tl: new Set(),
-  });
+  const [existing, setExisting] = useState<{
+    ae: Set<string>; wd: Set<string>; tl: Set<string>;
+    wspByWd: Map<string, string[]>;
+  }>({ ae: new Set(), wd: new Set(), tl: new Set(), wspByWd: new Map() });
 
   useEffect(() => {
     if (authLoading || rolesLoading) return;
@@ -126,15 +127,23 @@ function HierarchyPage() {
   }, [user, authLoading, rolesLoading, navigate]);
 
   const loadExisting = useCallback(async () => {
-    const [a, w, t] = await Promise.all([
+    const [a, w, t, wa] = await Promise.all([
       supabase.from("hierarchy_ae").select("ae_id"),
       supabase.from("hierarchy_wd").select("wd_code"),
       supabase.from("hierarchy_tl").select("tl_id"),
+      supabase.from("wd_assignments").select("wd_code, wsp"),
     ]);
+    const wspByWd = new Map<string, string[]>();
+    for (const row of (wa.data ?? []) as Array<{ wd_code: string; wsp: string }>) {
+      const arr = wspByWd.get(row.wd_code) ?? [];
+      arr.push(row.wsp);
+      wspByWd.set(row.wd_code, arr);
+    }
     setExisting({
       ae: new Set((a.data ?? []).map((r) => r.ae_id as string)),
       wd: new Set((w.data ?? []).map((r) => r.wd_code as string)),
       tl: new Set((t.data ?? []).map((r) => r.tl_id as string)),
+      wspByWd,
     });
   }, []);
 
@@ -144,18 +153,28 @@ function HierarchyPage() {
     const aeSet = new Set<string>();
     const wdSet = new Set<string>();
     const tlSet = new Set<string>();
+    const wspByWd = new Map<string, string>(); // last WSP per WD in file
     for (const r of rows) {
       if (r.ae_id) aeSet.add(r.ae_id);
       if (r.wd_code) wdSet.add(r.wd_code);
       if (r.tl_id) tlSet.add(r.tl_id);
+      if (r.wd_code && r.wsp) wspByWd.set(r.wd_code, r.wsp);
     }
     let aeNew = 0, aeDup = 0, wdNew = 0, wdDup = 0, tlNew = 0, tlDup = 0;
     aeSet.forEach((id) => (existing.ae.has(id) ? aeDup++ : aeNew++));
     wdSet.forEach((id) => (existing.wd.has(id) ? wdDup++ : wdNew++));
     tlSet.forEach((id) => (existing.tl.has(id) ? tlDup++ : tlNew++));
+
+    let wspNew = 0, wspExisting = 0;
+    wspByWd.forEach((wsp, wd) => {
+      const cur = existing.wspByWd.get(wd) ?? [];
+      if (cur.includes(wsp)) wspExisting++; else wspNew++;
+    });
+
     return {
       ae: aeSet.size, wd: wdSet.size, tl: tlSet.size,
       aeNew, aeDup, wdNew, wdDup, tlNew, tlDup,
+      wspMappings: wspByWd.size, wspNew, wspExisting,
       hasDups: aeDup + wdDup + tlDup > 0,
     };
   }, [rows, existing]);
