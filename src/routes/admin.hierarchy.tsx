@@ -284,7 +284,7 @@ function HierarchyPage() {
         <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
           <h2 className="text-sm font-bold">Step 2 — Upload filled file</h2>
           <p className="text-xs text-muted-foreground">
-            Required columns: <code>AE ID, AE Name, WD Code, WD Name</code>. Add <code>TL ID</code> and <code>TL Name</code> when creating TLs. Existing records are updated; new records are added. Nothing is deleted.
+            Required columns: <code>AE ID, AE Name, WD Code, WD Name</code>. Optional: <code>TL ID</code>, <code>TL Name</code> (when adding TLs) and <code>WSP</code> (allowed: CEVL, CEVJ, CEVY — maps the WD to that WSP for stock dispatch). Existing records are updated; new records are added. Nothing is deleted.
           </p>
           <div className="flex items-center gap-3 flex-wrap">
             <label htmlFor="hierarchy-file"
