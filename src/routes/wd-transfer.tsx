@@ -607,8 +607,20 @@ function CreateForm({
   );
 
   const [toWd, setToWd] = useState("");
+  const [wdSearch, setWdSearch] = useState("");
+  const [wdPickerOpen, setWdPickerOpen] = useState(false);
   const [note, setNote] = useState("");
   const [lines, setLines] = useState<DraftLine[]>([]);
+
+  const filteredWdOptions = useMemo(() => {
+    const q = wdSearch.trim();
+    if (!q) return wdOptions;
+    return wdOptions.filter((w) => matchesSearch(q, w.wd_code, w.wd_name));
+  }, [wdOptions, wdSearch]);
+  const selectedWd = useMemo(
+    () => wdOptions.find((w) => w.wd_code === toWd) ?? null,
+    [wdOptions, toWd],
+  );
   const [submitting, setSubmitting] = useState(false);
   const [picker, setPicker] = useState<{ idx: number | null } | null>(null);
 
@@ -698,21 +710,68 @@ function CreateForm({
   return (
     <div className="space-y-3">
       <div className="rounded-xl border bg-card p-3 space-y-2">
-        <label className="block space-y-1">
+        <div className="space-y-1">
           <span className="text-[11px] font-bold text-foreground">Send to WD</span>
-          <select
-            value={toWd}
-            onChange={(e) => setToWd(e.target.value)}
-            className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          <button
+            type="button"
+            onClick={() => {
+              setWdPickerOpen((v) => !v);
+              if (!wdPickerOpen) setWdSearch("");
+            }}
+            className="flex w-full items-center justify-between rounded-lg border bg-background px-3 py-2 text-left text-sm"
           >
-            <option value="">Select destination WD…</option>
-            {wdOptions.map((w) => (
-              <option key={w.wd_code} value={w.wd_code}>
-                {w.wd_code} — {w.wd_name}
-              </option>
-            ))}
-          </select>
-        </label>
+            <span className={selectedWd ? "text-foreground" : "text-muted-foreground"}>
+              {selectedWd
+                ? `${selectedWd.wd_code} — ${selectedWd.wd_name}`
+                : "Select destination WD…"}
+            </span>
+            <ChevronDown size={16} className="shrink-0 text-muted-foreground" />
+          </button>
+          {wdPickerOpen && (
+            <div className="rounded-lg border bg-popover shadow-md">
+              <input
+                type="text"
+                autoFocus
+                value={wdSearch}
+                onChange={(e) => setWdSearch(e.target.value)}
+                placeholder="Search WD code or name…"
+                className="w-full rounded-t-lg border-b bg-background px-3 py-2 text-sm outline-none"
+              />
+              <div className="max-h-64 overflow-y-auto py-1">
+                {filteredWdOptions.length === 0 ? (
+                  <p className="px-3 py-4 text-center text-xs text-muted-foreground">
+                    No WDs match “{wdSearch}”
+                  </p>
+                ) : (
+                  filteredWdOptions.map((w) => (
+                    <button
+                      key={w.wd_code}
+                      type="button"
+                      onClick={() => {
+                        setToWd(w.wd_code);
+                        setWdPickerOpen(false);
+                        setWdSearch("");
+                      }}
+                      className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm hover:bg-muted ${
+                        w.wd_code === toWd ? "bg-muted/60" : ""
+                      }`}
+                    >
+                      <span className="font-mono text-[11px] font-bold text-foreground">
+                        {w.wd_code}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                        {w.wd_name}
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+              <p className="border-t px-3 py-1.5 text-[10px] text-muted-foreground">
+                {filteredWdOptions.length} of {wdOptions.length} WDs
+              </p>
+            </div>
+          )}
+        </div>
 
         <label className="block space-y-1">
           <span className="text-[11px] font-bold text-foreground">Note (optional)</span>
