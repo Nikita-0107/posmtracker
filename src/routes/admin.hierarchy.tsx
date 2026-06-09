@@ -218,7 +218,8 @@ function HierarchyPage() {
     setBusy(true);
     setConfirming(false);
     try {
-      const res = (await importHierarchy({ data: { rows } })) as ImportResult;
+      const payload = rows.map((r) => ({ ...r, wsp: r.wsp ? r.wsp : undefined }));
+      const res = (await importHierarchy({ data: { rows: payload } })) as ImportResult;
       setResult(res);
       const added = (res.ae_added ?? 0) + (res.wd_added ?? 0) + (res.tl_added ?? 0);
       const updated = (res.ae_updated ?? 0) + (res.wd_updated ?? 0) + (res.tl_updated ?? 0);
