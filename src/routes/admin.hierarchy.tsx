@@ -196,6 +196,7 @@ function HierarchyPage() {
       toast.success(`Import successful — ${added} added, ${updated} updated. Seeding accounts…`);
       setRows([]); setFileName("");
       setRefreshKey((k) => k + 1);
+      void loadExisting();
 
       // Auto-seed login accounts for newly imported AEs and TLs
       try {
