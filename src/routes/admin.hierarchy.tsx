@@ -295,12 +295,35 @@ function HierarchyPage() {
           )}
 
           {rows.length > 0 && errors.length === 0 && (
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
-              <div className="font-bold text-primary">You are about to import:</div>
-              <div>• {summary.ae} AE{summary.ae !== 1 && "s"}</div>
-              <div>• {summary.wd} WD{summary.wd !== 1 && "s"}</div>
-              <div>• {summary.tl} TL{summary.tl !== 1 && "s"}</div>
-              <div className="pt-1 text-muted-foreground">({rows.length} total rows)</div>
+            <div className="space-y-2">
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-2">
+                <div>
+                  <div className="font-bold text-primary mb-1">Import will create (new):</div>
+                  <div>• {summary.aeNew} new AE{summary.aeNew !== 1 && "s"}</div>
+                  <div>• {summary.wdNew} new WD{summary.wdNew !== 1 && "s"}</div>
+                  <div>• {summary.tlNew} new TL{summary.tlNew !== 1 && "s"}</div>
+                </div>
+                <div className="border-t border-primary/20 pt-2">
+                  <div className="font-bold text-muted-foreground mb-1">Already existing (will be skipped):</div>
+                  <div>• {summary.aeDup} existing AE{summary.aeDup !== 1 && "s"}</div>
+                  <div>• {summary.wdDup} existing WD{summary.wdDup !== 1 && "s"}</div>
+                  <div>• {summary.tlDup} existing TL{summary.tlDup !== 1 && "s"}</div>
+                </div>
+                <div className="pt-1 text-muted-foreground">
+                  Totals in file: {summary.ae} AE / {summary.wd} WD / {summary.tl} TL ({rows.length} rows)
+                </div>
+              </div>
+              {summary.hasDups && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                    <AlertCircle size={14}/> Existing records detected
+                  </div>
+                  {summary.aeDup > 0 && <div>• {summary.aeDup} AE{summary.aeDup !== 1 && "s"} already exist</div>}
+                  {summary.wdDup > 0 && <div>• {summary.wdDup} WD{summary.wdDup !== 1 && "s"} already exist</div>}
+                  {summary.tlDup > 0 && <div>• {summary.tlDup} TL{summary.tlDup !== 1 && "s"} already exist</div>}
+                  <div className="pt-1 text-muted-foreground">These records will be skipped during import. No duplicate accounts or hierarchy records will be created.</div>
+                </div>
+              )}
             </div>
           )}
 
