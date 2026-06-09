@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { BookOpen, Search, Package } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Search, Package, X } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 
 import cbo from "@/assets/posm-guide/cbo.jpg.asset.json";
