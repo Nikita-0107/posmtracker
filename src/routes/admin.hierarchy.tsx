@@ -15,26 +15,29 @@ export const Route = createFileRoute("/admin/hierarchy")({
   head: () => ({ meta: [{ title: "Hierarchy — POSM Tracker" }] }),
 });
 
-type Row = { ae_id: string; ae_name: string; wd_code: string; wd_name: string; tl_id: string; tl_name: string };
+type WspCode = "CEVL" | "CEVJ" | "CEVY";
+const VALID_WSPS: readonly WspCode[] = ["CEVL", "CEVJ", "CEVY"] as const;
+type Row = { ae_id: string; ae_name: string; wd_code: string; wd_name: string; tl_id: string; tl_name: string; wsp: string };
 type RowError = { row: number; field: string; message: string };
 type ImportResult = {
   ae_rows: number; wd_rows: number; tl_rows: number;
   ae_added?: number; ae_updated?: number;
   wd_added?: number; wd_updated?: number;
   tl_added?: number; tl_updated?: number;
+  wsp_added?: number;
 };
 
 const REQUIRED_FIELDS: (keyof Row)[] = ["ae_id", "ae_name", "wd_code", "wd_name"];
 const FIELD_LABELS: Record<keyof Row, string> = {
-  ae_id: "AE ID", ae_name: "AE Name", wd_code: "WD Code", wd_name: "WD Name", tl_id: "TL ID", tl_name: "TL Name",
+  ae_id: "AE ID", ae_name: "AE Name", wd_code: "WD Code", wd_name: "WD Name", tl_id: "TL ID", tl_name: "TL Name", wsp: "WSP",
 };
 
 function downloadTemplate() {
-  const headers = ["AE ID", "AE Name", "WD Code", "WD Name", "TL ID", "TL Name"];
+  const headers = ["AE ID", "AE Name", "WD Code", "WD Name", "TL ID", "TL Name", "WSP"];
   const sample = [
-    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "32285", "Guna"],
-    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "31070", "Hanok"],
-    ["VIJ003", "Nanaji", "VI3391", "Pavani Enterprises", "31071", "Vinod"],
+    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "32285", "Guna", "CEVL"],
+    ["VIJ003", "Nanaji", "VI3180", "Sri Kalyani Agencies", "31070", "Hanok", "CEVL"],
+    ["VIJ003", "Nanaji", "VI3391", "Pavani Enterprises", "31071", "Vinod", "CEVJ"],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
   ws["!cols"] = headers.map(() => ({ wch: 22 }));
@@ -54,6 +57,7 @@ const HEADER_ALIASES: Record<string, keyof Row> = {
   wd_name: "wd_name",
   tl_id: "tl_id", tl_code: "tl_id",
   tl_name: "tl_name",
+  wsp: "wsp", wsp_code: "wsp",
 };
 
 function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
@@ -75,10 +79,12 @@ function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
     if (!r || r.every((c) => String(c ?? "").trim() === "")) continue;
     const excelRow = i + 1;
     const get = (f: keyof Row) => String(r[colIdx[f]!] ?? "").trim();
+    const wspRaw = colIdx.wsp !== undefined ? get("wsp").toUpperCase() : "";
     const row: Row = {
       ae_id: get("ae_id"), ae_name: get("ae_name"),
       wd_code: get("wd_code"), wd_name: get("wd_name"),
       tl_id: get("tl_id"), tl_name: get("tl_name"),
+      wsp: wspRaw,
     };
     let rowOk = true;
     for (const f of REQUIRED_FIELDS) {
@@ -89,6 +95,10 @@ function parseSheet(aoa: unknown[][]): { rows: Row[]; errors: RowError[] } {
     }
     if ((row.tl_id && !row.tl_name) || (!row.tl_id && row.tl_name)) {
       errors.push({ row: excelRow, field: "tl_id", message: "Both TL ID and TL Name are required when adding a TL" });
+      rowOk = false;
+    }
+    if (row.wsp && !VALID_WSPS.includes(row.wsp as WspCode)) {
+      errors.push({ row: excelRow, field: "wsp", message: `Invalid WSP "${row.wsp}". Allowed: ${VALID_WSPS.join(", ")}` });
       rowOk = false;
     }
     if (rowOk) rows.push(row);
