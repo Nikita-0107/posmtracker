@@ -106,11 +106,29 @@ function HierarchyPage() {
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [existing, setExisting] = useState<{ ae: Set<string>; wd: Set<string>; tl: Set<string> }>({
+    ae: new Set(), wd: new Set(), tl: new Set(),
+  });
 
   useEffect(() => {
     if (authLoading || rolesLoading) return;
     if (!user) navigate({ to: "/login" });
   }, [user, authLoading, rolesLoading, navigate]);
+
+  const loadExisting = useCallback(async () => {
+    const [a, w, t] = await Promise.all([
+      supabase.from("hierarchy_ae").select("ae_id"),
+      supabase.from("hierarchy_wd").select("wd_code"),
+      supabase.from("hierarchy_tl").select("tl_id"),
+    ]);
+    setExisting({
+      ae: new Set((a.data ?? []).map((r) => r.ae_id as string)),
+      wd: new Set((w.data ?? []).map((r) => r.wd_code as string)),
+      tl: new Set((t.data ?? []).map((r) => r.tl_id as string)),
+    });
+  }, []);
+
+  useEffect(() => { if (isAdmin) void loadExisting(); }, [isAdmin, loadExisting]);
 
   const summary = useMemo(() => {
     const aeSet = new Set<string>();
@@ -121,8 +139,16 @@ function HierarchyPage() {
       if (r.wd_code) wdSet.add(r.wd_code);
       if (r.tl_id) tlSet.add(r.tl_id);
     }
-    return { ae: aeSet.size, wd: wdSet.size, tl: tlSet.size };
-  }, [rows]);
+    let aeNew = 0, aeDup = 0, wdNew = 0, wdDup = 0, tlNew = 0, tlDup = 0;
+    aeSet.forEach((id) => (existing.ae.has(id) ? aeDup++ : aeNew++));
+    wdSet.forEach((id) => (existing.wd.has(id) ? wdDup++ : wdNew++));
+    tlSet.forEach((id) => (existing.tl.has(id) ? tlDup++ : tlNew++));
+    return {
+      ae: aeSet.size, wd: wdSet.size, tl: tlSet.size,
+      aeNew, aeDup, wdNew, wdDup, tlNew, tlDup,
+      hasDups: aeDup + wdDup + tlDup > 0,
+    };
+  }, [rows, existing]);
 
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -170,6 +196,7 @@ function HierarchyPage() {
       toast.success(`Import successful — ${added} added, ${updated} updated. Seeding accounts…`);
       setRows([]); setFileName("");
       setRefreshKey((k) => k + 1);
+      void loadExisting();
 
       // Auto-seed login accounts for newly imported AEs and TLs
       try {
@@ -268,12 +295,35 @@ function HierarchyPage() {
           )}
 
           {rows.length > 0 && errors.length === 0 && (
-            <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
-              <div className="font-bold text-primary">You are about to import:</div>
-              <div>• {summary.ae} AE{summary.ae !== 1 && "s"}</div>
-              <div>• {summary.wd} WD{summary.wd !== 1 && "s"}</div>
-              <div>• {summary.tl} TL{summary.tl !== 1 && "s"}</div>
-              <div className="pt-1 text-muted-foreground">({rows.length} total rows)</div>
+            <div className="space-y-2">
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-2">
+                <div>
+                  <div className="font-bold text-primary mb-1">Import will create (new):</div>
+                  <div>• {summary.aeNew} new AE{summary.aeNew !== 1 && "s"}</div>
+                  <div>• {summary.wdNew} new WD{summary.wdNew !== 1 && "s"}</div>
+                  <div>• {summary.tlNew} new TL{summary.tlNew !== 1 && "s"}</div>
+                </div>
+                <div className="border-t border-primary/20 pt-2">
+                  <div className="font-bold text-muted-foreground mb-1">Already existing (will be skipped):</div>
+                  <div>• {summary.aeDup} existing AE{summary.aeDup !== 1 && "s"}</div>
+                  <div>• {summary.wdDup} existing WD{summary.wdDup !== 1 && "s"}</div>
+                  <div>• {summary.tlDup} existing TL{summary.tlDup !== 1 && "s"}</div>
+                </div>
+                <div className="pt-1 text-muted-foreground">
+                  Totals in file: {summary.ae} AE / {summary.wd} WD / {summary.tl} TL ({rows.length} rows)
+                </div>
+              </div>
+              {summary.hasDups && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs space-y-1">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400">
+                    <AlertCircle size={14}/> Existing records detected
+                  </div>
+                  {summary.aeDup > 0 && <div>• {summary.aeDup} AE{summary.aeDup !== 1 && "s"} already exist</div>}
+                  {summary.wdDup > 0 && <div>• {summary.wdDup} WD{summary.wdDup !== 1 && "s"} already exist</div>}
+                  {summary.tlDup > 0 && <div>• {summary.tlDup} TL{summary.tlDup !== 1 && "s"} already exist</div>}
+                  <div className="pt-1 text-muted-foreground">These records will be skipped during import. No duplicate accounts or hierarchy records will be created.</div>
+                </div>
+              )}
             </div>
           )}
 
@@ -307,16 +357,41 @@ function HierarchyPage() {
           <div className="overflow-x-auto rounded-xl border bg-card text-xs">
             <table className="w-full">
               <thead className="bg-muted/50 text-left">
-                <tr><th className="p-2">AE</th><th className="p-2">WD</th><th className="p-2">TL</th></tr>
+                <tr><th className="p-2">AE</th><th className="p-2">WD</th><th className="p-2">TL</th><th className="p-2">Status</th></tr>
               </thead>
               <tbody>
-                {rows.slice(0, 50).map((r, i) => (
-                  <tr key={i} className="border-t">
-                    <td className="p-2"><b>{r.ae_id}</b> {r.ae_name}</td>
-                    <td className="p-2"><b>{r.wd_code}</b> {r.wd_name}</td>
-                    <td className="p-2"><b>{r.tl_id}</b> {r.tl_name}</td>
-                  </tr>
-                ))}
+                {rows.slice(0, 50).map((r, i) => {
+                  const aeDup = existing.ae.has(r.ae_id);
+                  const wdDup = existing.wd.has(r.wd_code);
+                  const tlDup = !!r.tl_id && existing.tl.has(r.tl_id);
+                  const anyDup = aeDup || wdDup || tlDup;
+                  const allDup = aeDup && wdDup && (!r.tl_id || tlDup);
+                  return (
+                    <tr key={i} className={`border-t ${allDup ? "bg-amber-500/10" : anyDup ? "bg-amber-500/5" : ""}`}>
+                      <td className="p-2">
+                        <b>{r.ae_id}</b> {r.ae_name}
+                        {aeDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing AE</span>}
+                      </td>
+                      <td className="p-2">
+                        <b>{r.wd_code}</b> {r.wd_name}
+                        {wdDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing WD</span>}
+                      </td>
+                      <td className="p-2">
+                        <b>{r.tl_id}</b> {r.tl_name}
+                        {tlDup && <span className="ml-1 inline-block rounded bg-amber-500/20 px-1 py-0.5 text-[9px] font-bold uppercase text-amber-700 dark:text-amber-400">Existing TL</span>}
+                      </td>
+                      <td className="p-2">
+                        {allDup ? (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold uppercase text-muted-foreground">Will be skipped</span>
+                        ) : anyDup ? (
+                          <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">Partial — new items only</span>
+                        ) : (
+                          <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-bold uppercase text-primary">New</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             {rows.length > 50 && <div className="p-2 text-muted-foreground">…and {rows.length - 50} more</div>}
@@ -327,13 +402,21 @@ function HierarchyPage() {
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setConfirming(false)}>
             <div className="w-full max-w-md rounded-xl bg-card p-5 shadow-xl space-y-3" onClick={(e) => e.stopPropagation()}>
               <h3 className="text-base font-bold">Confirm Import</h3>
-              <p className="text-sm text-muted-foreground">You are about to import:</p>
-              <ul className="text-sm space-y-1">
-                <li>• <b>{summary.ae}</b> AE{summary.ae !== 1 && "s"}</li>
-                <li>• <b>{summary.wd}</b> WD{summary.wd !== 1 && "s"}</li>
-                <li>• <b>{summary.tl}</b> TL{summary.tl !== 1 && "s"}</li>
-              </ul>
-              <p className="text-xs text-muted-foreground">Existing records will be updated. Nothing will be deleted.</p>
+              <div className="rounded-md border border-primary/30 bg-primary/5 p-2.5 text-sm space-y-1">
+                <div className="font-bold text-primary">Import will create:</div>
+                <div>• <b>{summary.aeNew}</b> new AE{summary.aeNew !== 1 && "s"}</div>
+                <div>• <b>{summary.wdNew}</b> new WD{summary.wdNew !== 1 && "s"}</div>
+                <div>• <b>{summary.tlNew}</b> new TL{summary.tlNew !== 1 && "s"}</div>
+              </div>
+              {summary.hasDups && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2.5 text-sm space-y-1">
+                  <div className="font-bold text-amber-700 dark:text-amber-400">Import will skip:</div>
+                  <div>• <b>{summary.aeDup}</b> existing AE{summary.aeDup !== 1 && "s"}</div>
+                  <div>• <b>{summary.wdDup}</b> existing WD{summary.wdDup !== 1 && "s"}</div>
+                  <div>• <b>{summary.tlDup}</b> existing TL{summary.tlDup !== 1 && "s"}</div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Existing records will be updated, not duplicated. Nothing will be deleted.</p>
               <div className="flex justify-end gap-2 pt-2">
                 <button onClick={() => setConfirming(false)} className="rounded-md border px-3 py-1.5 text-xs font-bold">Cancel</button>
                 <button onClick={doImport} className="rounded-md bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground">Confirm Import</button>
