@@ -184,7 +184,7 @@ function MovementsPage() {
       if (item.path && item.signedUrl) map[item.path] = item.signedUrl;
     }
     setSigned(map);
-  }, []);
+  }, [isSuperAdmin, effectiveWsp]);
 
   useEffect(() => {
     void refresh();
