@@ -157,21 +157,48 @@ function ActiveBadge({ active }: { active: boolean }) {
 }
 
 function AeTable({ rows, onSaved }: { rows: AeRow[]; onSaved: () => void }) {
+  const active = rows.filter((r) => r.active).length;
+  const inactive = rows.length - active;
+  function exportXlsx() {
+    const aoa: (string | number)[][] = [["AE ID", "AE Name", "Status"]];
+    for (const r of rows) aoa.push([r.ae_id, r.ae_name, r.active ? "Active" : "Inactive"]);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws["!cols"] = [{ wch: 10 }, { wch: 28 }, { wch: 10 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "AE Master");
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    XLSX.writeFile(wb, `AE_Master_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.xlsx`);
+  }
   return (
-    <div className="overflow-x-auto rounded-xl border bg-card text-xs">
-      <table className="w-full">
-        <thead className="bg-muted/50 text-left"><tr>
-          <th className="p-2">AE ID</th><th className="p-2">AE Name</th>
-          <th className="p-2">Status</th><th className="p-2"></th>
-        </tr></thead>
-        <tbody>
-          {rows.map((r) => <AeRowEdit key={r.ae_id} row={r} onSaved={onSaved} />)}
-          {rows.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">No matches.</td></tr>}
-        </tbody>
-      </table>
+    <div className="space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-xs text-muted-foreground">
+          <span className="font-bold text-foreground">{rows.length}</span> AEs ·{" "}
+          <span className="font-bold text-primary">{active}</span> active ·{" "}
+          <span className="font-bold">{inactive}</span> inactive
+        </div>
+        <button onClick={exportXlsx} disabled={rows.length === 0}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50">
+          <FileSpreadsheet size={14} /> Download Excel
+        </button>
+      </div>
+      <div className="overflow-x-auto rounded-xl border bg-card text-xs">
+        <table className="w-full">
+          <thead className="bg-muted/50 text-left"><tr>
+            <th className="p-2">AE ID</th><th className="p-2">AE Name</th>
+            <th className="p-2">Status</th><th className="p-2"></th>
+          </tr></thead>
+          <tbody>
+            {rows.map((r) => <AeRowEdit key={r.ae_id} row={r} onSaved={onSaved} />)}
+            {rows.length === 0 && <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">No matches.</td></tr>}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
+
 
 function AeRowEdit({ row, onSaved }: { row: AeRow; onSaved: () => void }) {
   const [name, setName] = useState(row.ae_name);
