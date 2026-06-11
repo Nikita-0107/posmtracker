@@ -11,6 +11,7 @@ import {
   parseDispatchPlanXlsx,
   type ParseResult,
 } from "@/lib/parse-dispatch-plan-xlsx";
+import { getBulkDispatchReferenceData } from "@/lib/bulk-dispatch.functions";
 import { createBulkPlans, cancelPlan, type BulkPlanResult } from "@/hooks/use-dispatch-plans";
 import type { WspCode } from "@/hooks/use-auth";
 
@@ -36,11 +37,6 @@ function BulkDispatchUploadPage() {
   const { isSuperAdmin, isWspAdmin } = useRoles();
   const { profile } = useAuth();
   const canUse = isSuperAdmin || isWspAdmin;
-  const allowedWsps: WspCode[] | "all" = isSuperAdmin
-    ? "all"
-    : profile?.wsp
-      ? [profile.wsp as WspCode]
-      : [];
 
   const [fileName, setFileName] = useState<string | null>(null);
   const [parsing, setParsing] = useState(false);
@@ -57,9 +53,15 @@ function BulkDispatchUploadPage() {
     setResult(null);
     setSubmitError(null);
     setParsing(true);
-    const res = await parseDispatchPlanXlsx(f, { allowedWsps });
-    setParsed(res);
-    setParsing(false);
+    try {
+      const referenceData = await getBulkDispatchReferenceData();
+      const res = await parseDispatchPlanXlsx(f, { referenceData });
+      setParsed(res);
+    } catch (e) {
+      setParsed({ rows: [], errors: [{ row: 0, message: (e as Error).message }] });
+    } finally {
+      setParsing(false);
+    }
   }
 
   // ----- Pending (removable) plans -----

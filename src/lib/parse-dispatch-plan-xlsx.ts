@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
-import { supabase } from "@/integrations/supabase/client";
 import type { WspCode } from "@/hooks/use-auth";
 import type { BulkPlanRow } from "@/hooks/use-dispatch-plans";
+import type { BulkDispatchReferenceData } from "@/lib/bulk-dispatch.functions";
 
 const VALID_WSPS: WspCode[] = ["CEVL", "CEVJ", "CEVY"];
 
@@ -30,7 +30,7 @@ const HEADER_MAP: Record<string, "wsp" | "wd_code" | "material_code" | "qty"> = 
 
 export async function parseDispatchPlanXlsx(
   file: File,
-  opts: { allowedWsps: WspCode[] | "all" },
+  opts: { referenceData: BulkDispatchReferenceData },
 ): Promise<ParseResult> {
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
@@ -57,20 +57,13 @@ export async function parseDispatchPlanXlsx(
     };
   }
 
-  // Pull reference data once
-  const allowedSet =
-    opts.allowedWsps === "all" ? new Set(VALID_WSPS) : new Set(opts.allowedWsps);
-  const wspsToFetch = Array.from(allowedSet);
-  const [assignRes, matRes] = await Promise.all([
-    supabase.from("wd_assignments").select("wd_code, wsp").in("wsp", wspsToFetch),
-    supabase.from("materials").select("code"),
-  ]);
+  const allowedSet = new Set(opts.referenceData.allowedWsps);
   const wdByWsp = new Map<string, Set<string>>();
-  for (const a of (assignRes.data ?? []) as { wd_code: string; wsp: string }[]) {
+  for (const a of opts.referenceData.assignments) {
     if (!wdByWsp.has(a.wsp)) wdByWsp.set(a.wsp, new Set());
-    wdByWsp.get(a.wsp)!.add(a.wd_code);
+    wdByWsp.get(a.wsp)!.add(a.wd_code.trim().toUpperCase());
   }
-  const materials = new Set<string>((matRes.data ?? []).map((m: { code: string }) => m.code));
+  const materials = new Set<string>(opts.referenceData.materials);
 
   const rows: ParsedRow[] = [];
   const errors: ParseRowError[] = [];
