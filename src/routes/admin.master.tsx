@@ -159,6 +159,7 @@ function ActiveBadge({ active }: { active: boolean }) {
 function AeTable({ rows, onSaved }: { rows: AeRow[]; onSaved: () => void }) {
   const active = rows.filter((r) => r.active).length;
   const inactive = rows.length - active;
+  const [busyAct, setBusyAct] = useState(false);
   function exportXlsx() {
     const aoa: (string | number)[][] = [["AE ID", "AE Name", "Status"]];
     for (const r of rows) aoa.push([r.ae_id, r.ae_name, r.active ? "Active" : "Inactive"]);
@@ -170,18 +171,64 @@ function AeTable({ rows, onSaved }: { rows: AeRow[]; onSaved: () => void }) {
     const p = (n: number) => String(n).padStart(2, "0");
     XLSX.writeFile(wb, `AE_Master_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.xlsx`);
   }
+  async function exportActivity() {
+    setBusyAct(true);
+    try {
+      const data = await listAeActivity();
+      const now = Date.now();
+      const SEVEN_D = 7 * 24 * 60 * 60 * 1000;
+      const fmt = (iso: string | null) => iso ? new Date(iso).toLocaleString() : "Never";
+      const daysAgo = (iso: string | null) => iso
+        ? Math.floor((now - new Date(iso).getTime()) / (24 * 60 * 60 * 1000))
+        : "";
+      const sorted = [...data].sort((a, b) => (b.last_login_at ?? "").localeCompare(a.last_login_at ?? ""));
+      const active7 = sorted.filter((r) => r.last_login_at && now - new Date(r.last_login_at).getTime() <= SEVEN_D);
+      const all = [["AE ID", "AE Name", "Master Status", "Linked Users", "Last Login", "Days Since Login", "Active (7d)"]];
+      for (const r of sorted) {
+        const isAct = r.last_login_at && now - new Date(r.last_login_at).getTime() <= SEVEN_D;
+        all.push([
+          r.ae_id, r.ae_name, r.active_flag ? "Active" : "Inactive",
+          String(r.user_count), fmt(r.last_login_at), String(daysAgo(r.last_login_at)),
+          isAct ? "Yes" : "No",
+        ]);
+      }
+      const act = [["AE ID", "AE Name", "Linked Users", "Last Login", "Days Since Login"]];
+      for (const r of active7) {
+        act.push([r.ae_id, r.ae_name, String(r.user_count), fmt(r.last_login_at), String(daysAgo(r.last_login_at))]);
+      }
+      const wb = XLSX.utils.book_new();
+      const ws1 = XLSX.utils.aoa_to_sheet(act);
+      ws1["!cols"] = [{ wch: 10 }, { wch: 28 }, { wch: 12 }, { wch: 22 }, { wch: 16 }];
+      XLSX.utils.book_append_sheet(wb, ws1, "Active (7d)");
+      const ws2 = XLSX.utils.aoa_to_sheet(all);
+      ws2["!cols"] = [{ wch: 10 }, { wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 22 }, { wch: 16 }, { wch: 12 }];
+      XLSX.utils.book_append_sheet(wb, ws2, "All AEs");
+      const d = new Date();
+      const p = (n: number) => String(n).padStart(2, "0");
+      XLSX.writeFile(wb, `AE_Activity_${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}.xlsx`);
+      toast.success(`${active7.length} AEs active in last 7 days`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusyAct(false); }
+  }
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-xs text-muted-foreground">
           <span className="font-bold text-foreground">{rows.length}</span> AEs ·{" "}
           <span className="font-bold text-primary">{active}</span> active ·{" "}
           <span className="font-bold">{inactive}</span> inactive
         </div>
-        <button onClick={exportXlsx} disabled={rows.length === 0}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50">
-          <FileSpreadsheet size={14} /> Download Excel
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={exportActivity} disabled={busyAct}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary bg-background px-3 py-1.5 text-xs font-bold text-primary shadow-sm transition hover:bg-primary/5 disabled:opacity-50">
+            {busyAct ? <Loader2 className="animate-spin" size={14} /> : <FileSpreadsheet size={14} />}
+            Active AEs (7d) Excel
+          </button>
+          <button onClick={exportXlsx} disabled={rows.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-primary-foreground shadow-sm transition hover:opacity-90 disabled:opacity-50">
+            <FileSpreadsheet size={14} /> Master Excel
+          </button>
+        </div>
       </div>
       <div className="overflow-x-auto rounded-xl border bg-card text-xs">
         <table className="w-full">
