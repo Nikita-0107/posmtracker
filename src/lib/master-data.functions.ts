@@ -61,6 +61,59 @@ export const listMasterData = createServerFn({ method: "GET" })
     };
   });
 
+// ---------- AE ACTIVITY (login-based) ----------
+export const listAeActivity = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const [ae, profs] = await Promise.all([
+      supabaseAdmin.from("hierarchy_ae").select("ae_id, ae_name, active").order("ae_id"),
+      supabaseAdmin.from("profiles").select("id, ae_id, display_name, mobile").not("ae_id", "is", null),
+    ]);
+    if (ae.error) throw new Error(ae.error.message);
+    if (profs.error) throw new Error(profs.error.message);
+
+    const lastSignIn = new Map<string, string | null>();
+    const perPage = 1000;
+    for (let page = 1; page <= 50; page++) {
+      const { data, error } = await supabaseAdmin.auth.admin.listUsers({ page, perPage });
+      if (error) throw new Error(error.message);
+      for (const u of data.users) lastSignIn.set(u.id, u.last_sign_in_at ?? null);
+      if (data.users.length < perPage) break;
+    }
+
+    type P = { id: string; ae_id: string | null; display_name: string | null; mobile: string | null };
+    const byAe = new Map<string, { id: string; name: string; mobile: string; last: string | null }[]>();
+    for (const p of (profs.data ?? []) as P[]) {
+      if (!p.ae_id) continue;
+      const arr = byAe.get(p.ae_id) ?? [];
+      arr.push({
+        id: p.id,
+        name: p.display_name ?? "",
+        mobile: p.mobile ?? "",
+        last: lastSignIn.get(p.id) ?? null,
+      });
+      byAe.set(p.ae_id, arr);
+    }
+
+    type AE = { ae_id: string; ae_name: string; active: boolean };
+    return ((ae.data ?? []) as AE[]).map((a) => {
+      const users = byAe.get(a.ae_id) ?? [];
+      const latest = users.reduce<string | null>((acc, u) => {
+        if (!u.last) return acc;
+        if (!acc || u.last > acc) return u.last;
+        return acc;
+      }, null);
+      return {
+        ae_id: a.ae_id,
+        ae_name: a.ae_name,
+        active_flag: a.active,
+        user_count: users.length,
+        last_login_at: latest,
+      };
+    });
+  });
+
 // ---------- AE ----------
 const aeUpdateSchema = z.object({
   ae_id: z.string().min(1),
