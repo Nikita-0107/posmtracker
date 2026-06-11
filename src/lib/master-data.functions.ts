@@ -196,10 +196,12 @@ export const updateTlMaster = createServerFn({ method: "POST" })
       audits.push({ entity_type: "tl", entity_id: data.tl_id, field_changed: "tl_name",
         old_value: cur.tl_name, new_value: data.tl_name });
     }
+    let newWdName: string | null = null;
     if (data.wd_code !== undefined && data.wd_code !== cur.wd_code) {
-      const { data: wdChk } = await supabaseAdmin.from("hierarchy_wd").select("wd_code").eq("wd_code", data.wd_code).maybeSingle();
+      const { data: wdChk } = await supabaseAdmin.from("hierarchy_wd").select("wd_code, wd_name").eq("wd_code", data.wd_code).maybeSingle();
       if (!wdChk) throw new Error("Target WD not found");
       patch.wd_code = data.wd_code;
+      newWdName = (wdChk as { wd_name: string | null }).wd_name ?? null;
       audits.push({ entity_type: "tl", entity_id: data.tl_id, field_changed: "wd_code",
         old_value: cur.wd_code, new_value: data.wd_code });
     }
@@ -211,13 +213,25 @@ export const updateTlMaster = createServerFn({ method: "POST" })
     if (Object.keys(patch).length === 1) return { ok: true };
     const { error } = await supabaseAdmin.from("hierarchy_tl").update(patch as never).eq("tl_id", data.tl_id);
     if (error) throw new Error(error.message);
+
+    // Keep profiles + wd_tls in sync with hierarchy_tl.
+    const legacyTlId = Number(data.tl_id);
+    const profilePatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    const wdTlsPatch: Record<string, unknown> = { updated_at: new Date().toISOString() };
     if (patch.tl_name) {
-      await supabaseAdmin.from("profiles")
-        .update({ display_name: patch.tl_name, updated_at: new Date().toISOString() } as never)
-        .eq("tl_id", data.tl_id);
-      await supabaseAdmin.from("wd_tls")
-        .update({ tl_name: patch.tl_name, updated_at: new Date().toISOString() } as never)
-        .eq("tl_name", cur.tl_name).eq("wd_code", patch.wd_code ?? cur.wd_code);
+      profilePatch.display_name = patch.tl_name;
+      wdTlsPatch.tl_name = patch.tl_name;
+    }
+    if (patch.wd_code) {
+      profilePatch.wd_code = patch.wd_code;
+      wdTlsPatch.wd_code = patch.wd_code;
+      wdTlsPatch.wd_name = newWdName;
+    }
+    if (Object.keys(profilePatch).length > 1) {
+      await supabaseAdmin.from("profiles").update(profilePatch as never).eq("tl_id", data.tl_id);
+    }
+    if (Object.keys(wdTlsPatch).length > 1 && Number.isFinite(legacyTlId)) {
+      await supabaseAdmin.from("wd_tls").update(wdTlsPatch as never).eq("legacy_tl_id", legacyTlId);
     }
     await logAudit(context.userId, audits);
     return { ok: true };
