@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Database, Loader2, Save, History, Search, X, Download } from "lucide-react";
+import { Database, Loader2, Save, History, Search, X, Download, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { useAuth } from "@/hooks/use-auth";
