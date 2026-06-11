@@ -78,7 +78,7 @@ export async function parseDispatchPlanXlsx(
   raw.forEach((r, i) => {
     const rowNo = i + 2; // +1 for 0-index, +1 for header
     const wsp = String(r[colMap.wsp!] ?? "").trim().toUpperCase() as WspCode;
-    const wd_code = String(r[colMap.wd_code!] ?? "").trim();
+    const wd_code = String(r[colMap.wd_code!] ?? "").trim().toUpperCase();
     const material_code = String(r[colMap.material_code!] ?? "").trim();
     const qtyRaw = r[colMap.qty!];
     const qty = typeof qtyRaw === "number" ? qtyRaw : Number(String(qtyRaw).trim());
