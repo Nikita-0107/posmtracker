@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
-import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Download, Trash2, RefreshCw } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2, Download, Trash2, RefreshCw, ChartNoAxesCombined } from "lucide-react";
 import * as XLSX from "xlsx";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
+import { Button } from "@/components/ui/button";
 import { useRoles } from "@/hooks/use-roles";
 import { useAuth } from "@/hooks/use-auth";
 import { supabase } from "@/integrations/supabase/client";
@@ -160,16 +161,25 @@ function BulkDispatchUploadPage() {
     <AppShell>
       <div className="mx-auto max-w-md space-y-4 pb-8">
         <AdminTabs />
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <FileSpreadsheet size={20} className="text-primary" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <FileSpreadsheet size={20} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="font-heading text-lg font-bold leading-tight">Bulk Dispatch Upload</h2>
+              <p className="text-[11px] text-muted-foreground">
+                Upload Excel to pre-plan dispatches. No stock is moved until WSP user executes.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="font-heading text-lg font-bold leading-tight">Bulk Dispatch Upload</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Upload Excel to pre-plan dispatches. No stock is moved until WSP user executes.
-            </p>
-          </div>
+          {isSuperAdmin && (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/admin/bulk-dispatch-tracker">
+                <ChartNoAxesCombined /> Execution Tracker
+              </Link>
+            </Button>
+          )}
         </div>
 
         <button
