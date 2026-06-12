@@ -37,6 +37,7 @@ import { Route as AdminMaterialImagesRouteImport } from './routes/admin.material
 import { Route as AdminMasterRouteImport } from './routes/admin.master'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
+import { Route as AdminBulkDispatchTrackerRouteImport } from './routes/admin.bulk-dispatch-tracker'
 import { Route as AdminBulkDispatchRouteImport } from './routes/admin.bulk-dispatch'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
 import { Route as LovableEmailTransactionalSendRouteImport } from './routes/lovable/email/transactional/send'
@@ -183,6 +184,12 @@ const AdminConcernsRoute = AdminConcernsRouteImport.update({
   path: '/admin/concerns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBulkDispatchTrackerRoute =
+  AdminBulkDispatchTrackerRouteImport.update({
+    id: '/admin/bulk-dispatch-tracker',
+    path: '/admin/bulk-dispatch-tracker',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AdminBulkDispatchRoute = AdminBulkDispatchRouteImport.update({
   id: '/admin/bulk-dispatch',
   path: '/admin/bulk-dispatch',
@@ -234,6 +241,7 @@ export interface FileRoutesByFullPath {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
+  '/admin/bulk-dispatch-tracker': typeof AdminBulkDispatchTrackerRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
@@ -269,6 +277,7 @@ export interface FileRoutesByTo {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
+  '/admin/bulk-dispatch-tracker': typeof AdminBulkDispatchTrackerRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
@@ -305,6 +314,7 @@ export interface FileRoutesById {
   '/wsp-in-transit': typeof WspInTransitRoute
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
+  '/admin/bulk-dispatch-tracker': typeof AdminBulkDispatchTrackerRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
@@ -342,6 +352,7 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/bulk-dispatch'
+    | '/admin/bulk-dispatch-tracker'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
@@ -377,6 +388,7 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/bulk-dispatch'
+    | '/admin/bulk-dispatch-tracker'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
@@ -412,6 +424,7 @@ export interface FileRouteTypes {
     | '/wsp-in-transit'
     | '/wsp-issues'
     | '/admin/bulk-dispatch'
+    | '/admin/bulk-dispatch-tracker'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
@@ -448,6 +461,7 @@ export interface RootRouteChildren {
   WspInTransitRoute: typeof WspInTransitRoute
   WspIssuesRoute: typeof WspIssuesRoute
   AdminBulkDispatchRoute: typeof AdminBulkDispatchRoute
+  AdminBulkDispatchTrackerRoute: typeof AdminBulkDispatchTrackerRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
   AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminMasterRoute: typeof AdminMasterRoute
@@ -660,6 +674,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConcernsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/bulk-dispatch-tracker': {
+      id: '/admin/bulk-dispatch-tracker'
+      path: '/admin/bulk-dispatch-tracker'
+      fullPath: '/admin/bulk-dispatch-tracker'
+      preLoaderRoute: typeof AdminBulkDispatchTrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/bulk-dispatch': {
       id: '/admin/bulk-dispatch'
       path: '/admin/bulk-dispatch'
@@ -720,6 +741,7 @@ const rootRouteChildren: RootRouteChildren = {
   WspInTransitRoute: WspInTransitRoute,
   WspIssuesRoute: WspIssuesRoute,
   AdminBulkDispatchRoute: AdminBulkDispatchRoute,
+  AdminBulkDispatchTrackerRoute: AdminBulkDispatchTrackerRoute,
   AdminConcernsRoute: AdminConcernsRoute,
   AdminHierarchyRoute: AdminHierarchyRoute,
   AdminMasterRoute: AdminMasterRoute,
