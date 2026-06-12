@@ -90,7 +90,9 @@ function BulkDispatchTrackerPage() {
             <PackageCheck size={20} className="text-primary" />
           </div>
           <div>
-            <h1 className="font-heading text-lg font-bold text-foreground">Bulk Dispatch Tracker</h1>
+            <h1 className="font-heading text-lg font-bold text-foreground">
+              Bulk Dispatch Tracker
+            </h1>
             <p className="text-xs text-muted-foreground">
               Plan execution visibility from upload through completion.
             </p>
@@ -109,15 +111,32 @@ function BulkDispatchTrackerPage() {
           <>
             <section className="grid grid-cols-2 gap-2 lg:grid-cols-4" aria-label="Plan summary">
               <SummaryCard label="Total Plans" value={report.summary.total} icon={PackageCheck} />
-              <SummaryCard label="Completed" value={report.summary.completed} icon={CheckCircle2} tone="success" />
-              <SummaryCard label="In Progress" value={report.summary.inProgress} icon={Clock3} tone="warning" />
-              <SummaryCard label="Pending" value={report.summary.pending} icon={CircleDashed} tone="destructive" />
+              <SummaryCard
+                label="Completed"
+                value={report.summary.completed}
+                icon={CheckCircle2}
+                tone="success"
+              />
+              <SummaryCard
+                label="In Progress"
+                value={report.summary.inProgress}
+                icon={Clock3}
+                tone="warning"
+              />
+              <SummaryCard
+                label="Pending"
+                value={report.summary.pending}
+                icon={CircleDashed}
+                tone="destructive"
+              />
             </section>
 
             <section className="border-y py-4">
               <div className="mb-3">
                 <h2 className="text-sm font-bold text-foreground">Pending workload by WSP</h2>
-                <p className="text-[11px] text-muted-foreground">Ranked by quantity still to dispatch.</p>
+                <p className="text-[11px] text-muted-foreground">
+                  Ranked by quantity still to dispatch.
+                </p>
               </div>
               {report.pendingWorkloadByWsp.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No pending dispatch workload.</p>
@@ -128,7 +147,8 @@ function BulkDispatchTrackerPage() {
                       <div className="mb-1 flex items-center justify-between text-xs">
                         <span className="font-mono font-bold text-foreground">{item.wsp}</span>
                         <span className="text-muted-foreground">
-                          {item.plans} plan{item.plans === 1 ? "" : "s"} · {numberFormatter.format(item.quantity)} qty
+                          {item.plans} plan{item.plans === 1 ? "" : "s"} ·{" "}
+                          {numberFormatter.format(item.quantity)} qty
                         </span>
                       </div>
                       <progress
@@ -148,7 +168,8 @@ function BulkDispatchTrackerPage() {
                 <div>
                   <h2 className="text-sm font-bold text-foreground">All uploaded plans</h2>
                   <p className="text-[11px] text-muted-foreground">
-                    Dispatched quantity reflects the actual quantities recorded during plan execution.
+                    Dispatched quantity reflects the actual quantities recorded during plan
+                    execution.
                   </p>
                 </div>
                 <span className="shrink-0 text-[11px] font-semibold text-muted-foreground">
@@ -173,14 +194,24 @@ function BulkDispatchTrackerPage() {
                   <tbody>
                     {report.plans.map((plan) => (
                       <tr key={plan.id} className="border-t">
-                        <td className="px-3 py-3 font-mono font-bold text-primary">{plan.planCode}</td>
-                        <td className="px-3 py-3 text-muted-foreground">{formatDate(plan.uploadedAt)}</td>
+                        <td className="px-3 py-3 font-mono font-bold text-primary">
+                          {plan.planCode}
+                        </td>
+                        <td className="px-3 py-3 text-muted-foreground">
+                          {formatDate(plan.uploadedAt)}
+                        </td>
                         <td className="px-3 py-3 font-mono">{plan.wsp}</td>
                         <td className="px-3 py-3 font-mono font-semibold">{plan.wdCode}</td>
                         <td className="px-3 py-3 text-right">{plan.materialCount}</td>
-                        <td className="px-3 py-3 text-right font-semibold">{numberFormatter.format(plan.plannedQty)}</td>
-                        <td className="px-3 py-3 text-right font-semibold">{numberFormatter.format(plan.dispatchedQty)}</td>
-                        <td className="px-3 py-3"><StatusBadge status={plan.status} /></td>
+                        <td className="px-3 py-3 text-right font-semibold">
+                          {numberFormatter.format(plan.plannedQty)}
+                        </td>
+                        <td className="px-3 py-3 text-right font-semibold">
+                          {numberFormatter.format(plan.dispatchedQty)}
+                        </td>
+                        <td className="px-3 py-3">
+                          <StatusBadge status={plan.status} />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -193,7 +224,9 @@ function BulkDispatchTrackerPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div>
                         <p className="font-mono text-xs font-bold text-primary">{plan.planCode}</p>
-                        <p className="mt-0.5 text-[10px] text-muted-foreground">{formatDate(plan.uploadedAt)}</p>
+                        <p className="mt-0.5 text-[10px] text-muted-foreground">
+                          {formatDate(plan.uploadedAt)}
+                        </p>
                       </div>
                       <StatusBadge status={plan.status} />
                     </div>
@@ -201,7 +234,10 @@ function BulkDispatchTrackerPage() {
                       <Metric label="WSP / WD" value={`${plan.wsp} / ${plan.wdCode}`} mono />
                       <Metric label="Materials" value={String(plan.materialCount)} />
                       <Metric label="Planned Qty" value={numberFormatter.format(plan.plannedQty)} />
-                      <Metric label="Dispatched Qty" value={numberFormatter.format(plan.dispatchedQty)} />
+                      <Metric
+                        label="Dispatched Qty"
+                        value={numberFormatter.format(plan.dispatchedQty)}
+                      />
                     </div>
                   </article>
                 ))}
@@ -236,7 +272,9 @@ function SummaryCard({
       <div className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${tones[tone]}`}>
         <Icon size={16} />
       </div>
-      <p className="font-mono text-2xl font-bold text-foreground">{numberFormatter.format(value)}</p>
+      <p className="font-mono text-2xl font-bold text-foreground">
+        {numberFormatter.format(value)}
+      </p>
       <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
     </div>
   );
@@ -245,7 +283,9 @@ function SummaryCard({
 function StatusBadge({ status }: { status: BulkDispatchExecutionStatus }) {
   const details = statusDetails[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold ${details.className}`}>
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2 py-1 text-[10px] font-bold ${details.className}`}
+    >
       <span className={`h-1.5 w-1.5 rounded-full ${details.dotClassName}`} />
       {details.label}
     </span>
@@ -262,5 +302,7 @@ function Metric({ label, value, mono = false }: { label: string; value: string; 
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
+  return new Intl.DateTimeFormat("en-GB", { dateStyle: "medium", timeStyle: "short" }).format(
+    new Date(value),
+  );
 }
