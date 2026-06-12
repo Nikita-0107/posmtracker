@@ -33,6 +33,7 @@ import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminWdStockRouteImport } from './routes/admin.wd-stock'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
+import { Route as AdminMaterialImagesRouteImport } from './routes/admin.material-images'
 import { Route as AdminMasterRouteImport } from './routes/admin.master'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
@@ -162,6 +163,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminMaterialImagesRoute = AdminMaterialImagesRouteImport.update({
+  id: '/admin/material-images',
+  path: '/admin/material-images',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminMasterRoute = AdminMasterRouteImport.update({
   id: '/admin/master',
   path: '/admin/master',
@@ -231,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
+  '/admin/material-images': typeof AdminMaterialImagesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -265,6 +272,7 @@ export interface FileRoutesByTo {
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
+  '/admin/material-images': typeof AdminMaterialImagesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -300,6 +308,7 @@ export interface FileRoutesById {
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
+  '/admin/material-images': typeof AdminMaterialImagesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
@@ -336,6 +345,7 @@ export interface FileRouteTypes {
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
+    | '/admin/material-images'
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
+    | '/admin/material-images'
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
@@ -404,6 +415,7 @@ export interface FileRouteTypes {
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
+    | '/admin/material-images'
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
@@ -439,6 +451,7 @@ export interface RootRouteChildren {
   AdminConcernsRoute: typeof AdminConcernsRoute
   AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminMasterRoute: typeof AdminMasterRoute
+  AdminMaterialImagesRoute: typeof AdminMaterialImagesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWdStockRoute: typeof AdminWdStockRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
@@ -619,6 +632,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/material-images': {
+      id: '/admin/material-images'
+      path: '/admin/material-images'
+      fullPath: '/admin/material-images'
+      preLoaderRoute: typeof AdminMaterialImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/master': {
       id: '/admin/master'
       path: '/admin/master'
@@ -703,6 +723,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminConcernsRoute: AdminConcernsRoute,
   AdminHierarchyRoute: AdminHierarchyRoute,
   AdminMasterRoute: AdminMasterRoute,
+  AdminMaterialImagesRoute: AdminMaterialImagesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminWdStockRoute: AdminWdStockRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
