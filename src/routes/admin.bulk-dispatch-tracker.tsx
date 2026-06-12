@@ -1,9 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle2, CircleDashed, Clock3, Loader2, PackageCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, CircleDashed, Clock3, Loader2, PackageCheck } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
+import { Button } from "@/components/ui/button";
 import { useRoles } from "@/hooks/use-roles";
 import {
   getBulkDispatchTrackerReport,
@@ -68,11 +69,6 @@ function BulkDispatchTrackerPage() {
     };
   }, [fetchReport, isSuperAdmin, rolesLoading]);
 
-  const maxWorkload = useMemo(
-    () => Math.max(...(report?.pendingWorkloadByWsp.map((item) => item.quantity) ?? []), 1),
-    [report],
-  );
-
   if (!rolesLoading && !isSuperAdmin) {
     return (
       <AppShell>
@@ -85,18 +81,25 @@ function BulkDispatchTrackerPage() {
     <AppShell>
       <div className="mx-auto max-w-7xl space-y-5 pb-8">
         <AdminTabs />
-        <header className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <PackageCheck size={20} className="text-primary" />
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+              <PackageCheck size={20} className="text-primary" />
+            </div>
+            <div>
+              <h1 className="font-heading text-lg font-bold text-foreground">
+                Bulk Dispatch Tracker
+              </h1>
+              <p className="text-xs text-muted-foreground">
+                Plan execution visibility from upload through completion.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-heading text-lg font-bold text-foreground">
-              Bulk Dispatch Tracker
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              Plan execution visibility from upload through completion.
-            </p>
-          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link to="/admin/bulk-dispatch">
+              <ArrowLeft /> Back to Upload
+            </Link>
+          </Button>
         </header>
 
         {loading ? (
@@ -141,22 +144,27 @@ function BulkDispatchTrackerPage() {
               {report.pendingWorkloadByWsp.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No pending dispatch workload.</p>
               ) : (
-                <div className="grid gap-3 lg:grid-cols-3">
-                  {report.pendingWorkloadByWsp.map((item) => (
-                    <div key={item.wsp}>
-                      <div className="mb-1 flex items-center justify-between text-xs">
-                        <span className="font-mono font-bold text-foreground">{item.wsp}</span>
-                        <span className="text-muted-foreground">
-                          {item.plans} plan{item.plans === 1 ? "" : "s"} ·{" "}
-                          {numberFormatter.format(item.quantity)} qty
-                        </span>
+                <div className="overflow-hidden rounded-xl border bg-card">
+                  {report.pendingWorkloadByWsp.map((item, index) => (
+                    <div
+                      key={item.wsp}
+                      className="grid grid-cols-[2rem_1fr_auto] items-center gap-3 border-b px-3 py-2.5 last:border-b-0"
+                    >
+                      <span className="font-mono text-xs font-bold text-muted-foreground">
+                        {index + 1}
+                      </span>
+                      <div>
+                        <p className="font-mono text-xs font-bold text-foreground">{item.wsp}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {item.plans} pending plan{item.plans === 1 ? "" : "s"}
+                        </p>
                       </div>
-                      <progress
-                        className="h-2 w-full overflow-hidden rounded-full accent-destructive"
-                        max={maxWorkload}
-                        value={item.quantity}
-                        aria-label={`${item.wsp} pending quantity`}
-                      />
+                      <div className="text-right">
+                        <p className="font-mono text-sm font-bold text-destructive">
+                          {numberFormatter.format(item.quantity)}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">qty remaining</p>
+                      </div>
                     </div>
                   ))}
                 </div>

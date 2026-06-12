@@ -7,7 +7,6 @@ import {
   Database,
   Package,
   Image as ImageIcon,
-  ChartNoAxesCombined,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
 
@@ -17,12 +16,6 @@ const ALL_TABS = [
   { to: "/admin/wd-stock" as const, label: "WD Stock", icon: Package, superOnly: true },
   { to: "/admin/master" as const, label: "Master Data", icon: Database, superOnly: true },
   { to: "/admin/material-images" as const, label: "Images", icon: ImageIcon, superOnly: true },
-  {
-    to: "/admin/bulk-dispatch-tracker" as const,
-    label: "Tracker",
-    icon: ChartNoAxesCombined,
-    superOnly: true,
-  },
   {
     to: "/admin/concerns" as const,
     label: "Concerns",
