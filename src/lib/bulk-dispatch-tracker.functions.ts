@@ -68,12 +68,14 @@ export const getBulkDispatchTrackerReport = createServerFn({ method: "GET" })
       const items = plan.dispatch_plan_items ?? [];
       const plannedQty = items.reduce((sum, item) => sum + item.planned_qty, 0);
       const dispatchedQty = items.reduce((sum, item) => sum + (item.actual_qty ?? 0), 0);
-      const status: BulkDispatchExecutionStatus =
-        dispatchedQty <= 0
-          ? "pending"
-          : dispatchedQty >= plannedQty
-            ? "completed"
-            : "in_progress";
+      const hasDispatch = items.some((item) => (item.actual_qty ?? 0) > 0);
+      const allQuantitiesDispatched =
+        items.length > 0 && items.every((item) => (item.actual_qty ?? 0) >= item.planned_qty);
+      const status: BulkDispatchExecutionStatus = allQuantitiesDispatched
+        ? "completed"
+        : hasDispatch
+          ? "in_progress"
+          : "pending";
 
       return {
         id: plan.id,

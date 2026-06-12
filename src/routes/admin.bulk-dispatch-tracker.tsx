@@ -131,12 +131,12 @@ function BulkDispatchTrackerPage() {
                           {item.plans} plan{item.plans === 1 ? "" : "s"} · {numberFormatter.format(item.quantity)} qty
                         </span>
                       </div>
-                      <div className="h-2 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-destructive"
-                          style={{ width: `${Math.max((item.quantity / maxWorkload) * 100, 3)}%` }}
-                        />
-                      </div>
+                      <progress
+                        className="h-2 w-full overflow-hidden rounded-full accent-destructive"
+                        max={maxWorkload}
+                        value={item.quantity}
+                        aria-label={`${item.wsp} pending quantity`}
+                      />
                     </div>
                   ))}
                 </div>
