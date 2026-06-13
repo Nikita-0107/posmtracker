@@ -30,30 +30,28 @@ export const getTlHoldingReport = createServerFn({ method: "GET" })
       throw new Error("Forbidden: Super Admin only");
     }
 
-    const [tlsRes, issRes, itemsRes, usagesRes, returnsRes, uploadsRes, matsRes, hierRes] =
-      await Promise.all([
-        supabaseAdmin.from("wd_tls").select("id, user_id, wd_code, tl_name, tl_type, legacy_tl_id"),
-        supabaseAdmin.from("tl_issuances").select("id, wd_code, wd_tl_id, tl_user_id, issue_date, created_at"),
-        supabaseAdmin.from("tl_issuance_items").select("id, issuance_id, material_code, qty_issued, qty_used, created_at"),
-        supabaseAdmin.from("tl_usages").select("wd_tl_id, material_code, qty, created_at"),
-        supabaseAdmin.from("tl_returns").select("wd_tl_id, material_code, qty, created_at"),
-        supabaseAdmin.from("tl_uploads").select("issuance_item_id, qty, created_at"),
-        supabaseAdmin.from("materials").select("code, name"),
-        supabaseAdmin.from("hierarchy_tl").select("tl_id, tl_name, wd_code"),
-      ]);
+    const fetchAll = async (query: any) => {
+      const pageSize = 1000;
+      const rows: any[] = [];
+      for (let from = 0; ; from += pageSize) {
+        const { data, error } = await query.range(from, from + pageSize - 1);
+        if (error) throw new Error(error.message);
+        rows.push(...(data ?? []));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
+    };
 
-    for (const r of [tlsRes, issRes, itemsRes, usagesRes, returnsRes, uploadsRes, matsRes, hierRes]) {
-      if (r.error) throw new Error(r.error.message);
-    }
-
-    const tls = tlsRes.data ?? [];
-    const issuances = issRes.data ?? [];
-    const items = itemsRes.data ?? [];
-    const usages = usagesRes.data ?? [];
-    const returns = returnsRes.data ?? [];
-    const uploads = uploadsRes.data ?? [];
-    const mats = matsRes.data ?? [];
-    const hier = hierRes.data ?? [];
+    const [tls, issuances, items, usages, returns, uploads, mats, hier] = await Promise.all([
+      fetchAll(supabaseAdmin.from("wd_tls").select("id, user_id, wd_code, tl_name, tl_type, legacy_tl_id")),
+      fetchAll(supabaseAdmin.from("tl_issuances").select("id, wd_code, wd_tl_id, tl_user_id, issue_date, created_at")),
+      fetchAll(supabaseAdmin.from("tl_issuance_items").select("id, issuance_id, material_code, qty_issued, qty_used, created_at")),
+      fetchAll(supabaseAdmin.from("tl_usages").select("wd_tl_id, material_code, qty, created_at")),
+      fetchAll(supabaseAdmin.from("tl_returns").select("wd_tl_id, material_code, qty, created_at")),
+      fetchAll(supabaseAdmin.from("tl_uploads").select("issuance_item_id, qty, created_at")),
+      fetchAll(supabaseAdmin.from("materials").select("code, name")),
+      fetchAll(supabaseAdmin.from("hierarchy_tl").select("tl_id, tl_name, wd_code")),
+    ]);
 
     const matName = new Map(mats.map((m) => [m.code, m.name]));
     const hierTlId = new Map(
