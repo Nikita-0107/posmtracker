@@ -30,7 +30,7 @@ export const Route = createFileRoute("/wd-issue-tl")({
 
 type TlBalance = {
   tlId: string;
-  byMat: Map<string, { allocated: number; returned: number; pending: number }>;
+  byMat: Map<string, { allocated: number; returned: number; used: number; pending: number }>;
 };
 
 type TlActivity = {
@@ -221,14 +221,21 @@ function useTlBalances(refreshKey: number, wdCode?: string | null) {
     const { data: lineRows } = issIds.length
       ? await supabase
           .from("tl_issuance_items")
-          .select("issuance_id, material_code, qty_issued")
+          .select("issuance_id, material_code, qty_issued, qty_used")
           .in("issuance_id", issIds)
-      : { data: [] as Array<{ issuance_id: string; material_code: string; qty_issued: number }> };
+      : { data: [] as Array<{ issuance_id: string; material_code: string; qty_issued: number; qty_used: number }> };
 
     // Returns
     const { data: retRows } = await supabase
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from("tl_returns" as any)
+      .select("wd_tl_id, material_code, qty")
+      .in("wd_tl_id", tlIds);
+
+    // Usages (v2 flow — TL marks self-used)
+    const { data: useRows } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_usages" as any)
       .select("wd_tl_id, material_code, qty")
       .in("wd_tl_id", tlIds);
 
@@ -239,20 +246,29 @@ function useTlBalances(refreshKey: number, wdCode?: string | null) {
       const tlId = issToTl.get(l.issuance_id as string);
       if (!tlId) continue;
       const bal = map.get(tlId)!;
-      const cur = bal.byMat.get(l.material_code) ?? { allocated: 0, returned: 0, pending: 0 };
+      const cur = bal.byMat.get(l.material_code) ?? { allocated: 0, returned: 0, used: 0, pending: 0 };
       cur.allocated += l.qty_issued;
+      // Legacy v1 usage is stored on the issuance line
+      if (l.qty_used > 0) cur.used += l.qty_used;
       bal.byMat.set(l.material_code, cur);
     }
     for (const r of (retRows ?? []) as unknown as Array<{ wd_tl_id: string; material_code: string; qty: number }>) {
       const bal = map.get(r.wd_tl_id);
       if (!bal) continue;
-      const cur = bal.byMat.get(r.material_code) ?? { allocated: 0, returned: 0, pending: 0 };
+      const cur = bal.byMat.get(r.material_code) ?? { allocated: 0, returned: 0, used: 0, pending: 0 };
       cur.returned += r.qty;
       bal.byMat.set(r.material_code, cur);
     }
+    for (const u of (useRows ?? []) as unknown as Array<{ wd_tl_id: string; material_code: string; qty: number }>) {
+      const bal = map.get(u.wd_tl_id);
+      if (!bal) continue;
+      const cur = bal.byMat.get(u.material_code) ?? { allocated: 0, returned: 0, used: 0, pending: 0 };
+      cur.used += u.qty;
+      bal.byMat.set(u.material_code, cur);
+    }
     for (const bal of map.values()) {
       for (const [k, v] of bal.byMat) {
-        v.pending = v.allocated - v.returned;
+        v.pending = v.allocated - v.returned - v.used;
         bal.byMat.set(k, v);
       }
     }
@@ -1472,30 +1488,34 @@ function ReturnTab({
                 const n = parseInt(v, 10);
                 const bad = v !== "" && (!Number.isFinite(n) || n < 0 || n > m.pending);
                 return (
-                  <div
-                    key={m.code}
-                    className="flex items-center gap-2 rounded-lg border bg-background p-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-mono text-xs font-bold">{m.code}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Pending to return: <span className="font-bold text-accent">{m.pending}</span>
-                      </p>
+                  <div key={m.code} className="space-y-1">
+                    <div className="flex items-center gap-2 rounded-lg border bg-background p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-mono text-xs font-bold">{m.code}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Pending to return: <span className="font-bold text-accent">{m.pending}</span>
+                        </p>
+                      </div>
+                      <input
+                        type="number"
+                        min={0}
+                        max={m.pending}
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={v}
+                        onChange={(e) =>
+                          setQtyMap((p) => ({ ...p, [m.code]: e.target.value }))
+                        }
+                        className={`w-20 rounded-md border bg-background px-2 py-1.5 text-right font-mono text-sm ${
+                          bad ? "border-destructive" : "border-border"
+                        }`}
+                      />
                     </div>
-                    <input
-                      type="number"
-                      min={0}
-                      max={m.pending}
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={v}
-                      onChange={(e) =>
-                        setQtyMap((p) => ({ ...p, [m.code]: e.target.value }))
-                      }
-                      className={`w-20 rounded-md border bg-background px-2 py-1.5 text-right font-mono text-sm ${
-                        bad ? "border-destructive" : "border-border"
-                      }`}
-                    />
+                    {bad && Number.isFinite(n) && n > m.pending && (
+                      <p className="px-2 text-[11px] text-destructive">
+                        Entered quantity exceeds available inventory.
+                      </p>
+                    )}
                   </div>
                 );
               })}
