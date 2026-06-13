@@ -160,7 +160,9 @@ export const getTlHoldingReport = createServerFn({ method: "GET" })
       }
       rows.push({
         tl_name: tl.tl_name,
-        tl_code: tl.legacy_tl_id != null ? String(tl.legacy_tl_id) : "",
+        tl_code:
+          hierTlId.get(`${tl.wd_code ?? ""}::${tl.tl_name.toLowerCase()}`) ??
+          (tl.legacy_tl_id != null ? String(tl.legacy_tl_id) : ""),
         wd_code: tl.wd_code ?? "",
         section: tl.tl_type ?? "",
         material_code,
