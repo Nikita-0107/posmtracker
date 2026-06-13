@@ -30,7 +30,7 @@ export const getTlHoldingReport = createServerFn({ method: "GET" })
       throw new Error("Forbidden: Super Admin only");
     }
 
-    const [tlsRes, issRes, itemsRes, usagesRes, returnsRes, uploadsRes, matsRes] =
+    const [tlsRes, issRes, itemsRes, usagesRes, returnsRes, uploadsRes, matsRes, hierRes] =
       await Promise.all([
         supabaseAdmin.from("wd_tls").select("id, user_id, wd_code, tl_name, tl_type, legacy_tl_id"),
         supabaseAdmin.from("tl_issuances").select("id, wd_code, wd_tl_id, tl_user_id, issue_date, created_at"),
@@ -39,9 +39,10 @@ export const getTlHoldingReport = createServerFn({ method: "GET" })
         supabaseAdmin.from("tl_returns").select("wd_tl_id, material_code, qty, created_at"),
         supabaseAdmin.from("tl_uploads").select("issuance_item_id, qty, created_at"),
         supabaseAdmin.from("materials").select("code, name"),
+        supabaseAdmin.from("hierarchy_tl").select("tl_id, tl_name, wd_code"),
       ]);
 
-    for (const r of [tlsRes, issRes, itemsRes, usagesRes, returnsRes, uploadsRes, matsRes]) {
+    for (const r of [tlsRes, issRes, itemsRes, usagesRes, returnsRes, uploadsRes, matsRes, hierRes]) {
       if (r.error) throw new Error(r.error.message);
     }
 
