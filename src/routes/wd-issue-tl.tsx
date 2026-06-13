@@ -221,14 +221,21 @@ function useTlBalances(refreshKey: number, wdCode?: string | null) {
     const { data: lineRows } = issIds.length
       ? await supabase
           .from("tl_issuance_items")
-          .select("issuance_id, material_code, qty_issued")
+          .select("issuance_id, material_code, qty_issued, qty_used")
           .in("issuance_id", issIds)
-      : { data: [] as Array<{ issuance_id: string; material_code: string; qty_issued: number }> };
+      : { data: [] as Array<{ issuance_id: string; material_code: string; qty_issued: number; qty_used: number }> };
 
     // Returns
     const { data: retRows } = await supabase
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       .from("tl_returns" as any)
+      .select("wd_tl_id, material_code, qty")
+      .in("wd_tl_id", tlIds);
+
+    // Usages (v2 flow — TL marks self-used)
+    const { data: useRows } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .from("tl_usages" as any)
       .select("wd_tl_id, material_code, qty")
       .in("wd_tl_id", tlIds);
 
@@ -239,20 +246,29 @@ function useTlBalances(refreshKey: number, wdCode?: string | null) {
       const tlId = issToTl.get(l.issuance_id as string);
       if (!tlId) continue;
       const bal = map.get(tlId)!;
-      const cur = bal.byMat.get(l.material_code) ?? { allocated: 0, returned: 0, pending: 0 };
+      const cur = bal.byMat.get(l.material_code) ?? { allocated: 0, returned: 0, used: 0, pending: 0 };
       cur.allocated += l.qty_issued;
+      // Legacy v1 usage is stored on the issuance line
+      if (l.qty_used > 0) cur.used += l.qty_used;
       bal.byMat.set(l.material_code, cur);
     }
     for (const r of (retRows ?? []) as unknown as Array<{ wd_tl_id: string; material_code: string; qty: number }>) {
       const bal = map.get(r.wd_tl_id);
       if (!bal) continue;
-      const cur = bal.byMat.get(r.material_code) ?? { allocated: 0, returned: 0, pending: 0 };
+      const cur = bal.byMat.get(r.material_code) ?? { allocated: 0, returned: 0, used: 0, pending: 0 };
       cur.returned += r.qty;
       bal.byMat.set(r.material_code, cur);
     }
+    for (const u of (useRows ?? []) as unknown as Array<{ wd_tl_id: string; material_code: string; qty: number }>) {
+      const bal = map.get(u.wd_tl_id);
+      if (!bal) continue;
+      const cur = bal.byMat.get(u.material_code) ?? { allocated: 0, returned: 0, used: 0, pending: 0 };
+      cur.used += u.qty;
+      bal.byMat.set(u.material_code, cur);
+    }
     for (const bal of map.values()) {
       for (const [k, v] of bal.byMat) {
-        v.pending = v.allocated - v.returned;
+        v.pending = v.allocated - v.returned - v.used;
         bal.byMat.set(k, v);
       }
     }

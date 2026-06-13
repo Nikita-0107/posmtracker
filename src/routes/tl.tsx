@@ -173,13 +173,14 @@ function TlPortalPage() {
     const itemsRes = issIds.length
       ? await supabase
           .from("tl_issuance_items")
-          .select("issuance_id, material_code, qty_issued")
+          .select("issuance_id, material_code, qty_issued, qty_used")
           .in("issuance_id", issIds)
-      : { data: [] as { issuance_id: string; material_code: string; qty_issued: number }[] };
+      : { data: [] as { issuance_id: string; material_code: string; qty_issued: number; qty_used: number }[] };
     const issItems = (itemsRes.data ?? []) as {
       issuance_id: string;
       material_code: string;
       qty_issued: number;
+      qty_used: number;
     }[];
     const issCreated = new Map(issuances.map((i) => [i.id, i.created_at]));
     const returns = (retRes.data ?? []) as unknown as {
@@ -213,6 +214,8 @@ function TlPortalPage() {
     for (const it of issItems) {
       const r = ensure(it.material_code);
       r.received += it.qty_issued;
+      // Legacy v1 usage (record_tl_upload) lives on the issuance line
+      if (it.qty_used > 0) r.used += it.qty_used;
       const d = issCreated.get(it.issuance_id) ?? null;
       if (d && (!r.lastReceived || d > r.lastReceived)) r.lastReceived = d;
     }
@@ -1036,7 +1039,7 @@ function MyStockSheet({
                           </div>
                           {invalid && (
                             <p className="mt-1.5 text-[11px] text-destructive">
-                              {n > m.balance ? `Max allowed: ${m.balance}` : "Enter a valid quantity"}
+                              {n > m.balance ? "Entered quantity exceeds available inventory." : "Enter a valid quantity"}
                             </p>
                           )}
                         </div>
