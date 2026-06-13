@@ -30,7 +30,7 @@ export const Route = createFileRoute("/wd-issue-tl")({
 
 type TlBalance = {
   tlId: string;
-  byMat: Map<string, { allocated: number; returned: number; pending: number }>;
+  byMat: Map<string, { allocated: number; returned: number; used: number; pending: number }>;
 };
 
 type TlActivity = {
