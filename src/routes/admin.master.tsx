@@ -10,6 +10,7 @@ import {
   listMasterData, updateAeMaster, updateWdMaster, updateTlMaster, listMasterAudit, listAeActivity,
 } from "@/lib/master-data.functions";
 import { exportTlActivityReport } from "@/lib/export-tl-activity";
+import { exportTlHoldingReport } from "@/lib/export-tl-holding";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/master")({
@@ -89,7 +90,10 @@ function MasterDataPage() {
             <Database className="text-primary" size={20} />
             <h1 className="font-heading text-lg font-bold text-foreground">Master Data Management</h1>
           </div>
-          <DownloadTlActivityButton />
+          <div className="flex flex-wrap items-center gap-2">
+            <DownloadTlHoldingButton />
+            <DownloadTlActivityButton />
+          </div>
         </div>
         <p className="text-xs text-muted-foreground">
           Maintain WD, AE and TL names, mappings and active status. Edits do not affect stock,
@@ -467,6 +471,25 @@ function DownloadTlActivityButton() {
       className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-60">
       {busy ? <Loader2 className="animate-spin" size={12}/> : <Download size={12}/>}
       TL Activity Report
+    </button>
+  );
+}
+
+function DownloadTlHoldingButton() {
+  const [busy, setBusy] = useState(false);
+  async function go() {
+    setBusy(true);
+    try {
+      const n = await exportTlHoldingReport();
+      toast.success(`Exported ${n} TL × material rows`);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  }
+  return (
+    <button onClick={go} disabled={busy}
+      className="inline-flex items-center gap-1.5 rounded-md border bg-card px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-60">
+      {busy ? <Loader2 className="animate-spin" size={12}/> : <Download size={12}/>}
+      TL Inventory Holding Report
     </button>
   );
 }
