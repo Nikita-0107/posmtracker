@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, X, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/compress-image";
+
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED = ["image/jpeg", "image/jpg", "image/png"];
@@ -29,6 +31,12 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
   async function handleFile(file: File | undefined | null) {
     if (!file) return;
     setLocalError(null);
+    console.log("[ProofImageUpload] file selected", {
+      name: file.name,
+      type: file.type,
+      sizeKB: Math.round(file.size / 1024),
+      kind,
+    });
 
     if (!ALLOWED.includes(file.type.toLowerCase())) {
       setLocalError("Only JPG or PNG images are allowed");
@@ -44,31 +52,57 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
       // Clean up previous preview URL if any
       if (value?.previewUrl) URL.revokeObjectURL(value.previewUrl);
 
-      const ext = file.name.split(".").pop()?.toLowerCase() || (file.type === "image/png" ? "png" : "jpg");
+      // Compress in-browser before upload. This dramatically reduces memory
+      // pressure on mobile (camera photos are often 8–12MP / multi-MB) which
+      // is the root cause of iOS/Android tabs being evicted while the camera
+      // picker is foregrounded — the page would then reload and lose state.
+      let uploadFile = file;
+      try {
+        uploadFile = await compressImage(file);
+        console.log("[ProofImageUpload] compressed", {
+          fromKB: Math.round(file.size / 1024),
+          toKB: Math.round(uploadFile.size / 1024),
+          type: uploadFile.type,
+        });
+      } catch (cErr) {
+        console.warn("[ProofImageUpload] compression failed, uploading original", cErr);
+      }
+
+      const ext =
+        uploadFile.type === "image/webp"
+          ? "webp"
+          : uploadFile.type === "image/png"
+            ? "png"
+            : "jpg";
       const path = `${wsp}/${userId}/${kind}-${Date.now()}.${ext}`;
 
+      console.log("[ProofImageUpload] upload start", { path, sizeKB: Math.round(uploadFile.size / 1024) });
       const { error: upErr } = await supabase.storage
         .from("proofs")
-        .upload(path, file, {
-          contentType: file.type,
+        .upload(path, uploadFile, {
+          contentType: uploadFile.type,
           upsert: false,
           cacheControl: "3600",
         });
 
       if (upErr) {
+        console.error("[ProofImageUpload] upload error", upErr);
         setLocalError(upErr.message || "Failed to upload image");
         setBusy(false);
         return;
       }
 
-      const previewUrl = URL.createObjectURL(file);
+      const previewUrl = URL.createObjectURL(uploadFile);
+      console.log("[ProofImageUpload] upload success", { path });
       onChange({ path, previewUrl });
     } catch (err) {
+      console.error("[ProofImageUpload] unexpected error", err);
       setLocalError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setBusy(false);
     }
   }
+
 
   async function handleClear() {
     if (value?.path) {
