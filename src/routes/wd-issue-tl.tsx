@@ -1513,6 +1513,12 @@ function ReturnTab({
                       }`}
                     />
                   </div>
+                  {bad && Number.isFinite(n) && n > m.pending && (
+                    <p className="-mt-1 px-2 text-[11px] text-destructive">
+                      Entered quantity exceeds available inventory.
+                    </p>
+                  )}
+                </div>
                 );
               })}
             </div>
