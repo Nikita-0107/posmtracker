@@ -1488,37 +1488,35 @@ function ReturnTab({
                 const n = parseInt(v, 10);
                 const bad = v !== "" && (!Number.isFinite(n) || n < 0 || n > m.pending);
                 return (
-                  <div
-                    key={m.code}
-                    className="flex items-center gap-2 rounded-lg border bg-background p-2"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="font-mono text-xs font-bold">{m.code}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        Pending to return: <span className="font-bold text-accent">{m.pending}</span>
-                      </p>
+                  <div key={m.code} className="space-y-1">
+                    <div className="flex items-center gap-2 rounded-lg border bg-background p-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-mono text-xs font-bold">{m.code}</p>
+                        <p className="text-[10px] text-muted-foreground">
+                          Pending to return: <span className="font-bold text-accent">{m.pending}</span>
+                        </p>
+                      </div>
+                      <input
+                        type="number"
+                        min={0}
+                        max={m.pending}
+                        inputMode="numeric"
+                        placeholder="0"
+                        value={v}
+                        onChange={(e) =>
+                          setQtyMap((p) => ({ ...p, [m.code]: e.target.value }))
+                        }
+                        className={`w-20 rounded-md border bg-background px-2 py-1.5 text-right font-mono text-sm ${
+                          bad ? "border-destructive" : "border-border"
+                        }`}
+                      />
                     </div>
-                    <input
-                      type="number"
-                      min={0}
-                      max={m.pending}
-                      inputMode="numeric"
-                      placeholder="0"
-                      value={v}
-                      onChange={(e) =>
-                        setQtyMap((p) => ({ ...p, [m.code]: e.target.value }))
-                      }
-                      className={`w-20 rounded-md border bg-background px-2 py-1.5 text-right font-mono text-sm ${
-                        bad ? "border-destructive" : "border-border"
-                      }`}
-                    />
+                    {bad && Number.isFinite(n) && n > m.pending && (
+                      <p className="px-2 text-[11px] text-destructive">
+                        Entered quantity exceeds available inventory.
+                      </p>
+                    )}
                   </div>
-                  {bad && Number.isFinite(n) && n > m.pending && (
-                    <p className="-mt-1 px-2 text-[11px] text-destructive">
-                      Entered quantity exceeds available inventory.
-                    </p>
-                  )}
-                </div>
                 );
               })}
             </div>
