@@ -53,8 +53,12 @@ export const getTlHoldingReport = createServerFn({ method: "GET" })
     const returns = returnsRes.data ?? [];
     const uploads = uploadsRes.data ?? [];
     const mats = matsRes.data ?? [];
+    const hier = hierRes.data ?? [];
 
     const matName = new Map(mats.map((m) => [m.code, m.name]));
+    const hierTlId = new Map(
+      hier.map((h) => [`${h.wd_code}::${h.tl_name.toLowerCase()}`, h.tl_id]),
+    );
 
     // Resolve every issuance -> wd_tl_id (fall back to user_id mapping)
     const tlByUser = new Map<string, string>();
