@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, X, Loader2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/compress-image";
+
 
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 const ALLOWED = ["image/jpeg", "image/jpg", "image/png"];
