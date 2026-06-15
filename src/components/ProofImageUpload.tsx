@@ -154,25 +154,28 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
         });
       }
 
-      const ext =
-        uploadFile.type === "image/webp"
-          ? "webp"
-          : uploadFile.type === "image/png"
-            ? "png"
-            : "jpg";
+      const ext = uploadFile.type === "image/webp" ? "webp" : uploadFile.type === "image/png" ? "png" : "jpg";
       const path = `${wsp}/${userId}/${kind}-${Date.now()}.${ext}`;
 
-      recordUploadStage("upload-start", { token, source, path, sizeKB: Math.round(uploadFile.size / 1024) });
-      const { error: upErr } = await supabase.storage
-        .from("proofs")
-        .upload(path, uploadFile, {
-          contentType: uploadFile.type,
-          upsert: false,
-          cacheControl: "3600",
-        });
+      recordUploadStage("upload-start", {
+        token,
+        source,
+        path,
+        sizeKB: Math.round(uploadFile.size / 1024),
+      });
+      const { error: upErr } = await supabase.storage.from("proofs").upload(path, uploadFile, {
+        contentType: uploadFile.type,
+        upsert: false,
+        cacheControl: "3600",
+      });
 
       if (upErr) {
-        recordUploadStage("upload-error", { token, source, message: upErr.message, name: upErr.name });
+        recordUploadStage("upload-error", {
+          token,
+          source,
+          message: upErr.message,
+          name: upErr.name,
+        });
         setLocalError(upErr.message || "Failed to upload image");
         setBusy(false);
         return;
@@ -198,7 +201,6 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
       setBusy(false);
     }
   }
-
 
   async function handleClear() {
     if (value?.path) {
