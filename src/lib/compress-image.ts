@@ -45,7 +45,11 @@ function drawScaled(img: HTMLImageElement): HTMLCanvasElement {
   return canvas;
 }
 
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob | null> {
+function canvasToBlob(
+  canvas: HTMLCanvasElement,
+  type: string,
+  quality: number,
+): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob(resolve, type, quality));
 }
 
@@ -71,7 +75,10 @@ export async function compressImage(file: File): Promise<File> {
     for (const q of qualities) {
       const blob = await canvasToBlob(canvas, type, q);
       if (!blob) continue;
-      if (blob.size <= TARGET_BYTES || (q === qualities[qualities.length - 1] && blob.size <= HARD_CAP_BYTES)) {
+      if (
+        blob.size <= TARGET_BYTES ||
+        (q === qualities[qualities.length - 1] && blob.size <= HARD_CAP_BYTES)
+      ) {
         const ext = type === "image/webp" ? "webp" : "jpg";
         return new File([blob], `material.${ext}`, { type: blob.type || type });
       }
