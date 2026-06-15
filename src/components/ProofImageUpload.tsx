@@ -3,7 +3,6 @@ import { Camera, ImagePlus, X, Loader2, AlertTriangle, CheckCircle2 } from "luci
 import { supabase } from "@/integrations/supabase/client";
 import { compressImage } from "@/lib/compress-image";
 
-
 const MAX_BYTES = 8 * 1024 * 1024; // 8MB
 const UPLOAD_LOG_KEY = "posm-proof-upload-debug";
 const PICKER_STATE_KEY = "posm-proof-upload-picker";
@@ -17,7 +16,8 @@ function recordUploadStage(stage: string, details: Record<string, unknown> = {})
   const entry = {
     at: new Date().toISOString(),
     stage,
-    route: typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "",
+    route:
+      typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "",
     userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     details,
   };
@@ -56,14 +56,23 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
   useEffect(() => {
     try {
       const pendingPicker = window.localStorage.getItem(PICKER_STATE_KEY);
-      if (pendingPicker) recordUploadStage("component-mounted-after-pending-picker", { pendingPicker });
+      if (pendingPicker) {
+        recordUploadStage("component-mounted-after-pending-picker", { pendingPicker });
+      }
     } catch {
       // ignore diagnostic storage failures
     }
 
-    const onPageHide = () => recordUploadStage("pagehide", { pickerOpen: !!pickerTokenRef.current, busy });
-    const onPageShow = (event: PageTransitionEvent) => recordUploadStage("pageshow", { persisted: event.persisted, busy });
-    const onVisibility = () => recordUploadStage("visibilitychange", { state: document.visibilityState, pickerOpen: !!pickerTokenRef.current, busy });
+    const onPageHide = () =>
+      recordUploadStage("pagehide", { pickerOpen: !!pickerTokenRef.current, busy });
+    const onPageShow = (event: PageTransitionEvent) =>
+      recordUploadStage("pageshow", { persisted: event.persisted, busy });
+    const onVisibility = () =>
+      recordUploadStage("visibilitychange", {
+        state: document.visibilityState,
+        pickerOpen: !!pickerTokenRef.current,
+        busy,
+      });
 
     window.addEventListener("pagehide", onPageHide);
     window.addEventListener("pageshow", onPageShow);
@@ -76,7 +85,10 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
   }, [busy]);
 
   function openPicker(source: "camera" | "gallery") {
-    const token = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}`;
+    const token =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}`;
     pickerTokenRef.current = token;
     try {
       window.localStorage.setItem(
