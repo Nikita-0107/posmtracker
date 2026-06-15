@@ -154,7 +154,8 @@ export function ProofImageUpload({ wsp, userId, kind, value, onChange, error, la
         });
       }
 
-      const ext = uploadFile.type === "image/webp" ? "webp" : uploadFile.type === "image/png" ? "png" : "jpg";
+      const ext =
+        uploadFile.type === "image/webp" ? "webp" : uploadFile.type === "image/png" ? "png" : "jpg";
       const path = `${wsp}/${userId}/${kind}-${Date.now()}.${ext}`;
 
       recordUploadStage("upload-start", {
