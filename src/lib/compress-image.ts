@@ -6,18 +6,29 @@ const MAX_EDGE = 1024;
 const TARGET_BYTES = 150 * 1024;
 const HARD_CAP_BYTES = 400 * 1024;
 
-async function loadImage(file: File): Promise<HTMLImageElement> {
-  const url = URL.createObjectURL(file);
+async function loadImage(url: string): Promise<HTMLImageElement> {
+  const img = new Image();
+  img.decoding = "async";
+  img.src = url;
+
+  const loadViaEvents = () =>
+    new Promise<void>((resolve, reject) => {
+      if (img.complete && img.naturalWidth > 0) {
+        resolve();
+        return;
+      }
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to load image"));
+    });
+
   try {
-    const img = new Image();
-    img.decoding = "async";
-    img.src = url;
     await img.decode();
-    return img;
-  } finally {
-    // We free the URL after decode succeeds (img bitmap is independent in modern browsers).
-    URL.revokeObjectURL(url);
+  } catch {
+    // Mobile Safari can reject decode() even when the image is loadable.
+    await loadViaEvents();
   }
+
+  return img;
 }
 
 function drawScaled(img: HTMLImageElement): HTMLCanvasElement {
@@ -43,8 +54,16 @@ export async function compressImage(file: File): Promise<File> {
   if (file.size <= TARGET_BYTES && file.type.startsWith("image/")) {
     return file;
   }
-  const img = await loadImage(file);
-  const canvas = drawScaled(img);
+  const url = URL.createObjectURL(file);
+  let canvas: HTMLCanvasElement;
+  try {
+    const img = await loadImage(url);
+    canvas = drawScaled(img);
+  } finally {
+    // Revoke only after drawImage has copied the pixels. Revoking immediately
+    // after decode is unreliable on mobile browsers.
+    URL.revokeObjectURL(url);
+  }
 
   const qualities = [0.78, 0.65, 0.5];
   // Try webp first, then jpeg fallback
