@@ -118,6 +118,30 @@ export const createTlAccount = createServerFn({ method: "POST" })
       user_id: uid, role: "tl" as never,
     }, { onConflict: "user_id,role" });
 
+    // Ensure a wd_tls row exists and is linked to this user, otherwise
+    // the TL home page shows "Not linked to a TL profile".
+    const { data: existingTl } = await supabaseAdmin
+      .from("wd_tls")
+      .select("id, user_id")
+      .eq("wd_code", data.wd_code)
+      .eq("tl_name", data.tl_name)
+      .maybeSingle();
+    if (existingTl) {
+      const row = existingTl as { id: string; user_id: string | null };
+      if (!row.user_id) {
+        await supabaseAdmin.from("wd_tls")
+          .update({ user_id: uid, updated_at: new Date().toISOString() })
+          .eq("id", row.id);
+      } else if (row.user_id !== uid) {
+        throw new Error("A TL with this name already exists under this WD and is linked to another account");
+      }
+    } else {
+      const { error: insErr } = await supabaseAdmin.from("wd_tls").insert({
+        user_id: uid, wd_code: data.wd_code, tl_name: data.tl_name,
+      });
+      if (insErr) throw new Error(`Failed to link TL profile: ${insErr.message}`);
+    }
+
     return { user_id: uid };
   });
 

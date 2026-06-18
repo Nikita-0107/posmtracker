@@ -1,31 +1,40 @@
-## Goal
-Remove the manual "Create Account" UI from the Super Admin → User Management page (`/admin/users`). Account creation will continue to happen exclusively via Hierarchy Import + Seed Accounts. No other behavior changes.
+## Problem
 
-## Scope
-Single file: `src/routes/admin.users.tsx`.
+When a WD Admin (AE) creates a TL account from the user management screen, the new TL signs in and sees **"Not linked to a TL profile"** — even though the TL appears in TL Master (e.g. `VEC94400`).
 
-## Changes
+## Root cause
 
-1. **Remove the render** at line 195:
-   - Delete `{scope.is_super && <CreateAccountPanel reload={loadUsers} />}`
+The TL home page (`src/routes/tl.tsx`, line 116) identifies a TL by looking up a row in `wd_tls` whose `user_id` matches the signed-in user. The "Not linked" banner (line 325) renders when no such row exists.
 
-2. **Delete the `CreateAccountPanel` component** (starting at line 579) in its entirety, including its AE/TL toggle, AE ID field, AE Name field, WD selector (TL mode), password field, Create button, and any helper text inside it.
+- The **bulk seeder** in `src/lib/admin.functions.ts` (lines 223–247) correctly finds or inserts a `wd_tls` row and stamps `user_id` after creating the auth user.
+- The **single-TL creation path** `createTlAccount` (lines 70–122), which is what the AE/WD-Admin uses, only writes to `hierarchy_tl`, `profiles`, and `user_roles`. It never touches `wd_tls`, so the new auth user has no link to a Team Leader record.
 
-3. **Clean up now-unused imports** so the strict build stays green:
-   - Remove `UserPlus` from the `lucide-react` import (line 3) — only used inside the deleted panel.
-   - Remove `createAeAccount, createTlAccount` from `@/lib/admin.functions` (line 9); keep `resetUserPassword`.
-   - Keep `useServerFn` from `@tanstack/react-start` (line 10) — still used by the Reset Password modal.
+That is why TL Master shows the TL (it reads `hierarchy_tl`) but the TL's own home is unlinked.
 
-## Explicitly NOT changed
-- Hierarchy import (`admin.hierarchy.tsx`, `importHierarchy`) — untouched.
-- Seed Accounts flow (`seedAccountsFromHierarchy`) — untouched.
-- `createAeAccount` / `createTlAccount` server functions in `src/lib/admin.functions.ts` remain in place; `createTlAccount` is still used by `/wd-admin/users`. Only the imports into `admin.users.tsx` are removed.
-- Password reset (`ResetPasswordModal`, `resetUserPassword`) — untouched.
-- User listing, sections (Pending / Needs Update / Super Admins / Admins / Users), edit panel, role assignment, and all RPCs — untouched.
-- No DB migration, no changes to existing users or data.
+## Fix
 
-## Verification
-- Build passes (no unused imports, no references to removed symbols).
-- `/admin/users` renders header, scope chip, helper text, and the user list with no Create Account card above it.
-- `/wd-admin/users` still works (TL creation unaffected).
-- Password reset button on each Super-Admin-visible row still opens the modal.
+In `createTlAccount`, after the `user_roles` upsert, apply the same `wd_tls` link logic the bulk seeder uses:
+
+1. Look up an existing `wd_tls` row by `(wd_code, tl_name)`.
+2. If found and `user_id` is null → update it with the new `uid`.
+3. If found and `user_id` already points to a different user → leave it (or surface a clear error so admin knows the TL name is already taken under that WD).
+4. If not found → insert `{ user_id: uid, wd_code, tl_name }`.
+
+No schema change, no migration. Scope limited to `src/lib/admin.functions.ts`.
+
+## Backfill for VEC94400
+
+After the fix is deployed, run a one-time update so the already-created TL (`VEC94400` / "Shyam" under `VI3431`) gets linked:
+
+```sql
+UPDATE public.wd_tls
+SET user_id = (SELECT id FROM public.profiles WHERE tl_id = 'VEC94400')
+WHERE wd_code = 'VI3431' AND tl_name ILIKE 'Shyam' AND user_id IS NULL;
+```
+
+(or insert a fresh `wd_tls` row if none exists for that WD+name).
+
+## Files
+
+- `src/lib/admin.functions.ts` — extend `createTlAccount` handler with the wd_tls link block.
+- One-off data update for the existing `VEC94400` account.
