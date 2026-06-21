@@ -308,6 +308,23 @@ function UserRow({
   const isPending = !isSuperRow && !primary;
   const isNeedsUpdate = !isSuperRow && needsUpdate(row, primary, false);
   const [showReset, setShowReset] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deletePending = useServerFn(deletePendingUser);
+
+  const handleDeletePending = async () => {
+    const label = row.display_name || row.mobile;
+    if (!window.confirm(`Delete pending account for ${label}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deletePending({ data: { target_user_id: row.id } });
+      toast.success("Account deleted");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete account");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const canEdit =
     scope.is_super ||
