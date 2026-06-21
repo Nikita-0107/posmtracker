@@ -385,6 +385,12 @@ function UserRow({
               <Pencil size={12} /> Change
             </button>
           )}
+          {scope.is_super && isPending && (
+            <button onClick={handleDeletePending} disabled={deleting}
+              className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] font-bold text-destructive hover:bg-destructive/20 disabled:opacity-50">
+              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete
+            </button>
+          )}
         </div>
       </div>
 
