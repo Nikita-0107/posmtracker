@@ -1,12 +1,12 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil, KeyRound, X } from "lucide-react";
+import { ShieldCheck, Users, AlertTriangle, Loader2, Star, Pencil, KeyRound, X, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { resetUserPassword } from "@/lib/admin.functions";
+import { resetUserPassword, deletePendingUser } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -308,6 +308,23 @@ function UserRow({
   const isPending = !isSuperRow && !primary;
   const isNeedsUpdate = !isSuperRow && needsUpdate(row, primary, false);
   const [showReset, setShowReset] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const deletePending = useServerFn(deletePendingUser);
+
+  const handleDeletePending = async () => {
+    const label = row.display_name || row.mobile;
+    if (!window.confirm(`Delete pending account for ${label}? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      await deletePending({ data: { target_user_id: row.id } });
+      toast.success("Account deleted");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete account");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const canEdit =
     scope.is_super ||
@@ -366,6 +383,12 @@ function UserRow({
             <button onClick={onEdit}
               className="inline-flex items-center gap-1 rounded-md border bg-background px-2 py-1 text-[11px] font-bold text-foreground hover:bg-muted">
               <Pencil size={12} /> Change
+            </button>
+          )}
+          {scope.is_super && isPending && (
+            <button onClick={handleDeletePending} disabled={deleting}
+              className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] font-bold text-destructive hover:bg-destructive/20 disabled:opacity-50">
+              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete
             </button>
           )}
         </div>
