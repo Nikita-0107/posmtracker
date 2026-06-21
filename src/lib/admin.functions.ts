@@ -320,3 +320,35 @@ export const resetUserPassword = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// --- Super Admin: delete a pending-setup user (no roles assigned yet) ---
+const deletePendingSchema = z.object({
+  target_user_id: z.string().uuid(),
+});
+
+export const deletePendingUser = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => deletePendingSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertCallerRole(context.supabase as never, context.userId, "admin");
+    if (data.target_user_id === context.userId) {
+      throw new Error("You cannot delete your own account.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Safety: only allow deletion when the target has no roles assigned.
+    const { data: roles, error: rolesErr } = await supabaseAdmin
+      .from("user_roles").select("role").eq("user_id", data.target_user_id);
+    if (rolesErr) throw new Error(rolesErr.message);
+    if ((roles ?? []).length > 0) {
+      throw new Error("This user already has a role assigned. Remove their role before deleting.");
+    }
+
+    // Clean up profile + any wd_tls link, then delete the auth user.
+    await supabaseAdmin.from("wd_tls").update({ user_id: null }).eq("user_id", data.target_user_id);
+    await supabaseAdmin.from("profiles").delete().eq("id", data.target_user_id);
+    const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(data.target_user_id);
+    if (delErr) throw new Error(delErr.message);
+
+    return { ok: true };
+  });
