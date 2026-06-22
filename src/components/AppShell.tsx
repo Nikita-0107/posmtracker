@@ -59,11 +59,13 @@ const routeRoleMap: { prefix: string; roles: AppRole[] }[] = [
   { prefix: "/ae", roles: ["wd_admin", "admin"] },
   { prefix: "/tl", roles: ["tl", "admin"] },
   { prefix: "/receive", roles: ["wsp", "wsp_admin", "admin"] },
+  { prefix: "/receipt-plans", roles: ["wsp", "wsp_admin", "admin"] },
   { prefix: "/wsp-issues", roles: ["wsp", "wsp_admin", "admin"] },
   { prefix: "/losses", roles: ["wsp", "wsp_admin", "admin"] },
   { prefix: "/stock", roles: ["wsp", "wsp_admin", "admin"] },
   { prefix: "/movements", roles: ["wsp", "wsp_admin", "admin"] },
 ];
+
 
 const PUBLIC_PATHS = ["/login", "/admin"];
 

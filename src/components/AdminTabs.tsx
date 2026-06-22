@@ -7,6 +7,7 @@ import {
   Database,
   Package,
   Image as ImageIcon,
+  Inbox,
 } from "lucide-react";
 import { useRoles } from "@/hooks/use-roles";
 
@@ -28,7 +29,14 @@ const ALL_TABS = [
     icon: FileSpreadsheet,
     superOnly: false,
   },
+  {
+    to: "/admin/bulk-receipt" as const,
+    label: "Bulk Receipt",
+    icon: Inbox,
+    superOnly: false,
+  },
 ];
+
 
 export function AdminTabs() {
   const { pathname } = useLocation();
