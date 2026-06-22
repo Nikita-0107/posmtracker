@@ -20,6 +20,7 @@ import { Route as UnsubscribeRouteImport } from './routes/unsubscribe'
 import { Route as TlRouteImport } from './routes/tl'
 import { Route as StockRouteImport } from './routes/stock'
 import { Route as ReceiveRouteImport } from './routes/receive'
+import { Route as ReceiptPlansRouteImport } from './routes/receipt-plans'
 import { Route as PosmGuideRouteImport } from './routes/posm-guide'
 import { Route as MyWdsRouteImport } from './routes/my-wds'
 import { Route as MovementsRouteImport } from './routes/movements'
@@ -37,6 +38,8 @@ import { Route as AdminMaterialImagesRouteImport } from './routes/admin.material
 import { Route as AdminMasterRouteImport } from './routes/admin.master'
 import { Route as AdminHierarchyRouteImport } from './routes/admin.hierarchy'
 import { Route as AdminConcernsRouteImport } from './routes/admin.concerns'
+import { Route as AdminBulkReceiptTrackerRouteImport } from './routes/admin.bulk-receipt-tracker'
+import { Route as AdminBulkReceiptRouteImport } from './routes/admin.bulk-receipt'
 import { Route as AdminBulkDispatchTrackerRouteImport } from './routes/admin.bulk-dispatch-tracker'
 import { Route as AdminBulkDispatchRouteImport } from './routes/admin.bulk-dispatch'
 import { Route as LovableEmailSuppressionRouteImport } from './routes/lovable/email/suppression'
@@ -97,6 +100,11 @@ const StockRoute = StockRouteImport.update({
 const ReceiveRoute = ReceiveRouteImport.update({
   id: '/receive',
   path: '/receive',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceiptPlansRoute = ReceiptPlansRouteImport.update({
+  id: '/receipt-plans',
+  path: '/receipt-plans',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PosmGuideRoute = PosmGuideRouteImport.update({
@@ -184,6 +192,16 @@ const AdminConcernsRoute = AdminConcernsRouteImport.update({
   path: '/admin/concerns',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminBulkReceiptTrackerRoute = AdminBulkReceiptTrackerRouteImport.update({
+  id: '/admin/bulk-receipt-tracker',
+  path: '/admin/bulk-receipt-tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminBulkReceiptRoute = AdminBulkReceiptRouteImport.update({
+  id: '/admin/bulk-receipt',
+  path: '/admin/bulk-receipt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminBulkDispatchTrackerRoute =
   AdminBulkDispatchTrackerRouteImport.update({
     id: '/admin/bulk-dispatch-tracker',
@@ -229,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
+  '/receipt-plans': typeof ReceiptPlansRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -242,6 +261,8 @@ export interface FileRoutesByFullPath {
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/bulk-dispatch-tracker': typeof AdminBulkDispatchTrackerRoute
+  '/admin/bulk-receipt': typeof AdminBulkReceiptRoute
+  '/admin/bulk-receipt-tracker': typeof AdminBulkReceiptTrackerRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
@@ -265,6 +286,7 @@ export interface FileRoutesByTo {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
+  '/receipt-plans': typeof ReceiptPlansRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -278,6 +300,8 @@ export interface FileRoutesByTo {
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/bulk-dispatch-tracker': typeof AdminBulkDispatchTrackerRoute
+  '/admin/bulk-receipt': typeof AdminBulkReceiptRoute
+  '/admin/bulk-receipt-tracker': typeof AdminBulkReceiptTrackerRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
@@ -302,6 +326,7 @@ export interface FileRoutesById {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
+  '/receipt-plans': typeof ReceiptPlansRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -315,6 +340,8 @@ export interface FileRoutesById {
   '/wsp-issues': typeof WspIssuesRoute
   '/admin/bulk-dispatch': typeof AdminBulkDispatchRoute
   '/admin/bulk-dispatch-tracker': typeof AdminBulkDispatchTrackerRoute
+  '/admin/bulk-receipt': typeof AdminBulkReceiptRoute
+  '/admin/bulk-receipt-tracker': typeof AdminBulkReceiptTrackerRoute
   '/admin/concerns': typeof AdminConcernsRoute
   '/admin/hierarchy': typeof AdminHierarchyRoute
   '/admin/master': typeof AdminMasterRoute
@@ -340,6 +367,7 @@ export interface FileRouteTypes {
     | '/movements'
     | '/my-wds'
     | '/posm-guide'
+    | '/receipt-plans'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -353,6 +381,8 @@ export interface FileRouteTypes {
     | '/wsp-issues'
     | '/admin/bulk-dispatch'
     | '/admin/bulk-dispatch-tracker'
+    | '/admin/bulk-receipt'
+    | '/admin/bulk-receipt-tracker'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
@@ -376,6 +406,7 @@ export interface FileRouteTypes {
     | '/movements'
     | '/my-wds'
     | '/posm-guide'
+    | '/receipt-plans'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -389,6 +420,8 @@ export interface FileRouteTypes {
     | '/wsp-issues'
     | '/admin/bulk-dispatch'
     | '/admin/bulk-dispatch-tracker'
+    | '/admin/bulk-receipt'
+    | '/admin/bulk-receipt-tracker'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
@@ -412,6 +445,7 @@ export interface FileRouteTypes {
     | '/movements'
     | '/my-wds'
     | '/posm-guide'
+    | '/receipt-plans'
     | '/receive'
     | '/stock'
     | '/tl'
@@ -425,6 +459,8 @@ export interface FileRouteTypes {
     | '/wsp-issues'
     | '/admin/bulk-dispatch'
     | '/admin/bulk-dispatch-tracker'
+    | '/admin/bulk-receipt'
+    | '/admin/bulk-receipt-tracker'
     | '/admin/concerns'
     | '/admin/hierarchy'
     | '/admin/master'
@@ -449,6 +485,7 @@ export interface RootRouteChildren {
   MovementsRoute: typeof MovementsRoute
   MyWdsRoute: typeof MyWdsRoute
   PosmGuideRoute: typeof PosmGuideRoute
+  ReceiptPlansRoute: typeof ReceiptPlansRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
@@ -462,6 +499,8 @@ export interface RootRouteChildren {
   WspIssuesRoute: typeof WspIssuesRoute
   AdminBulkDispatchRoute: typeof AdminBulkDispatchRoute
   AdminBulkDispatchTrackerRoute: typeof AdminBulkDispatchTrackerRoute
+  AdminBulkReceiptRoute: typeof AdminBulkReceiptRoute
+  AdminBulkReceiptTrackerRoute: typeof AdminBulkReceiptTrackerRoute
   AdminConcernsRoute: typeof AdminConcernsRoute
   AdminHierarchyRoute: typeof AdminHierarchyRoute
   AdminMasterRoute: typeof AdminMasterRoute
@@ -553,6 +592,13 @@ declare module '@tanstack/react-router' {
       path: '/receive'
       fullPath: '/receive'
       preLoaderRoute: typeof ReceiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/receipt-plans': {
+      id: '/receipt-plans'
+      path: '/receipt-plans'
+      fullPath: '/receipt-plans'
+      preLoaderRoute: typeof ReceiptPlansRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/posm-guide': {
@@ -674,6 +720,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConcernsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/bulk-receipt-tracker': {
+      id: '/admin/bulk-receipt-tracker'
+      path: '/admin/bulk-receipt-tracker'
+      fullPath: '/admin/bulk-receipt-tracker'
+      preLoaderRoute: typeof AdminBulkReceiptTrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/bulk-receipt': {
+      id: '/admin/bulk-receipt'
+      path: '/admin/bulk-receipt'
+      fullPath: '/admin/bulk-receipt'
+      preLoaderRoute: typeof AdminBulkReceiptRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/bulk-dispatch-tracker': {
       id: '/admin/bulk-dispatch-tracker'
       path: '/admin/bulk-dispatch-tracker'
@@ -729,6 +789,7 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsRoute: MovementsRoute,
   MyWdsRoute: MyWdsRoute,
   PosmGuideRoute: PosmGuideRoute,
+  ReceiptPlansRoute: ReceiptPlansRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
@@ -742,6 +803,8 @@ const rootRouteChildren: RootRouteChildren = {
   WspIssuesRoute: WspIssuesRoute,
   AdminBulkDispatchRoute: AdminBulkDispatchRoute,
   AdminBulkDispatchTrackerRoute: AdminBulkDispatchTrackerRoute,
+  AdminBulkReceiptRoute: AdminBulkReceiptRoute,
+  AdminBulkReceiptTrackerRoute: AdminBulkReceiptTrackerRoute,
   AdminConcernsRoute: AdminConcernsRoute,
   AdminHierarchyRoute: AdminHierarchyRoute,
   AdminMasterRoute: AdminMasterRoute,
