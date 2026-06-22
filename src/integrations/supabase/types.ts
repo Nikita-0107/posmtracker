@@ -551,6 +551,7 @@ export type Database = {
           material_image_path: string | null
           plan_id: string
           planned_qty: number
+          po_number: string | null
           proof_image_path: string | null
           received_at: string | null
           received_by: string | null
@@ -567,6 +568,7 @@ export type Database = {
           material_image_path?: string | null
           plan_id: string
           planned_qty: number
+          po_number?: string | null
           proof_image_path?: string | null
           received_at?: string | null
           received_by?: string | null
@@ -583,6 +585,7 @@ export type Database = {
           material_image_path?: string | null
           plan_id?: string
           planned_qty?: number
+          po_number?: string | null
           proof_image_path?: string | null
           received_at?: string | null
           received_by?: string | null

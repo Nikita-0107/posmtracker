@@ -1,0 +1,1 @@
+ALTER TABLE public.receipt_plan_items ADD COLUMN po_number TEXT;
