@@ -8,6 +8,7 @@ export type ReceiptPlanRow = {
   material_code: string;
   material_description: string;
   qty: number;
+  po_number?: string | null;
 };
 
 export type ReceiptPlanStatus = "pending" | "in_progress" | "completed";
@@ -35,6 +36,7 @@ export type ReceiptPlanItem = {
   material_image_path: string | null;
   received_at: string | null;
   material_has_image: boolean;
+  po_number: string | null;
 };
 
 export type ReceiptPlanDetail = {
@@ -119,6 +121,7 @@ export const uploadReceiptPlan = createServerFn({ method: "POST" })
       material_description: r.material_description,
       is_new_material: !existingSet.has(r.material_code),
       planned_qty: r.qty,
+      po_number: r.po_number ?? null,
     }));
     const { error: itemErr } = await supabaseAdmin
       .from("receipt_plan_items")
@@ -165,7 +168,7 @@ export const getReceiptPlan = createServerFn({ method: "GET" })
     const { data: itemsRaw, error: iErr } = await context.supabase
       .from("receipt_plan_items")
       .select(
-        "id, material_code, material_description, is_new_material, planned_qty, received_qty, status, proof_image_path, material_image_path, received_at",
+        "id, material_code, material_description, is_new_material, planned_qty, received_qty, status, proof_image_path, material_image_path, received_at, po_number",
       )
       .eq("plan_id", data.planId)
       .order("created_at", { ascending: true });
