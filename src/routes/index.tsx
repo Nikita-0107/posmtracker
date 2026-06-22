@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send, MessageSquareWarning } from "lucide-react";
+import { Inbox, Truck, Boxes, Building2, History, AlertTriangle, XOctagon, Send, MessageSquareWarning, ClipboardList } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { SuperAdminWspSwitcher } from "@/components/SuperAdminWspSwitcher";
 import { useAuth } from "@/hooks/use-auth";
@@ -20,6 +20,7 @@ export const Route = createFileRoute("/")({
 
 type OpTo =
   | "/receive"
+  | "/receipt-plans"
   | "/wd-issue"
   | "/wsp-in-transit"
   | "/stock"
@@ -38,8 +39,10 @@ type Op = {
 
 const primaryOps: Op[] = [
   { to: "/receive", label: "Receive", desc: "Add incoming stock", icon: Inbox, iconColor: "bg-accent/15 text-accent-foreground" },
+  { to: "/receipt-plans", label: "Receipt Plans", desc: "Planned receipts", icon: ClipboardList, iconColor: "bg-primary/10 text-primary" },
   { to: "/wd-issue", label: "Dispatch", desc: "Send to WD", icon: Truck, iconColor: "bg-primary/10 text-primary" },
 ];
+
 
 const stockOps: Op[] = [
   { to: "/stock", label: "SOH", desc: "Current levels", icon: Boxes, iconColor: "bg-success/10 text-success" },

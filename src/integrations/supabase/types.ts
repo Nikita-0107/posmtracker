@@ -541,6 +541,104 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_plan_items: {
+        Row: {
+          created_at: string
+          id: string
+          is_new_material: boolean
+          material_code: string
+          material_description: string | null
+          material_image_path: string | null
+          plan_id: string
+          planned_qty: number
+          proof_image_path: string | null
+          received_at: string | null
+          received_by: string | null
+          received_qty: number | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_new_material?: boolean
+          material_code: string
+          material_description?: string | null
+          material_image_path?: string | null
+          plan_id: string
+          planned_qty: number
+          proof_image_path?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_qty?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_new_material?: boolean
+          material_code?: string
+          material_description?: string | null
+          material_image_path?: string | null
+          plan_id?: string
+          planned_qty?: number
+          proof_image_path?: string | null
+          received_at?: string | null
+          received_by?: string | null
+          received_qty?: number | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_plan_items_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "receipt_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      receipt_plans: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          plan_code: string
+          received_items: number
+          status: string
+          total_items: number
+          updated_at: string
+          uploaded_by: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          plan_code: string
+          received_items?: number
+          status?: string
+          total_items?: number
+          updated_at?: string
+          uploaded_by: string
+          wsp: Database["public"]["Enums"]["wsp_code"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          plan_code?: string
+          received_items?: number
+          status?: string
+          total_items?: number
+          updated_at?: string
+          uploaded_by?: string
+          wsp?: Database["public"]["Enums"]["wsp_code"]
+        }
+        Relationships: []
+      }
       stock: {
         Row: {
           id: string
