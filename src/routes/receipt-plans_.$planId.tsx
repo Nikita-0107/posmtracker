@@ -21,7 +21,7 @@ import {
   type ReceiptPlanItem,
 } from "@/lib/receipt-plan.functions";
 
-export const Route = createFileRoute("/receipt-plans/$planId")({
+export const Route = createFileRoute("/receipt-plans_/$planId")({
   component: ReceiptPlanDetailPage,
   head: () => ({ meta: [{ title: "Receipt Plan — POSM Tracker" }] }),
 });
