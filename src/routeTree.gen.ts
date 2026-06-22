@@ -31,7 +31,7 @@ import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
-import { Route as ReceiptPlansPlanIdRouteImport } from './routes/receipt-plans.$planId'
+import { Route as ReceiptPlansPlanIdRouteImport } from './routes/receipt-plans_.$planId'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminWdStockRouteImport } from './routes/admin.wd-stock'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -159,9 +159,9 @@ const WdAdminUsersRoute = WdAdminUsersRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ReceiptPlansPlanIdRoute = ReceiptPlansPlanIdRouteImport.update({
-  id: '/$planId',
-  path: '/$planId',
-  getParentRoute: () => ReceiptPlansRoute,
+  id: '/receipt-plans_/$planId',
+  path: '/receipt-plans/$planId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
@@ -253,7 +253,7 @@ export interface FileRoutesByFullPath {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
-  '/receipt-plans': typeof ReceiptPlansRouteWithChildren
+  '/receipt-plans': typeof ReceiptPlansRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -293,7 +293,7 @@ export interface FileRoutesByTo {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
-  '/receipt-plans': typeof ReceiptPlansRouteWithChildren
+  '/receipt-plans': typeof ReceiptPlansRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -334,7 +334,7 @@ export interface FileRoutesById {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
-  '/receipt-plans': typeof ReceiptPlansRouteWithChildren
+  '/receipt-plans': typeof ReceiptPlansRoute
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -357,7 +357,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
-  '/receipt-plans/$planId': typeof ReceiptPlansPlanIdRoute
+  '/receipt-plans_/$planId': typeof ReceiptPlansPlanIdRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -479,7 +479,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
-    | '/receipt-plans/$planId'
+    | '/receipt-plans_/$planId'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
@@ -497,7 +497,7 @@ export interface RootRouteChildren {
   MovementsRoute: typeof MovementsRoute
   MyWdsRoute: typeof MyWdsRoute
   PosmGuideRoute: typeof PosmGuideRoute
-  ReceiptPlansRoute: typeof ReceiptPlansRouteWithChildren
+  ReceiptPlansRoute: typeof ReceiptPlansRoute
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
@@ -520,6 +520,7 @@ export interface RootRouteChildren {
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWdStockRoute: typeof AdminWdStockRoute
   EmailUnsubscribeRoute: typeof EmailUnsubscribeRoute
+  ReceiptPlansPlanIdRoute: typeof ReceiptPlansPlanIdRoute
   WdAdminUsersRoute: typeof WdAdminUsersRoute
   LovableEmailSuppressionRoute: typeof LovableEmailSuppressionRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
@@ -683,12 +684,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WdAdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/receipt-plans/$planId': {
-      id: '/receipt-plans/$planId'
-      path: '/$planId'
+    '/receipt-plans_/$planId': {
+      id: '/receipt-plans_/$planId'
+      path: '/receipt-plans/$planId'
       fullPath: '/receipt-plans/$planId'
       preLoaderRoute: typeof ReceiptPlansPlanIdRouteImport
-      parentRoute: typeof ReceiptPlansRoute
+      parentRoute: typeof rootRouteImport
     }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
@@ -798,18 +799,6 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface ReceiptPlansRouteChildren {
-  ReceiptPlansPlanIdRoute: typeof ReceiptPlansPlanIdRoute
-}
-
-const ReceiptPlansRouteChildren: ReceiptPlansRouteChildren = {
-  ReceiptPlansPlanIdRoute: ReceiptPlansPlanIdRoute,
-}
-
-const ReceiptPlansRouteWithChildren = ReceiptPlansRoute._addFileChildren(
-  ReceiptPlansRouteChildren,
-)
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
@@ -820,7 +809,7 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsRoute: MovementsRoute,
   MyWdsRoute: MyWdsRoute,
   PosmGuideRoute: PosmGuideRoute,
-  ReceiptPlansRoute: ReceiptPlansRouteWithChildren,
+  ReceiptPlansRoute: ReceiptPlansRoute,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
@@ -843,6 +832,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminUsersRoute: AdminUsersRoute,
   AdminWdStockRoute: AdminWdStockRoute,
   EmailUnsubscribeRoute: EmailUnsubscribeRoute,
+  ReceiptPlansPlanIdRoute: ReceiptPlansPlanIdRoute,
   WdAdminUsersRoute: WdAdminUsersRoute,
   LovableEmailSuppressionRoute: LovableEmailSuppressionRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
