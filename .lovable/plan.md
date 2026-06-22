@@ -1,40 +1,58 @@
-## Problem
+## Bulk Material Receipt Planning
 
-When a WD Admin (AE) creates a TL account from the user management screen, the new TL signs in and sees **"Not linked to a TL profile"** — even though the TL appears in TL Master (e.g. `VEC94400`).
+Adds a planned-receipt workflow that runs alongside the existing manual Receive page. Nothing in the current Receive flow changes.
 
-## Root cause
+### Database (new migration)
 
-The TL home page (`src/routes/tl.tsx`, line 116) identifies a TL by looking up a row in `wd_tls` whose `user_id` matches the signed-in user. The "Not linked" banner (line 325) renders when no such row exists.
+New tables in `public`:
 
-- The **bulk seeder** in `src/lib/admin.functions.ts` (lines 223–247) correctly finds or inserts a `wd_tls` row and stamps `user_id` after creating the auth user.
-- The **single-TL creation path** `createTlAccount` (lines 70–122), which is what the AE/WD-Admin uses, only writes to `hierarchy_tl`, `profiles`, and `user_roles`. It never touches `wd_tls`, so the new auth user has no link to a Team Leader record.
+- `receipt_plans` — `id`, `uploaded_by`, `wsp_user_id` (target WSP), `wsp_label`, `status` ('pending' | 'in_progress' | 'completed'), `total_materials`, `received_materials`, `notes`, timestamps.
+- `receipt_plan_items` — `id`, `plan_id` (FK), `material_id` (nullable until material is created/matched on upload — we resolve at upload time), `material_code_raw`, `material_description_raw`, `planned_qty`, `received_qty`, `status` ('pending' | 'received'), `proof_image_url`, `material_image_url`, `received_at`, `received_by`.
 
-That is why TL Master shows the TL (it reads `hierarchy_tl`) but the TL's own home is unlinked.
+Both get GRANTs (authenticated + service_role), RLS enabled, `updated_at` triggers.
 
-## Fix
+Policies:
+- Admin/super admin: full access.
+- WSP: SELECT/UPDATE their own plan + items (`wsp_user_id = auth.uid()`).
 
-In `createTlAccount`, after the `user_roles` upsert, apply the same `wd_tls` link logic the bulk seeder uses:
+Storage: reuse existing proof/material image buckets used by `receive.tsx`.
 
-1. Look up an existing `wd_tls` row by `(wd_code, tl_name)`.
-2. If found and `user_id` is null → update it with the new `uid`.
-3. If found and `user_id` already points to a different user → leave it (or surface a clear error so admin knows the TL name is already taken under that WD).
-4. If not found → insert `{ user_id: uid, wd_code, tl_name }`.
+### Server functions (`src/lib/receipt-plan.functions.ts`)
 
-No schema change, no migration. Scope limited to `src/lib/admin.functions.ts`.
+All `createServerFn` + `requireSupabaseAuth`:
 
-## Backfill for VEC94400
+- `uploadReceiptPlan({ wspUserId, rows: [{code, description, qty}] })` — admin only. For each row: look up material by code; if missing, insert into `materials` (code + description). Create plan + items. Returns `{ planId }`.
+- `listReceiptPlans({ scope })` — admin sees all; WSP sees own pending/in-progress.
+- `getReceiptPlan(planId)` — plan + items + material info (incl. existing material image).
+- `submitReceiptPlanItem({ itemId, receivedQty, proofImageUrl, materialImageUrl? })` — WSP confirms one line. Validates proof present. If material has no image and `materialImageUrl` provided, set it on `materials`. Insert a `stock_movements` receipt row (matching what manual Receive does) and bump `wd_stock`/`stock`. Mark item received, recompute plan counters, flip status to `in_progress` / `completed`.
+- `getReceiptPlanTracker()` — admin tracker rows.
+- `deleteReceiptPlan(planId)` — super admin, only if no items received.
 
-After the fix is deployed, run a one-time update so the already-created TL (`VEC94400` / "Shyam" under `VI3431`) gets linked:
+Reuse existing helpers from `receive.tsx` for stock insertion logic — extract the shared receipt write into a small helper if needed.
 
-```sql
-UPDATE public.wd_tls
-SET user_id = (SELECT id FROM public.profiles WHERE tl_id = 'VEC94400')
-WHERE wd_code = 'VI3431' AND tl_name ILIKE 'Shyam' AND user_id IS NULL;
-```
+### Parsing
 
-(or insert a fresh `wd_tls` row if none exists for that WD+name).
+New `src/lib/parse-receipt-plan-xlsx.ts` modeled on `parse-dispatch-plan-xlsx.ts`. Columns: Material Code, Material Description, Quantity. Validates non-empty code, positive integer qty, dedupes rows by code (sum qty).
 
-## Files
+### Routes
 
-- `src/lib/admin.functions.ts` — extend `createTlAccount` handler with the wd_tls link block.
-- One-off data update for the existing `VEC94400` account.
+New files (manual Receive route untouched):
+
+- `src/routes/admin.bulk-receipt.tsx` — upload UI: pick target WSP, drop xlsx, preview parsed rows (highlight which codes are new vs existing), submit. Mirrors `admin.bulk-dispatch.tsx`.
+- `src/routes/admin.bulk-receipt-tracker.tsx` — table of plans with columns from spec (Plan ID, Upload Date, WSP, Total, Received, Pending, Status) + drill-in.
+- `src/routes/receipt-plans.tsx` — WSP-facing list of their pending plans.
+- `src/routes/receipt-plans.$planId.tsx` — per-plan confirmation screen: for each item show planned qty, received-qty input, proof upload (required), material image upload (only if material has no image yet), submit-row button. Plan auto-completes when all items received.
+
+### Nav
+
+- `AdminTabs.tsx`: add "Bulk Receipt" and "Receipt Tracker" entries (super admin / admin).
+- `AppShell.tsx`: add "Pending Receipts" entry for WSP role pointing to `/receipt-plans`.
+
+### Constraints
+
+- Manual `receive.tsx` is not edited.
+- Stock writes go through the same movement type used by manual receive so reports remain consistent.
+- Material auto-create only sets `code` + `description`; image stays null until a WSP uploads one during confirmation.
+- Status transitions: pending → in_progress (first item received) → completed (all received).
+
+Approve and I'll implement.
