@@ -5,6 +5,7 @@ export type ParsedReceiptRow = {
   material_code: string;
   material_description: string;
   qty: number;
+  po_number: string | null;
 };
 export type ParseRowError = { row: number; message: string };
 export type ParseResult = {
@@ -16,7 +17,10 @@ function normalizeHeader(h: string): string {
   return h.toString().trim().toLowerCase().replace(/[\s_-]+/g, "");
 }
 
-const HEADER_MAP: Record<string, "material_code" | "material_description" | "qty"> = {
+const HEADER_MAP: Record<
+  string,
+  "material_code" | "material_description" | "qty" | "po_number"
+> = {
   materialcode: "material_code",
   code: "material_code",
   material: "material_code",
@@ -27,6 +31,10 @@ const HEADER_MAP: Record<string, "material_code" | "material_description" | "qty
   materialname: "material_description",
   qty: "qty",
   quantity: "qty",
+  ponumber: "po_number",
+  po: "po_number",
+  purchaseorder: "po_number",
+  purchaseordernumber: "po_number",
 };
 
 export async function parseReceiptPlanXlsx(file: File): Promise<ParseResult> {
@@ -41,7 +49,9 @@ export async function parseReceiptPlanXlsx(file: File): Promise<ParseResult> {
   if (raw.length === 0) return { rows: [], errors: [{ row: 0, message: "Sheet is empty" }] };
 
   const firstKeys = Object.keys(raw[0]);
-  const colMap: Partial<Record<"material_code" | "material_description" | "qty", string>> = {};
+  const colMap: Partial<
+    Record<"material_code" | "material_description" | "qty" | "po_number", string>
+  > = {};
   for (const k of firstKeys) {
     const mapped = HEADER_MAP[normalizeHeader(k)];
     if (mapped) colMap[mapped] = k;
@@ -66,6 +76,8 @@ export async function parseReceiptPlanXlsx(file: File): Promise<ParseResult> {
     const desc = String(r[colMap.material_description!] ?? "").trim();
     const qtyRaw = r[colMap.qty!];
     const qty = typeof qtyRaw === "number" ? qtyRaw : Number(String(qtyRaw).trim());
+    const poRaw = colMap.po_number ? r[colMap.po_number] : "";
+    const po = String(poRaw ?? "").trim() || null;
 
     if (!code && !desc && !qtyRaw) return;
 
@@ -85,9 +97,10 @@ export async function parseReceiptPlanXlsx(file: File): Promise<ParseResult> {
     const existingIdx = seen.get(code);
     if (existingIdx !== undefined) {
       rows[existingIdx].qty += qty;
+      if (po && !rows[existingIdx].po_number) rows[existingIdx].po_number = po;
     } else {
       seen.set(code, rows.length);
-      rows.push({ row: rowNo, material_code: code, material_description: desc, qty });
+      rows.push({ row: rowNo, material_code: code, material_description: desc, qty, po_number: po });
     }
   });
 

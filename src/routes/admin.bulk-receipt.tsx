@@ -73,6 +73,7 @@ function BulkReceiptPage() {
             material_code: row.material_code,
             material_description: row.material_description,
             qty: row.qty,
+            po_number: row.po_number,
           })),
         },
       });
@@ -205,6 +206,7 @@ function BulkReceiptPage() {
                     <tr>
                       <th className="px-2 py-1 text-left">Code</th>
                       <th className="px-2 py-1 text-left">Description</th>
+                      <th className="px-2 py-1 text-left">PO #</th>
                       <th className="px-2 py-1 text-right">Qty</th>
                     </tr>
                   </thead>
@@ -213,6 +215,7 @@ function BulkReceiptPage() {
                       <tr key={r.material_code} className="border-t">
                         <td className="px-2 py-1 font-mono">{r.material_code}</td>
                         <td className="px-2 py-1">{r.material_description}</td>
+                        <td className="px-2 py-1 font-mono text-muted-foreground">{r.po_number ?? "—"}</td>
                         <td className="px-2 py-1 text-right font-bold">{r.qty}</td>
                       </tr>
                     ))}

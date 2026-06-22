@@ -185,6 +185,12 @@ function ItemRow({
           <div className="min-w-0 flex-1">
             <p className="font-mono text-xs font-bold">{item.material_code}</p>
             <p className="text-[11px] text-muted-foreground">{item.material_description}</p>
+            {item.po_number && (
+              <p className="mt-0.5 text-[11px]">
+                <span className="text-muted-foreground">PO:</span>{" "}
+                <span className="font-mono font-semibold">{item.po_number}</span>
+              </p>
+            )}
             <p className="mt-1 text-[11px]">
               <span className="text-muted-foreground">Planned:</span>{" "}
               <strong>{item.planned_qty}</strong>{" "}
@@ -204,6 +210,12 @@ function ItemRow({
         <div className="min-w-0 flex-1">
           <p className="font-mono text-xs font-bold">{item.material_code}</p>
           <p className="text-[11px] text-muted-foreground">{item.material_description}</p>
+          {item.po_number && (
+            <p className="mt-0.5 text-[11px]">
+              <span className="text-muted-foreground">PO:</span>{" "}
+              <span className="font-mono font-semibold">{item.po_number}</span>
+            </p>
+          )}
           {item.is_new_material && (
             <p className="mt-0.5 inline-block rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-bold text-accent">
               NEW MATERIAL
