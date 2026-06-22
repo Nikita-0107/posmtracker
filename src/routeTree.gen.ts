@@ -31,6 +31,7 @@ import { Route as ConcernsRouteImport } from './routes/concerns'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WdAdminUsersRouteImport } from './routes/wd-admin.users'
+import { Route as ReceiptPlansPlanIdRouteImport } from './routes/receipt-plans.$planId'
 import { Route as EmailUnsubscribeRouteImport } from './routes/email/unsubscribe'
 import { Route as AdminWdStockRouteImport } from './routes/admin.wd-stock'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
@@ -157,6 +158,11 @@ const WdAdminUsersRoute = WdAdminUsersRouteImport.update({
   path: '/wd-admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReceiptPlansPlanIdRoute = ReceiptPlansPlanIdRouteImport.update({
+  id: '/$planId',
+  path: '/$planId',
+  getParentRoute: () => ReceiptPlansRoute,
+} as any)
 const EmailUnsubscribeRoute = EmailUnsubscribeRouteImport.update({
   id: '/email/unsubscribe',
   path: '/email/unsubscribe',
@@ -247,7 +253,7 @@ export interface FileRoutesByFullPath {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
-  '/receipt-plans': typeof ReceiptPlansRoute
+  '/receipt-plans': typeof ReceiptPlansRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -270,6 +276,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/receipt-plans/$planId': typeof ReceiptPlansPlanIdRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -286,7 +293,7 @@ export interface FileRoutesByTo {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
-  '/receipt-plans': typeof ReceiptPlansRoute
+  '/receipt-plans': typeof ReceiptPlansRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -309,6 +316,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/receipt-plans/$planId': typeof ReceiptPlansPlanIdRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -326,7 +334,7 @@ export interface FileRoutesById {
   '/movements': typeof MovementsRoute
   '/my-wds': typeof MyWdsRoute
   '/posm-guide': typeof PosmGuideRoute
-  '/receipt-plans': typeof ReceiptPlansRoute
+  '/receipt-plans': typeof ReceiptPlansRouteWithChildren
   '/receive': typeof ReceiveRoute
   '/stock': typeof StockRoute
   '/tl': typeof TlRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/admin/wd-stock': typeof AdminWdStockRoute
   '/email/unsubscribe': typeof EmailUnsubscribeRoute
+  '/receipt-plans/$planId': typeof ReceiptPlansPlanIdRoute
   '/wd-admin/users': typeof WdAdminUsersRoute
   '/lovable/email/suppression': typeof LovableEmailSuppressionRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
@@ -390,6 +399,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
+    | '/receipt-plans/$planId'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
@@ -429,6 +439,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
+    | '/receipt-plans/$planId'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
@@ -468,6 +479,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/admin/wd-stock'
     | '/email/unsubscribe'
+    | '/receipt-plans/$planId'
     | '/wd-admin/users'
     | '/lovable/email/suppression'
     | '/lovable/email/queue/process'
@@ -485,7 +497,7 @@ export interface RootRouteChildren {
   MovementsRoute: typeof MovementsRoute
   MyWdsRoute: typeof MyWdsRoute
   PosmGuideRoute: typeof PosmGuideRoute
-  ReceiptPlansRoute: typeof ReceiptPlansRoute
+  ReceiptPlansRoute: typeof ReceiptPlansRouteWithChildren
   ReceiveRoute: typeof ReceiveRoute
   StockRoute: typeof StockRoute
   TlRoute: typeof TlRoute
@@ -671,6 +683,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WdAdminUsersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/receipt-plans/$planId': {
+      id: '/receipt-plans/$planId'
+      path: '/$planId'
+      fullPath: '/receipt-plans/$planId'
+      preLoaderRoute: typeof ReceiptPlansPlanIdRouteImport
+      parentRoute: typeof ReceiptPlansRoute
+    }
     '/email/unsubscribe': {
       id: '/email/unsubscribe'
       path: '/email/unsubscribe'
@@ -779,6 +798,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ReceiptPlansRouteChildren {
+  ReceiptPlansPlanIdRoute: typeof ReceiptPlansPlanIdRoute
+}
+
+const ReceiptPlansRouteChildren: ReceiptPlansRouteChildren = {
+  ReceiptPlansPlanIdRoute: ReceiptPlansPlanIdRoute,
+}
+
+const ReceiptPlansRouteWithChildren = ReceiptPlansRoute._addFileChildren(
+  ReceiptPlansRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
@@ -789,7 +820,7 @@ const rootRouteChildren: RootRouteChildren = {
   MovementsRoute: MovementsRoute,
   MyWdsRoute: MyWdsRoute,
   PosmGuideRoute: PosmGuideRoute,
-  ReceiptPlansRoute: ReceiptPlansRoute,
+  ReceiptPlansRoute: ReceiptPlansRouteWithChildren,
   ReceiveRoute: ReceiveRoute,
   StockRoute: StockRoute,
   TlRoute: TlRoute,
