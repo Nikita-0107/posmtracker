@@ -43,7 +43,7 @@ export type ReceiptPlanDetail = {
 };
 
 async function assertAdmin(
-  supabase: ReturnType<typeof requireSupabaseAuth>["_"] extends never ? never : any,
+  supabase: { from: (t: string) => any },
   userId: string,
 ): Promise<void> {
   const { data, error } = await supabase
@@ -54,6 +54,7 @@ async function assertAdmin(
   const roles = (data ?? []).map((r: { role: string }) => r.role);
   if (!roles.includes("admin")) throw new Error("Forbidden");
 }
+
 
 export const getReceiptPlanReferenceData = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -180,10 +181,12 @@ export const getReceiptPlan = createServerFn({ method: "GET" })
       imgMap.set(m.code, m.image_path),
     );
 
-    const items: ReceiptPlanItem[] = (itemsRaw ?? []).map((i: ReceiptPlanItem) => ({
+    const items: ReceiptPlanItem[] = (itemsRaw ?? []).map((i: Omit<ReceiptPlanItem, "material_has_image" | "status"> & { status: string }) => ({
       ...i,
+      status: i.status as "pending" | "received",
       material_has_image: !!imgMap.get(i.material_code),
     }));
+
     return {
       plan: { ...(plan as ReceiptPlanSummary), uploaded_by_name: null },
       items,
