@@ -88,9 +88,9 @@ function BulkReceiptPage() {
 
   function downloadTemplate() {
     const ws = XLSX.utils.aoa_to_sheet([
-      ["Material Code", "Material Description", "Quantity"],
-      ["M/0127401101", "Sample Counter Top", 50],
-      ["M/NEW000001", "Brand New Material Sample", 25],
+      ["Material Code", "Material Description", "Quantity", "PO Number"],
+      ["M/0127401101", "Sample Counter Top", 50, "PO-2026-0001"],
+      ["M/NEW000001", "Brand New Material Sample", 25, "PO-2026-0002"],
     ]);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "ReceiptPlan");
