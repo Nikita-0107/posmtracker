@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "asset_id": "57c16e29-b6b2-4085-b589-c545cc3f8b2f",
+  "asset_id": "50fb484d-3bca-4cc2-b51a-73f7ee5a36c8",
   "project_id": "7085ebdb-b2fc-40f6-a643-faeaec6fb183",
-  "url": "/__l5e/assets-v1/57c16e29-b6b2-4085-b589-c545cc3f8b2f/fabrics.jpg",
-  "r2_key": "a/v1/7085ebdb-b2fc-40f6-a643-faeaec6fb183/57c16e29-b6b2-4085-b589-c545cc3f8b2f/fabrics.jpg",
-  "original_filename": "fabrics.jpg",
-  "size": 207654,
-  "content_type": "image/jpeg",
-  "created_at": "2026-06-03T13:54:24Z"
+  "url": "/__l5e/assets-v1/50fb484d-3bca-4cc2-b51a-73f7ee5a36c8/fabrics.png",
+  "r2_key": "a/v1/7085ebdb-b2fc-40f6-a643-faeaec6fb183/50fb484d-3bca-4cc2-b51a-73f7ee5a36c8/fabrics.png",
+  "original_filename": "fabrics.png",
+  "size": 432784,
+  "content_type": "image/png",
+  "created_at": "2026-06-24T06:10:36Z"
 }
