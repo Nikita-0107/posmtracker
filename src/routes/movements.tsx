@@ -117,13 +117,14 @@ function MovementsPage() {
 
   const refresh = useCallback(async () => {
     setLoading(true);
+    const sinceIso = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     let q = supabase
       .from("stock_movements")
       .select(
         "id, created_at, movement, material_code, qty, distributor, reference_number, proof_image_path, wsp, item_status, received_date, batch_type, dispatch_date, corrected_at",
       )
-      .order("created_at", { ascending: false })
-      .limit(200);
+      .gte("created_at", sinceIso)
+      .order("created_at", { ascending: false });
     if (!isSuperAdmin) q = q.in("movement", ["receive", "dispatch"]);
     if (effectiveWsp) q = q.eq("wsp", effectiveWsp);
     const { data, error } = await q;
@@ -243,7 +244,7 @@ function MovementsPage() {
         <div>
           <h2 className="font-heading text-lg font-bold text-foreground">Movements</h2>
           <p className="text-xs text-muted-foreground">
-            Latest 200 entries · proofs always available
+            Last 30 days · proofs always available
           </p>
         </div>
 
