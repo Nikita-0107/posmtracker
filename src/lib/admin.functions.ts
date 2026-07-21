@@ -352,3 +352,59 @@ export const deletePendingUser = createServerFn({ method: "POST" })
 
     return { ok: true };
   });
+
+// --- Super Admin: permanently delete ANY user (even with roles) ---
+const deleteUserSchema = z.object({
+  target_user_id: z.string().uuid(),
+  confirm_login_id: z.string().min(1),
+});
+
+export const deleteUserPermanently = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => deleteUserSchema.parse(d))
+  .handler(async ({ data, context }) => {
+    await assertCallerRole(context.supabase as never, context.userId, "admin");
+    if (data.target_user_id === context.userId) {
+      throw new Error("You cannot delete your own account.");
+    }
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    // Verify typed login ID matches the target profile (guard against misclicks).
+    const { data: prof, error: profErr } = await supabaseAdmin
+      .from("profiles").select("mobile, display_name").eq("id", data.target_user_id).maybeSingle();
+    if (profErr) throw new Error(profErr.message);
+    const targetLoginId = (prof as { mobile: string | null } | null)?.mobile ?? null;
+    if (!targetLoginId || targetLoginId.trim().toLowerCase() !== data.confirm_login_id.trim().toLowerCase()) {
+      throw new Error("Login ID confirmation does not match this user.");
+    }
+
+    // 1) Revoke access immediately so the account can't be used mid-delete.
+    const { error: rolesErr } = await supabaseAdmin
+      .from("user_roles").delete().eq("user_id", data.target_user_id);
+    if (rolesErr) throw new Error(`Failed to revoke roles: ${rolesErr.message}`);
+
+    // 2) Unlink identity from operational tables (nullable columns; history preserved).
+    await supabaseAdmin.from("wd_tls").update({ user_id: null }).eq("user_id", data.target_user_id);
+
+    // 3) Delete profile row.
+    await supabaseAdmin.from("profiles").delete().eq("id", data.target_user_id);
+
+    // 4) Attempt to delete the auth user. FK from historical audit tables may
+    //    block this — in that case, roles have still been revoked (account
+    //    effectively deactivated) and we surface a friendly message.
+    const { error: delErr } = await supabaseAdmin.auth.admin.deleteUser(data.target_user_id);
+    if (delErr) {
+      const msg = delErr.message || "";
+      if (/foreign key|violates|referenced/i.test(msg)) {
+        return {
+          ok: false,
+          deactivated: true,
+          message:
+            "This user has historical records (movements, approvals, etc.) and cannot be permanently deleted. Their access has been revoked instead.",
+        };
+      }
+      throw new Error(msg);
+    }
+
+    return { ok: true, deactivated: false };
+  });
