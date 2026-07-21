@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { resetUserPassword, deletePendingUser } from "@/lib/admin.functions";
+import { resetUserPassword, deletePendingUser, deleteUserPermanently } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
