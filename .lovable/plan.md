@@ -1,58 +1,47 @@
-## Bulk Material Receipt Planning
+## Goal
+Let Super Admins permanently delete **any** user account (not only Pending Setup ones), including users who already have a role assigned. No changes to normal app workflows.
 
-Adds a planned-receipt workflow that runs alongside the existing manual Receive page. Nothing in the current Receive flow changes.
+## Current state
+- `deletePendingUser` (in `src/lib/admin.functions.ts`) only works when the target has **zero rows** in `user_roles`. The UI Delete button in `admin.users.tsx` is shown only inside the "Pending Setup" section.
+- Deleting an active user is risky because many tables reference `auth.users(id)` via `created_by`, `user_id`, `tl_user_id`, `approver`, `reset_by`, etc. Some columns are `NOT NULL` (e.g. `stock_movements.created_by`), so a hard delete of the auth user could either fail on FK or wipe historical audit rows if there's a cascade.
 
-### Database (new migration)
+## Approach
+Add a new server function `deleteUserPermanently` used only by Super Admins. It performs a **safe hard delete**:
 
-New tables in `public`:
+1. Authorize: caller must have `admin` role; refuse self-delete.
+2. Revoke access first (so the account can't be used mid-delete):
+   - Delete all rows from `user_roles` for the target.
+3. Unlink identity from operational tables (nullable columns only — history preserved):
+   - `wd_tls.user_id = null`
+   - `hierarchy_ae.user_id = null` and `hierarchy_tl.user_id = null` (if such columns exist — verified during build)
+   - Any other nullable `*_user_id` link tables (`ae_assignments`, `wd_assignments`, `tl_inactivity_reasons` approver, `loss_approvers`, etc. — enumerated from schema before implementation).
+4. Delete `profiles` row for the user.
+5. Call `supabase.auth.admin.deleteUser(id)`.
+   - If Supabase returns a FK violation (i.e. `created_by`/`reset_by`/etc. still references this user via `NOT NULL` non-cascading FK), surface a clear error: **"Cannot delete: user has historical records (movements, approvals, etc.). Their access has been revoked instead."** The role revocation from step 2 stays, so the account is effectively deactivated even if hard-delete is blocked.
+6. Write an audit row into `password_reset_audit` (repurposed) or a new lightweight log — TBD in build step; simplest is reusing `master_data_audit` with an `action='user_deleted'` entry.
 
-- `receipt_plans` — `id`, `uploaded_by`, `wsp_user_id` (target WSP), `wsp_label`, `status` ('pending' | 'in_progress' | 'completed'), `total_materials`, `received_materials`, `notes`, timestamps.
-- `receipt_plan_items` — `id`, `plan_id` (FK), `material_id` (nullable until material is created/matched on upload — we resolve at upload time), `material_code_raw`, `material_description_raw`, `planned_qty`, `received_qty`, `status` ('pending' | 'received'), `proof_image_url`, `material_image_url`, `received_at`, `received_by`.
+The existing `deletePendingUser` stays as-is (no-role fast path) so nothing regresses.
 
-Both get GRANTs (authenticated + service_role), RLS enabled, `updated_at` triggers.
+## UI changes (`src/routes/admin.users.tsx`)
+- Show a **Delete** button (Trash icon, red) on every row when the viewer is Super Admin — not just in the Pending Setup section.
+- Two-step confirm dialog with the user's name + login ID typed to confirm (guards against accidents on active accounts).
+- On success: toast + refresh list. On the "historical records" error: toast the friendly message and note that roles were revoked.
+- Self-row: button hidden.
 
-Policies:
-- Admin/super admin: full access.
-- WSP: SELECT/UPDATE their own plan + items (`wsp_user_id = auth.uid()`).
+## What does **not** change
+- No changes to the normal app flows (dispatch, receipts, TL usage, WD, movements, reports).
+- No schema/RLS changes needed; only a new server function + UI button.
+- `deletePendingUser` untouched.
+- All FKs, historical rows, audit trails preserved.
 
-Storage: reuse existing proof/material image buckets used by `receive.tsx`.
+## Technical details for reviewer
+- New export in `src/lib/admin.functions.ts`: `deleteUserPermanently` (`createServerFn` + `requireSupabaseAuth`, `assertCallerRole(..., "admin")`).
+- Uses `supabaseAdmin` (service role) loaded inside the handler.
+- Zod input: `{ target_user_id: uuid, confirm_login_id: string }` — server double-checks the typed login ID matches `profiles.mobile` to prevent misclicks.
+- No new migration required in the default path. If we later decide to allow hard-delete despite historical rows, that would need FK `ON DELETE SET NULL` migrations on the referring columns — flagged as follow-up, not part of this change.
 
-### Server functions (`src/lib/receipt-plan.functions.ts`)
+## Deliverables
+1. `src/lib/admin.functions.ts` — add `deleteUserPermanently`.
+2. `src/routes/admin.users.tsx` — Super-Admin-only Delete button on every row, with typed-confirm dialog and error handling.
 
-All `createServerFn` + `requireSupabaseAuth`:
-
-- `uploadReceiptPlan({ wspUserId, rows: [{code, description, qty}] })` — admin only. For each row: look up material by code; if missing, insert into `materials` (code + description). Create plan + items. Returns `{ planId }`.
-- `listReceiptPlans({ scope })` — admin sees all; WSP sees own pending/in-progress.
-- `getReceiptPlan(planId)` — plan + items + material info (incl. existing material image).
-- `submitReceiptPlanItem({ itemId, receivedQty, proofImageUrl, materialImageUrl? })` — WSP confirms one line. Validates proof present. If material has no image and `materialImageUrl` provided, set it on `materials`. Insert a `stock_movements` receipt row (matching what manual Receive does) and bump `wd_stock`/`stock`. Mark item received, recompute plan counters, flip status to `in_progress` / `completed`.
-- `getReceiptPlanTracker()` — admin tracker rows.
-- `deleteReceiptPlan(planId)` — super admin, only if no items received.
-
-Reuse existing helpers from `receive.tsx` for stock insertion logic — extract the shared receipt write into a small helper if needed.
-
-### Parsing
-
-New `src/lib/parse-receipt-plan-xlsx.ts` modeled on `parse-dispatch-plan-xlsx.ts`. Columns: Material Code, Material Description, Quantity. Validates non-empty code, positive integer qty, dedupes rows by code (sum qty).
-
-### Routes
-
-New files (manual Receive route untouched):
-
-- `src/routes/admin.bulk-receipt.tsx` — upload UI: pick target WSP, drop xlsx, preview parsed rows (highlight which codes are new vs existing), submit. Mirrors `admin.bulk-dispatch.tsx`.
-- `src/routes/admin.bulk-receipt-tracker.tsx` — table of plans with columns from spec (Plan ID, Upload Date, WSP, Total, Received, Pending, Status) + drill-in.
-- `src/routes/receipt-plans.tsx` — WSP-facing list of their pending plans.
-- `src/routes/receipt-plans.$planId.tsx` — per-plan confirmation screen: for each item show planned qty, received-qty input, proof upload (required), material image upload (only if material has no image yet), submit-row button. Plan auto-completes when all items received.
-
-### Nav
-
-- `AdminTabs.tsx`: add "Bulk Receipt" and "Receipt Tracker" entries (super admin / admin).
-- `AppShell.tsx`: add "Pending Receipts" entry for WSP role pointing to `/receipt-plans`.
-
-### Constraints
-
-- Manual `receive.tsx` is not edited.
-- Stock writes go through the same movement type used by manual receive so reports remain consistent.
-- Material auto-create only sets `code` + `description`; image stays null until a WSP uploads one during confirmation.
-- Status transitions: pending → in_progress (first item received) → completed (all received).
-
-Approve and I'll implement.
+No other files touched.

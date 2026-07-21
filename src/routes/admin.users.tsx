@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/AppShell";
 import { AdminTabs } from "@/components/AdminTabs";
 import { wdMaster } from "@/lib/posm-data";
-import { resetUserPassword, deletePendingUser } from "@/lib/admin.functions";
+import { resetUserPassword, deletePendingUser, deleteUserPermanently } from "@/lib/admin.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
@@ -309,7 +309,11 @@ function UserRow({
   const isNeedsUpdate = !isSuperRow && needsUpdate(row, primary, false);
   const [showReset, setShowReset] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
   const deletePending = useServerFn(deletePendingUser);
+  const deleteAny = useServerFn(deleteUserPermanently);
+  const isSelf = row.id === currentUserId;
 
   const handleDeletePending = async () => {
     const label = row.display_name || row.mobile;
@@ -325,6 +329,32 @@ function UserRow({
       setDeleting(false);
     }
   };
+
+  const handleDeleteAny = async () => {
+    if (confirmText.trim().toLowerCase() !== row.mobile.trim().toLowerCase()) {
+      toast.error("Login ID does not match");
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await deleteAny({
+        data: { target_user_id: row.id, confirm_login_id: confirmText },
+      }) as { ok: boolean; deactivated: boolean; message?: string };
+      if (res.ok) {
+        toast.success("User permanently deleted");
+      } else if (res.deactivated) {
+        toast.success(res.message ?? "User access revoked");
+      }
+      setShowDeleteDialog(false);
+      setConfirmText("");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete user");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const canEdit =
     scope.is_super ||
@@ -391,6 +421,12 @@ function UserRow({
               {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete
             </button>
           )}
+          {scope.is_super && !isPending && !isSelf && (
+            <button onClick={() => setShowDeleteDialog(true)} disabled={deleting}
+              className="inline-flex items-center gap-1 rounded-md border border-destructive/40 bg-destructive/10 px-2 py-1 text-[11px] font-bold text-destructive hover:bg-destructive/20 disabled:opacity-50">
+              {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />} Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -400,6 +436,50 @@ function UserRow({
       )}
       {showReset && (
         <ResetPasswordModal row={row} onClose={() => setShowReset(false)} />
+      )}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl border bg-card p-4 shadow-xl">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="text-destructive shrink-0 mt-0.5" size={20} />
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-foreground">Permanently delete user?</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  This will revoke all roles and delete the account for{" "}
+                  <span className="font-semibold text-foreground">{row.display_name || row.mobile}</span>.
+                  If the user has historical records (movements, approvals, etc.), their access will
+                  be revoked but the account may be preserved for audit integrity.
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Type the login ID <span className="font-mono font-semibold text-foreground">{row.mobile}</span> to confirm:
+                </p>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoFocus
+                  className="mt-2 w-full rounded-md border bg-background px-2 py-1.5 text-sm font-mono"
+                  placeholder={row.mobile}
+                />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                onClick={() => { setShowDeleteDialog(false); setConfirmText(""); }}
+                disabled={deleting}
+                className="rounded-md border bg-background px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted disabled:opacity-50">
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAny}
+                disabled={deleting || confirmText.trim().toLowerCase() !== row.mobile.trim().toLowerCase()}
+                className="inline-flex items-center gap-1 rounded-md bg-destructive px-3 py-1.5 text-xs font-bold text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">
+                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
