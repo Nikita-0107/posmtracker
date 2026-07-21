@@ -309,7 +309,11 @@ function UserRow({
   const isNeedsUpdate = !isSuperRow && needsUpdate(row, primary, false);
   const [showReset, setShowReset] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
   const deletePending = useServerFn(deletePendingUser);
+  const deleteAny = useServerFn(deleteUserPermanently);
+  const isSelf = row.id === currentUserId;
 
   const handleDeletePending = async () => {
     const label = row.display_name || row.mobile;
@@ -325,6 +329,32 @@ function UserRow({
       setDeleting(false);
     }
   };
+
+  const handleDeleteAny = async () => {
+    if (confirmText.trim().toLowerCase() !== row.mobile.trim().toLowerCase()) {
+      toast.error("Login ID does not match");
+      return;
+    }
+    setDeleting(true);
+    try {
+      const res = await deleteAny({
+        data: { target_user_id: row.id, confirm_login_id: confirmText },
+      }) as { ok: boolean; deactivated: boolean; message?: string };
+      if (res.ok) {
+        toast.success("User permanently deleted");
+      } else if (res.deactivated) {
+        toast.success(res.message ?? "User access revoked");
+      }
+      setShowDeleteDialog(false);
+      setConfirmText("");
+      await reload();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed to delete user");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const canEdit =
     scope.is_super ||
